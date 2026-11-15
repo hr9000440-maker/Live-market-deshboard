@@ -1,1 +1,114 @@
 index.html
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HR Live Trading Pro</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;background:#080f1d;color:#fff;
+ font-family:Arial,sans-serif;padding:16px
+}
+header{display:flex;justify-content:space-between;
+ align-items:center;flex-wrap:wrap;gap:12px}
+h1{font-size:23px;color:#35d6a0}
+.status{color:#ffbd55;font-size:13px}
+.grid{display:grid;grid-template-columns:
+ repeat(auto-fit,minmax(220px,1fr));gap:15px;margin-top:22px}
+.card{background:#142238;padding:18px;border-radius:13px;
+ border:1px solid #263b55}
+.card h3{margin:0 0 15px;color:#9eb8d5}
+.price{font-size:26px;font-weight:bold}
+.muted{color:#9eb0c5;font-size:13px;margin-top:10px}
+.green{color:#35d6a0}
+.red{color:#ff6577}
+button{background:#167b68;color:white;border:0;
+ padding:12px 18px;border-radius:8px;margin:5px;
+ font-weight:bold}
+button:active{opacity:.7}
+.section{margin-top:25px}
+table{width:100%;border-collapse:collapse}
+td,th{padding:13px;text-align:left;
+ border-bottom:1px solid #30415a}
+footer{margin-top:30px;color:#8498b2;font-size:12px}
+</style>
+</head>
+<body>
+
+<header>
+ <div>
+  <h1>HR LIVE TRADING PRO</h1>
+  <div class="status">● MARKET DATA: API NOT CONNECTED</div>
+ </div>
+ <div id="clock">--:--:--</div>
+</header>
+
+<div class="grid">
+ <div class="card">
+  <h3>NIFTY 50</h3>
+  <div class="price">--</div>
+  <div class="muted">Waiting for Angel One API</div>
+ </div>
+ <div class="card">
+  <h3>BANK NIFTY</h3>
+  <div class="price">--</div>
+  <div class="muted">Waiting for Angel One API</div>
+ </div>
+ <div class="card">
+  <h3>SENSEX</h3>
+  <div class="price">--</div>
+  <div class="muted">Waiting for Angel One API</div>
+ </div>
+ <div class="card">
+  <h3>MCX</h3>
+  <div class="price">--</div>
+  <div class="muted">Waiting for Angel One API</div>
+ </div>
+</div>
+
+<div class="section card">
+ <h3>TRADING SIGNALS</h3>
+ <table>
+  <tr><th>Instrument</th><th>Signal</th><th>Timeframe</th></tr>
+  <tr><td>NIFTY</td><td>Waiting</td><td>15 Min</td></tr>
+  <tr><td>BANK NIFTY</td><td>Waiting</td><td>15 Min</td></tr>
+  <tr><td>SENSEX</td><td>Waiting</td><td>15 Min</td></tr>
+ </table>
+</div>
+
+<div class="section card">
+ <h3>TRADE PLANNER</h3>
+ <p>Entry: --</p>
+ <p class="green">Target: --</p>
+ <p class="red">Stop Loss: --</p>
+ <p class="muted">Live signal and risk calculation will be added after data connection.</p>
+</div>
+
+<div class="section card">
+ <h3>MARKET CONNECTION</h3>
+ <p>Angel One SmartAPI: Not Connected</p>
+ <p>Live WebSocket: Not Connected</p>
+ <button onclick="alert('Angel One API integration is the next step.')">
+ Connect API
+ </button>
+ <button onclick="location.reload()">Refresh Dashboard</button>
+</div>
+
+<footer>
+ HR LIVE TRADING PRO | Mobile + Desktop
+ <br>Market data is not connected. No live prices or trading signals are being displayed.
+</footer>
+
+<script>
+function updateClock(){
+ document.getElementById("clock").textContent =
+ new Date().toLocaleString("en-IN");
+}
+updateClock();
+setInterval(updateClock,1000);
+</script>
+</body>
+</html>
