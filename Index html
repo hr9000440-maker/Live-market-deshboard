@@ -1,0 +1,35 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Market Dashboard</title>
+<style>
+body{margin:0;background:#101827;color:white;font-family:Arial;text-align:center}
+header{background:#087b50;padding:20px;font-size:24px;font-weight:bold}
+.card{background:#1e293b;margin:15px;padding:22px;border-radius:12px}
+.price{font-size:27px;color:#00e69a}
+.status{color:orange}
+</style>
+</head>
+<body>
+<header>LIVE MARKET DASHBOARD</header>
+<div class="card">
+<h2>NIFTY 50</h2>
+<div class="price" id="nifty">--</div>
+<div class="status">Connecting Soon</div>
+</div>
+<div class="card">
+<h2>SENSEX</h2>
+<div class="price" id="sensex">--</div>
+<div class="status">Connecting Soon</div>
+</div>
+<div class="card">
+<h2>MCX MARKET</h2>
+<div class="price">--</div>
+<div class="status">Connecting Soon</div>
+</div>
+<p>Live market data connection pending</p>
+</body>
+</html>
