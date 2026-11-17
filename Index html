@@ -156,6 +156,5 @@ document.title="LIVE MARKET DASHBOARD";
 updateTime();
 setInterval(updateTime,1000);
 </script>
-
 </body>
 </html>
