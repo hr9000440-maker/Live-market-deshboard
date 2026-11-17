@@ -61,6 +61,11 @@ header{background:#087b50;padding:20px;font-size:24px;font-weight:bold}
 
   <p>15 Minute Candle Confirmation: Pending</p>
 </div>
+<script>
+setInterval(() => {
+  location.reload();
+}, 60000);
+</script>
 
 </body>
 </html>
