@@ -4,69 +4,158 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Live Market Dashboard</title>
+<title>LIVE MARKET DASHBOARD</title>
 <style>
-body{margin:0;background:#101827;color:white;font-family:Arial;text-align:center}
-header{background:#087b50;padding:20px;font-size:24px;font-weight:bold}
-.card{background:#1e293b;margin:15px;padding:22px;border-radius:12px}
-.price{font-size:27px;color:#00e69a}
-.status{color:orange}
+*{box-sizing:border-box}
+body{
+margin:0;
+font-family:Arial,sans-serif;
+background:#0b1220;
+color:white;
+}
+header{
+background:#14243d;
+padding:20px 10px;
+text-align:center;
+font-size:24px;
+font-weight:bold;
+color:#00e5ff;
+}
+.container{padding:15px}
+h2{
+color:#00e5ff;
+border-bottom:1px solid #34445c;
+padding-bottom:8px;
+}
+.grid{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(145px,1fr));
+gap:12px;
+}
+.card{
+background:#17263d;
+padding:18px 10px;
+border-radius:12px;
+text-align:center;
+border:1px solid #30445f;
+}
+.card h3{font-size:16px;margin:5px}
+.price{
+font-size:21px;
+font-weight:bold;
+color:#00e5ff;
+margin:10px 0;
+}
+.status{color:#ffcc00;font-size:13px}
+footer{
+text-align:center;
+padding:20px;
+color:#9aabc2;
+font-size:12px;
+}
 </style>
 </head>
 <body>
-<header>LIVE MARKET DASHBOARD</header>
+
+<header>📊 LIVE MARKET DASHBOARD</header>
+
+<div class="container">
+
+<h2>🇮🇳 INDEX MARKET</h2>
+<div class="grid">
 <div class="card">
-<h2>NIFTY 50</h2>
-<div class="price" id="nifty">--</div>
-<div class="status">Connecting Soon</div>
-</div>
-<div class="card">
-<h2>SENSEX</h2>
-<div class="price" id="sensex">--</div>
-<div class="status">Connecting Soon</div>
-</div>
-<div class="card">
-<h2>MCX MARKET</h2>
+<h3>NIFTY 50</h3>
 <div class="price">--</div>
-<div class="status">Connecting Soon</div>
+<div class="status">Data Pending</div>
 </div>
-<p>Live market data connection pending</p>
 
-<div id="market">
-  <h2>LIVE INDIAN MARKET DASHBOARD</h2>
-
-  <div>
-    <h3>NIFTY 50</h3>
-    <p id="nifty">Waiting for live data...</p>
-    <p id="niftySignal">Signal: WAIT</p>
-  </div>
-
-  <div>
-    <h3>BANK NIFTY</h3>
-    <p id="banknifty">Waiting for live data...</p>
-    <p id="bankSignal">Signal: WAIT</p>
-  </div>
-
-  <div>
-    <h3>SENSEX</h3>
-    <p id="sensex">Waiting for live data...</p>
-    <p id="sensexSignal">Signal: WAIT</p>
-  </div>
-
-  <div>
-    <h3>MCX</h3>
-    <p id="mcx">Waiting for live data...</p>
-    <p id="mcxSignal">Signal: WAIT</p>
-  </div>
-
-  <p>15 Minute Candle Confirmation: Pending</p>
+<div class="card">
+<h3>BANK NIFTY</h3>
+<div class="price">--</div>
+<div class="status">Data Pending</div>
 </div>
+
+<div class="card">
+<h3>SENSEX</h3>
+<div class="price">--</div>
+<div class="status">Data Pending</div>
+</div>
+</div>
+
+<h2>📈 INDEX FUTURES</h2>
+<div class="grid">
+<div class="card">
+<h3>NIFTY FUTURE</h3>
+<div class="price">--</div>
+<div class="status">Data Pending</div>
+</div>
+<div class="card">
+<h3>BANK NIFTY FUTURE</h3>
+<div class="price">--</div>
+<div class="status">Data Pending</div>
+</div>
+</div>
+
+<h2>⚡ INDEX OPTIONS</h2>
+<div class="grid">
+<div class="card">
+<h3>NIFTY CALL / PUT</h3>
+<div class="price">CE / PE</div>
+<div class="status">Options Section</div>
+</div>
+<div class="card">
+<h3>BANK NIFTY CALL / PUT</h3>
+<div class="price">CE / PE</div>
+<div class="status">Options Section</div>
+</div>
+</div>
+
+<h2>🥇 MCX MARKET</h2>
+<div class="grid">
+<div class="card">
+<h3>GOLD</h3>
+<div class="price">--</div>
+<div class="status">Data Pending</div>
+</div>
+<div class="card">
+<h3>SILVER</h3>
+<div class="price">--</div>
+<div class="status">Data Pending</div>
+</div>
+<div class="card">
+<h3>CRUDE OIL</h3>
+<div class="price">--</div>
+<div class="status">Data Pending</div>
+</div>
+</div>
+
+<h2>📊 MCX FUTURES & OPTIONS</h2>
+<div class="grid">
+<div class="card">
+<h3>MCX FUTURES</h3>
+<div class="price">GOLD / SILVER</div>
+<div class="status">Futures Section</div>
+</div>
+<div class="card">
+<h3>MCX OPTIONS</h3>
+<div class="price">CE / PE</div>
+<div class="status">Options Section</div>
+</div>
+</div>
+
+<footer>
+LIVE MARKET DASHBOARD<br>
+Prices require a connected live market data API.
+</footer>
+
 <script>
-setInterval(() => {
-  location.reload();
-}, 60000);
+function updateTime(){
+const now=new Date();
+document.title="LIVE MARKET DASHBOARD";
+}
+updateTime();
+setInterval(updateTime,1000);
 </script>
+
 </body>
 </html>
-
-
