@@ -147,7 +147,6 @@ font-size:12px;
 LIVE MARKET DASHBOARD<br>
 Prices require a connected live market data API.
 </footer>
-
 <script>
 function updateTime(){
 const now=new Date();
