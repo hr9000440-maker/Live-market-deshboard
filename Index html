@@ -56,11 +56,8 @@ font-size:12px;
 </style>
 </head>
 <body>
-
 <header>📊 LIVE MARKET DASHBOARD</header>
-
 <div class="container">
-
 <h2>🇮🇳 INDEX MARKET</h2>
 <div class="grid">
 <div class="card">
@@ -68,20 +65,17 @@ font-size:12px;
 <div class="price">--</div>
 <div class="status">Data Pending</div>
 </div>
-
 <div class="card">
 <h3>BANK NIFTY</h3>
 <div class="price">--</div>
 <div class="status">Data Pending</div>
 </div>
-
 <div class="card">
 <h3>SENSEX</h3>
 <div class="price">--</div>
 <div class="status">Data Pending</div>
 </div>
 </div>
-
 <h2>📈 INDEX FUTURES</h2>
 <div class="grid">
 <div class="card">
@@ -95,7 +89,6 @@ font-size:12px;
 <div class="status">Data Pending</div>
 </div>
 </div>
-
 <h2>⚡ INDEX OPTIONS</h2>
 <div class="grid">
 <div class="card">
@@ -109,7 +102,6 @@ font-size:12px;
 <div class="status">Options Section</div>
 </div>
 </div>
-
 <h2>🥇 MCX MARKET</h2>
 <div class="grid">
 <div class="card">
@@ -128,7 +120,6 @@ font-size:12px;
 <div class="status">Data Pending</div>
 </div>
 </div>
-
 <h2>📊 MCX FUTURES & OPTIONS</h2>
 <div class="grid">
 <div class="card">
