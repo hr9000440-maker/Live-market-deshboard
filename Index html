@@ -142,7 +142,6 @@ font-size:12px;
 <div class="status">Options Section</div>
 </div>
 </div>
-
 <footer>
 LIVE MARKET DASHBOARD<br>
 Prices require a connected live market data API.
