@@ -30,28 +30,67 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 <header><h1>📊 LIVE MARKET DASHBOARD</h1><p>INDEX • FUTURES • OPTIONS • MCX • CRYPTO</p></header>
 <main>
 <section class="panel">
-<h2>🔴 Live Market Ticker</h2>
+<h2>🔴 LIVE MARKET TICKER — INDEX</h2>
 <div class="ticker">
-<div class="tradingview-widget-container">
-<div class="tradingview-widget-container__widget"></div>
-<script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
-{
-  "symbols": [
-    {"proName":"NSE:NIFTY","title":"NIFTY 50"},
-    {"proName":"NSE:BANKNIFTY","title":"BANK NIFTY"},
-    {"proName":"BSE:SENSEX","title":"SENSEX"}
-  ],
-  "colorTheme": "dark",
-  "isTransparent": true,
-  "showSymbolLogo": true,
-  "displayMode": "adaptive",
-  "locale": "en",
-  "width": "100%",
-  "height": 360
-}
-</script>
+  <div class="tradingview-widget-container">
+    <div class="tradingview-widget-container__widget"></div>
+    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
+    {
+      "symbols": [
+        {"proName":"NSE:NIFTY","title":"NIFTY 50"},
+        {"proName":"NSE:BANKNIFTY","title":"BANK NIFTY"},
+        {"proName":"BSE:SENSEX","title":"SENSEX"}
+      ],
+      "showSymbolLogo": true,
+      "colorTheme": "dark",
+      "isTransparent": true,
+      "displayMode": "compact",
+      "locale": "en"
+    }
+    </script>
+  </div>
 </div>
-<p class="note">यह अलग multi-symbol Tickers widget है, जिसमें हर उपलब्ध symbol का latest price और daily change दिखता है। Exchange feed की उपलब्धता के अनुसार भाव real-time या delayed हो सकते हैं।</p>
+<h2 style="margin-top:18px">📈 LIVE FUTURES & MCX</h2>
+<div class="tradingview-widget-container">
+  <div class="tradingview-widget-container__widget"></div>
+  <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
+  {
+    "symbols": [
+      {"proName":"NSE:NIFTY1!","title":"NIFTY FUTURE"},
+      {"proName":"NSE:BANKNIFTY1!","title":"BANK NIFTY FUTURE"},
+      {"proName":"MCX:GOLD1!","title":"GOLD FUTURE"},
+      {"proName":"MCX:SILVER1!","title":"SILVER FUTURE"},
+      {"proName":"MCX:CRUDEOIL1!","title":"CRUDE OIL FUTURE"},
+      {"proName":"MCX:NATURALGAS1!","title":"NATURAL GAS FUTURE"}
+    ],
+    "showSymbolLogo": true,
+    "colorTheme": "dark",
+    "isTransparent": true,
+    "displayMode": "compact",
+    "locale": "en"
+  }
+  </script>
+</div>
+<h2 style="margin-top:18px">₿ LIVE CRYPTO</h2>
+<div class="tradingview-widget-container">
+  <div class="tradingview-widget-container__widget"></div>
+  <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
+  {
+    "symbols": [
+      {"proName":"BINANCE:BTCUSDT","title":"BITCOIN"},
+      {"proName":"BINANCE:ETHUSDT","title":"ETHEREUM"},
+      {"proName":"BINANCE:ZECUSDT","title":"ZCASH"},
+      {"proName":"BINANCE:BNBUSDT","title":"BNB"}
+    ],
+    "showSymbolLogo": true,
+    "colorTheme": "dark",
+    "isTransparent": true,
+    "displayMode": "compact",
+    "locale": "en"
+  }
+  </script>
+</div>
+<p class="note">अलग-अलग widgets रखे गए हैं ताकि किसी एक symbol/feed की समस्या से बाकी market groups प्रभावित न हों। भाव TradingView और संबंधित exchange feed की उपलब्धता पर निर्भर हैं; कुछ data delayed हो सकता है।</p>
 </section>
 
 <section class="panel">
