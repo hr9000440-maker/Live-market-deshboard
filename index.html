@@ -3,56 +3,152 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Live Market Dashboard</title>
+<title>LIVE MARKET DASHBOARD</title>
 <style>
 :root{color-scheme:dark;--bg:#08111f;--panel:#132238;--line:#29415f;--cyan:#28d7ef;--muted:#9db0c9}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:#f4f8ff;font:15px Arial,sans-serif}
-header{padding:18px 14px;text-align:center;background:#10233b;border-bottom:1px solid var(--line)}
-header h1{margin:0;color:var(--cyan);font-size:22px}header p{margin:7px 0 0;color:var(--muted);font-size:12px}
-main{max-width:1100px;margin:auto;padding:14px}
-h2{font-size:18px;color:var(--cyan);margin:22px 0 10px}
+header{padding:20px 14px;text-align:center;background:#10233b;border-bottom:1px solid var(--line)}
+header h1{margin:0;color:var(--cyan);font-size:23px}header p{margin:8px 0 0;color:var(--muted);font-size:12px}
+main{max-width:1150px;margin:auto;padding:14px}
+h2{font-size:18px;color:var(--cyan);margin:4px 0 12px}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
-.tv-wrap{min-height:80px;overflow:hidden}.chart{height:480px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px}
+.card{background:#09192b;border:1px solid var(--line);border-radius:9px;padding:13px;min-height:88px}
+.card h3{font-size:14px;margin:0 0 9px}.value{font-size:17px;font-weight:bold;color:var(--cyan)}
+.note{font-size:12px;color:var(--muted);line-height:1.55}
 label{display:block;color:var(--muted);font-size:13px;margin:10px 0 5px}
 input,select{width:100%;padding:12px;border-radius:8px;border:1px solid var(--line);background:#081727;color:white;font-size:16px}
 button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color:#00131a;font-weight:bold;margin-top:12px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px}
+.chart{height:480px;width:100%;border:0;border-radius:8px;background:#09192b}
 .result{background:#09192b;border:1px solid var(--line);border-radius:9px;padding:12px}
 .result small{display:block;color:var(--muted);margin-bottom:6px}.result strong{font-size:18px;overflow-wrap:anywhere}
-.note{font-size:12px;color:var(--muted);line-height:1.5}
-@media(max-width:600px){.chart{height:390px}}
+.ticker{min-height:75px;overflow:hidden}
+@media(max-width:600px){.chart{height:390px}main{padding:10px}}
 </style>
 </head>
 <body>
 <header><h1>📊 LIVE MARKET DASHBOARD</h1><p>INDEX • FUTURES • OPTIONS • MCX • CRYPTO</p></header>
 <main>
-<section class="panel"><h2>Live Market Ticker</h2><div class="tv-wrap">
-<tv-ticker-tape symbols="NSE:NIFTY,NSE:BANKNIFTY,BSE:SENSEX,MCX:GOLD,MCX:SILVER,MCX:CRUDEOIL,BINANCE:BTCUSDT,BINANCE:ETHUSDT,BINANCE:ZECUSDT,BINANCE:BNBUSDT" direction="horizontal" item-size="compact">
-<div style="padding:18px;color:#9db0c9;text-align:center">Live market prices are loading…</div>
+<section class="panel">
+<h2>🔴 Live Market Ticker</h2>
+<div class="ticker">
+<tv-ticker-tape symbols="NSE:NIFTY,NSE:BANKNIFTY,BSE:SENSEX,NSE:NIFTY1!,NSE:BANKNIFTY1!,MCX:GOLD1!,MCX:SILVER1!,MCX:CRUDEOIL1!,MCX:NATURALGAS1!,BINANCE:BTCUSDT,BINANCE:ETHUSDT,BINANCE:ZECUSDT,BINANCE:BNBUSDT" direction="horizontal" item-size="compact">
+<div class="note">TradingView live ticker load हो रहा है…</div>
 </tv-ticker-tape>
-<script type="module" src="https://www.tradingview-widget.com/w/en/tv-ticker-tape.js"></script></section>
-<section class="panel"><h2>Market Chart</h2><label for="symbol">Chart Symbol</label>
-<select id="symbol" onchange="loadChart()"><option value="NSE:NIFTY">NIFTY 50</option><option value="NSE:BANKNIFTY">BANK NIFTY</option><option value="BSE:SENSEX">SENSEX</option><option value="MCX:GOLD">GOLD</option><option value="MCX:SILVER">SILVER</option><option value="MCX:CRUDEOIL">CRUDE OIL</option><option value="BINANCE:BTCUSDT">BTC/USDT</option><option value="BINANCE:ETHUSDT">ETH/USDT</option><option value="BINANCE:ZECUSDT">ZEC/USDT</option><option value="BINANCE:BNBUSDT">BNB/USDT</option></select>
-<div id="chart" class="chart"></div><p class="note">चार्ट और लाइव भाव TradingView के उपलब्ध डेटा/एक्सचेंज कवरेज पर निर्भर हैं। कुछ भारतीय फ्यूचर/ऑप्शन कॉन्ट्रैक्ट के लिए अलग डेटा अनुमति की जरूरत हो सकती है।</p></section>
-<section class="panel"><h2>SL / TP Trade Calculator</h2><div class="grid">
+</div>
+<p class="note">भाव TradingView और संबंधित एक्सचेंज की उपलब्धता पर निर्भर हैं। कुछ डेटा delayed हो सकता है।</p>
+</section>
+
+<section class="panel">
+<h2>🇮🇳 INDEX MARKET</h2>
+<div class="grid">
+<div class="card"><h3>NIFTY 50</h3><div class="value">NSE:NIFTY</div><div class="note">Live chart / ticker</div></div>
+<div class="card"><h3>BANK NIFTY</h3><div class="value">NSE:BANKNIFTY</div><div class="note">Live chart / ticker</div></div>
+<div class="card"><h3>SENSEX</h3><div class="value">BSE:SENSEX</div><div class="note">Live chart / ticker</div></div>
+</div>
+</section>
+
+<section class="panel">
+<h2>📈 INDEX FUTURES</h2>
+<div class="grid">
+<div class="card"><h3>NIFTY FUTURE</h3><div class="value">NSE:NIFTY1!</div><div class="note">Continuous futures symbol</div></div>
+<div class="card"><h3>BANK NIFTY FUTURE</h3><div class="value">NSE:BANKNIFTY1!</div><div class="note">Continuous futures symbol</div></div>
+</div>
+</section>
+
+<section class="panel">
+<h2>⚡ INDEX OPTIONS</h2>
+<div class="grid">
+<div class="card"><h3>NIFTY CALL / PUT</h3><div class="value">CE / PE</div><div class="note">Expiry और strike चुनकर specific contract देखें।</div></div>
+<div class="card"><h3>BANK NIFTY CALL / PUT</h3><div class="value">CE / PE</div><div class="note">Expiry और strike चुनकर specific contract देखें।</div></div>
+<div class="card"><h3>OPTION CONTRACT CHART</h3><div class="note">नीचे Chart Symbol में अपने broker/TradingView का exact option symbol डालें।</div></div>
+</div>
+</section>
+
+<section class="panel">
+<h2>🥇 MCX MARKET & FUTURES</h2>
+<div class="grid">
+<div class="card"><h3>GOLD FUTURE</h3><div class="value">MCX:GOLD1!</div></div>
+<div class="card"><h3>SILVER FUTURE</h3><div class="value">MCX:SILVER1!</div></div>
+<div class="card"><h3>CRUDE OIL FUTURE</h3><div class="value">MCX:CRUDEOIL1!</div></div>
+<div class="card"><h3>NATURAL GAS FUTURE</h3><div class="value">MCX:NATURALGAS1!</div></div>
+</div>
+</section>
+
+<section class="panel">
+<h2>🪙 MCX OPTIONS</h2>
+<div class="grid">
+<div class="card"><h3>GOLD OPTIONS</h3><div class="value">CE / PE</div><div class="note">Exact expiry और strike आवश्यक।</div></div>
+<div class="card"><h3>SILVER OPTIONS</h3><div class="value">CE / PE</div><div class="note">Exact expiry और strike आवश्यक।</div></div>
+<div class="card"><h3>CRUDE OIL OPTIONS</h3><div class="value">CE / PE</div><div class="note">Exact expiry और strike आवश्यक।</div></div>
+<div class="card"><h3>NATURAL GAS OPTIONS</h3><div class="value">CE / PE</div><div class="note">Exact expiry और strike आवश्यक।</div></div>
+</div>
+</section>
+
+<section class="panel">
+<h2>₿ CRYPTO SPOT & FUTURES</h2>
+<div class="grid">
+<div class="card"><h3>BITCOIN</h3><div class="value">BINANCE:BTCUSDT</div><div class="note">Spot / perpetual symbol chart</div></div>
+<div class="card"><h3>ETHEREUM</h3><div class="value">BINANCE:ETHUSDT</div><div class="note">Spot / perpetual symbol chart</div></div>
+<div class="card"><h3>ZCASH</h3><div class="value">BINANCE:ZECUSDT</div><div class="note">Spot / perpetual symbol chart</div></div>
+<div class="card"><h3>BNB</h3><div class="value">BINANCE:BNBUSDT</div><div class="note">Spot / perpetual symbol chart</div></div>
+</div>
+</section>
+
+<section class="panel">
+<h2>📊 LIVE CHART (15 MIN)</h2>
+<label for="symbol">Chart Symbol</label>
+<input id="symbol" list="symbols" value="NSE:NIFTY" placeholder="उदाहरण: NSE:NIFTY">
+<datalist id="symbols">
+<option value="NSE:NIFTY"><option value="NSE:BANKNIFTY"><option value="BSE:SENSEX">
+<option value="NSE:NIFTY1!"><option value="NSE:BANKNIFTY1!">
+<option value="MCX:GOLD1!"><option value="MCX:SILVER1!"><option value="MCX:CRUDEOIL1!"><option value="MCX:NATURALGAS1!">
+<option value="BINANCE:BTCUSDT"><option value="BINANCE:ETHUSDT"><option value="BINANCE:ZECUSDT"><option value="BINANCE:BNBUSDT">
+</datalist>
+<button type="button" onclick="loadChart()">चार्ट दिखाएँ</button>
+<iframe id="chart" class="chart" title="TradingView market chart" loading="lazy" src="https://www.tradingview.com/widgetembed/?symbol=NSE%3ANIFTY&interval=15&hidesidetoolbar=0&symboledit=1&saveimage=0&toolbarbg=08111f&theme=dark&style=1&timezone=Asia%2FKolkata&withdateranges=1&hideideas=1"></iframe>
+<p class="note">किसी specific option contract का chart देखने के लिए उसका पूरा TradingView symbol ऊपर डालें। Symbol की उपलब्धता TradingView पर निर्भर है।</p>
+</section>
+
+<section class="panel">
+<h2>🧮 SL / TP TRADE CALCULATOR</h2>
+<div class="grid">
 <div><label for="side">Trade Direction</label><select id="side" onchange="calculate()"><option value="long">BUY / LONG</option><option value="short">SELL / SHORT</option></select></div>
 <div><label for="entry">Entry Price</label><input id="entry" type="number" step="any" placeholder="Entry price" oninput="calculate()"></div>
-<div><label for="sl">Stop Loss (SL)</label><input id="sl" type="number" step="any" placeholder="Stop loss price" oninput="calculate()"></div>
-<div><label for="tp">Target Price (TP)</label><input id="tp" type="number" step="any" placeholder="Target price" oninput="calculate()"></div>
+<div><label for="sl">Stop Loss</label><input id="sl" type="number" step="any" placeholder="Stop loss" oninput="calculate()"></div>
+<div><label for="tp">Target Price</label><input id="tp" type="number" step="any" placeholder="Target" oninput="calculate()"></div>
 <div><label for="qty">Quantity</label><input id="qty" type="number" min="0" step="any" placeholder="Quantity" oninput="calculate()"></div>
-</div><div class="grid" style="margin-top:14px">
+</div>
+<div class="grid" style="margin-top:14px">
 <div class="result"><small>SL Distance</small><strong id="slDist">—</strong></div>
 <div class="result"><small>TP Distance</small><strong id="tpDist">—</strong></div>
 <div class="result"><small>Estimated Risk</small><strong id="risk">—</strong></div>
 <div class="result"><small>Potential Reward</small><strong id="reward">—</strong></div>
 <div class="result"><small>Risk : Reward</small><strong id="rr">—</strong></div>
-</div><p id="warning" class="note">Entry, SL, TP और Quantity भरें। यह कैलकुलेटर अनुमानित गणना करता है; ऑर्डर नहीं लगाता।</p></section>
-<footer class="note" style="text-align:center;padding:12px">Market data may be delayed. This dashboard is for information and calculation, not financial advice or trade execution.</footer>
+</div>
+<p id="warning" class="note">Entry, SL, Target और Quantity भरें। यह कैलकुलेटर ऑर्डर नहीं लगाता।</p>
+</section>
+<footer class="note" style="text-align:center;padding:12px">यह dashboard जानकारी और गणना के लिए है, trade execution या financial advice नहीं। Live data, exchange permissions और symbol availability अलग-अलग हो सकती है।</footer>
 </main>
+<script type="module" src="https://www.tradingview-widget.com/w/en/tv-ticker-tape.js"></script>
 <script>
-function loadChart(){const s=document.getElementById('symbol').value;document.getElementById('chart').innerHTML='<div class="tradingview-widget-container" style="height:100%;width:100%"><div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div><script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async><\/script></div>';const c=document.getElementById('chart');const script=c.querySelector('script');script.innerHTML=JSON.stringify({autosize:true,symbol:s,interval:"15",timezone:"Asia/Kolkata",theme:"dark",style:"1",locale:"en",allow_symbol_change:true,calendar:false,support_host:"https://www.tradingview.com"});}
+function loadChart(){
+ const symbol=document.getElementById('symbol').value.trim();
+ if(!symbol){return}
+ const params=new URLSearchParams({symbol,interval:'15',hidesidetoolbar:'0',symboledit:'1',saveimage:'0',toolbarbg:'08111f',theme:'dark',style:'1',timezone:'Asia/Kolkata',withdateranges:'1',hideideas:'1'});
+ document.getElementById('chart').src='https://www.tradingview.com/widgetembed/?'+params.toString();
+}
 function fmt(n){return Number.isFinite(n)?n.toLocaleString('en-IN',{maximumFractionDigits:4}):'—'}
-function calculate(){const e=Number(document.getElementById('entry').value),s=Number(document.getElementById('sl').value),t=Number(document.getElementById('tp').value),q=Number(document.getElementById('qty').value),side=document.getElementById('side').value;const valid=e>0&&s>0&&t>0&&q>0;const riskPer=side==='long'?e-s:s-e;const rewardPer=side==='long'?t-e:e-t;document.getElementById('slDist').textContent=valid?fmt(Math.abs(e-s)):'—';document.getElementById('tpDist').textContent=valid?fmt(Math.abs(t-e)):'—';document.getElementById('risk').textContent=valid?fmt(Math.abs(riskPer*q)):'—';document.getElementById('reward').textContent=valid?fmt(Math.abs(rewardPer*q)):'—';document.getElementById('rr').textContent=valid&&riskPer>0&&rewardPer>0?(rewardPer/riskPer).toFixed(2)+' : 1':'—';document.getElementById('warning').textContent=!valid?'Entry, SL, TP और Quantity भरें।':(riskPer<=0||rewardPer<=0?'जाँचें: LONG में SL entry से नीचे और TP ऊपर होना चाहिए; SHORT में SL ऊपर और TP नीचे।':'अनुमानित गणना। Brokerage, taxes, slippage, lot size और funding शामिल नहीं हैं; यह ऑर्डर नहीं लगाता।');}
-loadChart();
+function calculate(){
+ const e=Number(document.getElementById('entry').value),s=Number(document.getElementById('sl').value),t=Number(document.getElementById('tp').value),q=Number(document.getElementById('qty').value),side=document.getElementById('side').value;
+ const valid=e>0&&s>0&&t>0&&q>0, riskPer=side==='long'?e-s:s-e, rewardPer=side==='long'?t-e:e-t;
+ document.getElementById('slDist').textContent=valid?fmt(Math.abs(e-s)):'—';
+ document.getElementById('tpDist').textContent=valid?fmt(Math.abs(t-e)):'—';
+ document.getElementById('risk').textContent=valid?fmt(Math.abs(riskPer*q)):'—';
+ document.getElementById('reward').textContent=valid?fmt(Math.abs(rewardPer*q)):'—';
+ document.getElementById('rr').textContent=valid&&riskPer>0&&rewardPer>0?(rewardPer/riskPer).toFixed(2)+' : 1':'—';
+ document.getElementById('warning').textContent=!valid?'Entry, SL, Target और Quantity भरें।':(riskPer<=0||rewardPer<=0?'जाँचें: LONG में SL entry से नीचे और Target ऊपर; SHORT में SL ऊपर और Target नीचे होना चाहिए।':'अनुमानित गणना। Brokerage, taxes, slippage, lot size और funding शामिल नहीं हैं।');
+}
 </script>
-</body></html>
+</body>
+</html>
