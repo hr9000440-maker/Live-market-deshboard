@@ -32,7 +32,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 <section class="panel">
 <h2>🔴 Live Market Ticker</h2>
 <div class="ticker">
-<tv-ticker-tape symbols="NSE:NIFTY,NSE:BANKNIFTY,BSE:SENSEX,NSE:NIFTY1!,NSE:BANKNIFTY1!,MCX:GOLD1!,MCX:SILVER1!,MCX:CRUDEOIL1!,MCX:NATURALGAS1!,BINANCE:BTCUSDT,BINANCE:ETHUSDT,BINANCE:ZECUSDT,BINANCE:BNBUSDT" direction="horizontal" item-size="compact">
+<tv-ticker-tape symbols="NSE:NIFTY,NSE:BANKNIFTY,BSE:SENSEX,NSE:FINNIFTY,NSE:MIDCPNIFTY,NSE:NIFTY1!,NSE:BANKNIFTY1!,MCX:GOLD1!,MCX:SILVER1!,MCX:CRUDEOIL1!,MCX:NATURALGAS1!,BINANCE:BTCUSDT,BINANCE:ETHUSDT,BINANCE:ZECUSDT,BINANCE:BNBUSDT" direction="horizontal" item-size="compact">
 <div class="note">TradingView live ticker load हो रहा है…</div>
 </tv-ticker-tape>
 </div>
@@ -45,6 +45,8 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 <div class="card"><h3>NIFTY 50</h3><div class="value">NSE:NIFTY</div><div class="note">Live chart / ticker</div></div>
 <div class="card"><h3>BANK NIFTY</h3><div class="value">NSE:BANKNIFTY</div><div class="note">Live chart / ticker</div></div>
 <div class="card"><h3>SENSEX</h3><div class="value">BSE:SENSEX</div><div class="note">Live chart / ticker</div></div>
+<div class="card"><h3>FINNIFTY</h3><div class="value">NSE:FINNIFTY</div><div class="note">Live chart / ticker</div></div>
+<div class="card"><h3>MIDCAP NIFTY</h3><div class="value">NSE:MIDCPNIFTY</div><div class="note">Live chart / ticker</div></div>
 </div>
 </section>
 
@@ -100,7 +102,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 <label for="symbol">Chart Symbol</label>
 <input id="symbol" list="symbols" value="NSE:NIFTY" placeholder="उदाहरण: NSE:NIFTY">
 <datalist id="symbols">
-<option value="NSE:NIFTY"><option value="NSE:BANKNIFTY"><option value="BSE:SENSEX">
+<option value="NSE:NIFTY"><option value="NSE:BANKNIFTY"><option value="BSE:SENSEX"><option value="NSE:FINNIFTY"><option value="NSE:MIDCPNIFTY">
 <option value="NSE:NIFTY1!"><option value="NSE:BANKNIFTY1!">
 <option value="MCX:GOLD1!"><option value="MCX:SILVER1!"><option value="MCX:CRUDEOIL1!"><option value="MCX:NATURALGAS1!">
 <option value="BINANCE:BTCUSDT"><option value="BINANCE:ETHUSDT"><option value="BINANCE:ZECUSDT"><option value="BINANCE:BNBUSDT">
