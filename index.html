@@ -66,14 +66,35 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 </section>
 
 <section class="panel">
-<h2>🇮🇳 INDEX MARKET</h2>
-<div class="grid">
-<div class="card"><h3>NIFTY 50</h3><div class="tradingview-widget-container tv-info"><div class="tradingview-widget-container__widget"></div><script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js" async>{"symbol":"NSE:NIFTY","width":"100%","locale":"en","colorTheme":"dark","isTransparent":true}</script></div></div>
-<div class="card"><h3>BANK NIFTY</h3><div class="tradingview-widget-container tv-info"><div class="tradingview-widget-container__widget"></div><script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js" async>{"symbol":"NSE:BANKNIFTY","width":"100%","locale":"en","colorTheme":"dark","isTransparent":true}</script></div></div>
-<div class="card"><h3>SENSEX</h3><div class="tradingview-widget-container tv-info"><div class="tradingview-widget-container__widget"></div><script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js" async>{"symbol":"BSE:SENSEX","width":"100%","locale":"en","colorTheme":"dark","isTransparent":true}</script></div></div>
-<div class="card"><h3>FINNIFTY</h3><div class="tradingview-widget-container tv-info"><div class="tradingview-widget-container__widget"></div><script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js" async>{"symbol":"NSE:CNXFINANCE","width":"100%","locale":"en","colorTheme":"dark","isTransparent":true}</script></div></div>
-<div class="card"><h3>MIDCAP NIFTY</h3><div class="tradingview-widget-container tv-info"><div class="tradingview-widget-container__widget"></div><script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js" async>{"symbol":"NSE:NIFTY_MID_SELECT","width":"100%","locale":"en","colorTheme":"dark","isTransparent":true}</script></div></div>
+<h2>🇮🇳 INDEX & 🥇 MCX LIVE QUOTES</h2>
+<div class="tradingview-widget-container" style="width:100%;min-height:360px">
+<div class="tradingview-widget-container__widget"></div>
+<script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-tickers.js" async>
+{
+  "symbols": [
+    {"proName":"NSE:NIFTY","title":"NIFTY 50"},
+    {"proName":"NSE:BANKNIFTY","title":"BANK NIFTY"},
+    {"proName":"BSE:SENSEX","title":"SENSEX"},
+    {"proName":"NSE:CNXFINANCE","title":"FINNIFTY"},
+    {"proName":"NSE:NIFTY_MID_SELECT","title":"MIDCAP NIFTY"},
+    {"proName":"NSE:NIFTY1!","title":"NIFTY FUTURE"},
+    {"proName":"NSE:BANKNIFTY1!","title":"BANK NIFTY FUTURE"},
+    {"proName":"MCX:GOLD1!","title":"GOLD FUTURE"},
+    {"proName":"MCX:SILVER1!","title":"SILVER FUTURE"},
+    {"proName":"MCX:CRUDEOIL1!","title":"CRUDE OIL FUTURE"},
+    {"proName":"MCX:NATURALGAS1!","title":"NATURAL GAS FUTURE"}
+  ],
+  "colorTheme": "dark",
+  "isTransparent": true,
+  "showSymbolLogo": true,
+  "displayMode": "adaptive",
+  "locale": "en",
+  "width": "100%",
+  "height": 360
+}
+</script>
 </div>
+<p class="note">यह अलग multi-symbol Tickers widget है, जिसमें हर उपलब्ध symbol का latest price और daily change दिखता है। Exchange feed की उपलब्धता के अनुसार भाव real-time या delayed हो सकते हैं।</p>
 </section>
 
 <section class="panel">
