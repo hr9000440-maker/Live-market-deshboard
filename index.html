@@ -27,10 +27,10 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 <header><h1>📊 LIVE MARKET DASHBOARD</h1><p>INDEX • FUTURES • OPTIONS • MCX • CRYPTO</p></header>
 <main>
 <section class="panel"><h2>Live Market Ticker</h2><div class="tv-wrap">
-<div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
-<script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
-{"symbols":[{"proName":"NSE:NIFTY","title":"NIFTY 50"},{"proName":"NSE:BANKNIFTY","title":"BANK NIFTY"},{"proName":"BSE:SENSEX","title":"SENSEX"},{"proName":"MCX:GOLD","title":"GOLD"},{"proName":"MCX:SILVER","title":"SILVER"},{"proName":"MCX:CRUDEOIL","title":"CRUDE OIL"},{"proName":"BINANCE:BTCUSDT","title":"BTC"},{"proName":"BINANCE:ETHUSDT","title":"ETH"}],"showSymbolLogo":true,"isTransparent":true,"displayMode":"adaptive","colorTheme":"dark","locale":"en"}
-</script></div></div></section>
+<tv-ticker-tape symbols="NSE:NIFTY,NSE:BANKNIFTY,BSE:SENSEX,MCX:GOLD,MCX:SILVER,MCX:CRUDEOIL,BINANCE:BTCUSDT,BINANCE:ETHUSDT,BINANCE:ZECUSDT,BINANCE:BNBUSDT" direction="horizontal" item-size="compact">
+<div style="padding:18px;color:#9db0c9;text-align:center">Live market prices are loading…</div>
+</tv-ticker-tape>
+<script type="module" src="https://www.tradingview-widget.com/w/en/tv-ticker-tape.js"></script></section>
 <section class="panel"><h2>Market Chart</h2><label for="symbol">Chart Symbol</label>
 <select id="symbol" onchange="loadChart()"><option value="NSE:NIFTY">NIFTY 50</option><option value="NSE:BANKNIFTY">BANK NIFTY</option><option value="BSE:SENSEX">SENSEX</option><option value="MCX:GOLD">GOLD</option><option value="MCX:SILVER">SILVER</option><option value="MCX:CRUDEOIL">CRUDE OIL</option><option value="BINANCE:BTCUSDT">BTC/USDT</option><option value="BINANCE:ETHUSDT">ETH/USDT</option><option value="BINANCE:ZECUSDT">ZEC/USDT</option><option value="BINANCE:BNBUSDT">BNB/USDT</option></select>
 <div id="chart" class="chart"></div><p class="note">चार्ट और लाइव भाव TradingView के उपलब्ध डेटा/एक्सचेंज कवरेज पर निर्भर हैं। कुछ भारतीय फ्यूचर/ऑप्शन कॉन्ट्रैक्ट के लिए अलग डेटा अनुमति की जरूरत हो सकती है।</p></section>
