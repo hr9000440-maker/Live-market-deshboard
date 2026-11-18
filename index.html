@@ -39,7 +39,18 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
       "symbols": [
         {"proName":"NSE:NIFTY","title":"NIFTY 50"},
         {"proName":"NSE:BANKNIFTY","title":"BANK NIFTY"},
-        {"proName":"BSE:SENSEX","title":"SENSEX"}
+        {"proName":"BSE:SENSEX","title":"SENSEX"},
+        {"proName":"NSE:NIFTY1!","title":"NIFTY FUTURE"},
+        {"proName":"NSE:BANKNIFTY1!","title":"BANK NIFTY FUTURE"},
+        {"proName":"BSE:BSX1!","title":"SENSEX FUTURE"},
+        {"proName":"MCX:GOLD1!","title":"GOLD FUTURE"},
+        {"proName":"MCX:SILVER1!","title":"SILVER FUTURE"},
+        {"proName":"MCX:CRUDEOIL1!","title":"CRUDE OIL FUTURE"},
+        {"proName":"MCX:NATURALGAS1!","title":"NATURAL GAS FUTURE"},
+        {"proName":"BINANCE:BTCUSDT","title":"BITCOIN"},
+        {"proName":"BINANCE:ETHUSDT","title":"ETHEREUM"},
+        {"proName":"BINANCE:ZECUSDT","title":"ZCASH"},
+        {"proName":"BINANCE:BNBUSDT","title":"BNB"}
       ],
       "showSymbolLogo": true,
       "colorTheme": "dark",
@@ -50,46 +61,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
     </script>
   </div>
 </div>
-<h2 style="margin-top:18px">📈 LIVE FUTURES & MCX</h2>
-<div class="tradingview-widget-container">
-  <div class="tradingview-widget-container__widget"></div>
-  <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
-  {
-    "symbols": [
-      {"proName":"NSE:NIFTY1!","title":"NIFTY FUTURE"},
-      {"proName":"NSE:BANKNIFTY1!","title":"BANK NIFTY FUTURE"},
-      {"proName":"MCX:GOLD1!","title":"GOLD FUTURE"},
-      {"proName":"MCX:SILVER1!","title":"SILVER FUTURE"},
-      {"proName":"MCX:CRUDEOIL1!","title":"CRUDE OIL FUTURE"},
-      {"proName":"MCX:NATURALGAS1!","title":"NATURAL GAS FUTURE"}
-    ],
-    "showSymbolLogo": true,
-    "colorTheme": "dark",
-    "isTransparent": true,
-    "displayMode": "compact",
-    "locale": "en"
-  }
-  </script>
-</div>
-<h2 style="margin-top:18px">₿ LIVE CRYPTO</h2>
-<div class="tradingview-widget-container">
-  <div class="tradingview-widget-container__widget"></div>
-  <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
-  {
-    "symbols": [
-      {"proName":"BINANCE:BTCUSDT","title":"BITCOIN"},
-      {"proName":"BINANCE:ETHUSDT","title":"ETHEREUM"},
-      {"proName":"BINANCE:ZECUSDT","title":"ZCASH"},
-      {"proName":"BINANCE:BNBUSDT","title":"BNB"}
-    ],
-    "showSymbolLogo": true,
-    "colorTheme": "dark",
-    "isTransparent": true,
-    "displayMode": "compact",
-    "locale": "en"
-  }
-  </script>
-</div>
+<h2 style="margin-top:18px">📈 INDEX FUTURES • MCX • CRYPTO</h2>
 <p class="note">अलग-अलग widgets रखे गए हैं ताकि किसी एक symbol/feed की समस्या से बाकी market groups प्रभावित न हों। भाव TradingView और संबंधित exchange feed की उपलब्धता पर निर्भर हैं; कुछ data delayed हो सकता है।</p>
 </section>
 
