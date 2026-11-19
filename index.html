@@ -245,7 +245,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 <h2>📉 CRYPTO OPTION PREMIUM CHART — 15 MIN</h2>
 <p class="note">Selected Deribit BTC/ETH option contract का 15-minute OHLC premium chart. यह CoinSwitch का exact contract/chart नहीं है; exchange और contract अलग हो सकते हैं।</p>
 <div class="option-controls">
-<div><label for="chartOptCoin">Coin</label><select id="chartOptCoin" onchange="populateOptionChartContracts()"><option value="BTC">BTC</option><option value="ETH">ETH</option></select></div>
+<div><label for="chartOptCoin">Coin</label><select id="chartOptCoin" onchange="document.getElementById('optCurrency').value=this.value;loadCryptoOptions();loadCryptoSignal()"><option value="BTC">BTC</option><option value="ETH">ETH</option></select></div>
 <div><label for="chartOptExpiry">Expiry</label><select id="chartOptExpiry" onchange="populateOptionChartContracts()"></select></div>
 <div><label for="chartOptInstrument">Option Contract</label><select id="chartOptInstrument"></select></div>
 </div>
