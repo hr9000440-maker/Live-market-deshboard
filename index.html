@@ -240,6 +240,20 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 <p class="note">Signal 15m trend से दिशा लेता है: matching CALL/PUT contract पर ही BUY alert दिखेगा; quote, spread (15% तक), OI और 24h volume की जाँच भी होगी। बाकी WAIT रहेगा। BUY में option premium (USD) का अनुमानित SL mark premium से 25% नीचे, TP1 25% ऊपर और TP2 50% ऊपर है; WAIT में levels नहीं दिखेंगे। ये fixed-premium estimates हैं, ATR-based नहीं; expiry, volatility, spread और slippage से वास्तविक कीमत बदल सकती है। यह order नहीं लगाता। Quotes USD equivalent में हैं, INR नहीं।</p>
 </section>
 
+
+<section class="panel" id="option-premium-chart">
+<h2>📉 CRYPTO OPTION PREMIUM CHART — 15 MIN</h2>
+<p class="note">Selected Deribit BTC/ETH option contract का 15-minute OHLC premium chart. यह CoinSwitch का exact contract/chart नहीं है; exchange और contract अलग हो सकते हैं।</p>
+<div class="option-controls">
+<div><label for="chartOptCoin">Coin</label><select id="chartOptCoin" onchange="populateOptionChartContracts()"><option value="BTC">BTC</option><option value="ETH">ETH</option></select></div>
+<div><label for="chartOptExpiry">Expiry</label><select id="chartOptExpiry" onchange="populateOptionChartContracts()"></select></div>
+<div><label for="chartOptInstrument">Option Contract</label><select id="chartOptInstrument"></select></div>
+</div>
+<button type="button" onclick="loadOptionPremiumChart()">Premium Chart Refresh</button>
+<div class="grid" style="margin-top:12px"><div class="result"><small>Selected Contract</small><strong id="chartOptName">—</strong></div><div class="result"><small>Latest Close (Premium)</small><strong id="chartOptLast">—</strong></div><div class="result"><small>Chart Interval</small><strong>15 Minutes</strong></div><div class="result"><small>Updated</small><strong id="chartOptUpdated">—</strong></div></div>
+<p id="chartOptStatus" class="note" aria-live="polite">Option contract चुनें और chart load करें।</p>
+<canvas id="optionPremiumCanvas" style="width:100%;height:340px;background:#09192b;border:1px solid var(--line);border-radius:8px;display:block"></canvas>
+</section>
 <section class="panel">
 <h2>📊 LIVE CHART (15 MIN)</h2>
 <label for="symbol">Chart Symbol</label>
@@ -298,8 +312,45 @@ async function loadCryptoOptions(){
   document.getElementById('optUnderlying').textContent=cryptoOptionUnderlying[coin]?fmt(cryptoOptionUnderlying[coin]):'—';
   document.getElementById('optCount').textContent=rows.length.toLocaleString('en-US');
   document.getElementById('optUpdated').textContent=new Date().toLocaleTimeString('en-IN');
-  status.textContent=rows.length+' active '+coin+' option contracts मिले।';renderCryptoOptions();
+  status.textContent=rows.length+' active '+coin+' option contracts मिले।';renderCryptoOptions();populateOptionChartContracts();
  }catch(e){status.textContent='Live data नहीं मिला: '+e.message+'. Internet/API access जाँचें।';document.getElementById('optRows').innerHTML='<tr><td colspan="12">डेटा उपलब्ध नहीं है।</td></tr>'}
+}
+
+function populateOptionChartContracts(){
+ const coin=document.getElementById('chartOptCoin').value,rows=cryptoOptionData[coin]||[];
+ const expiries=[...new Set(rows.map(x=>optionDate(x.instrument_name)).filter(Boolean))].sort((a,b)=>new Date(a)-new Date(b));
+ const exp=document.getElementById('chartOptExpiry'),old=exp.value;
+ exp.innerHTML=expiries.map(x=>'<option value="'+x+'">'+x+'</option>').join('');
+ if(expiries.includes(old))exp.value=old;
+ const selected=exp.value,contracts=rows.filter(x=>optionDate(x.instrument_name)===selected).sort((a,b)=>a.strike-b.strike);
+ const sel=document.getElementById('chartOptInstrument'),prior=sel.value;
+ sel.innerHTML=contracts.map(x=>'<option value="'+x.instrument_name+'">'+x.instrument_name+' | Strike '+x.strike+' | '+(x.option_type||'')+'</option>').join('');
+ if(contracts.some(x=>x.instrument_name===prior))sel.value=prior;
+ document.getElementById('chartOptName').textContent=sel.value||'—';
+}
+function drawOptionPremiumChart(data){
+ const canvas=document.getElementById('optionPremiumCanvas'),ctx=canvas.getContext('2d'),w=canvas.clientWidth||600,h=340,dpr=window.devicePixelRatio||1;
+ canvas.width=w*dpr;canvas.height=h*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+ if(!data.length){ctx.fillStyle='#9db0c9';ctx.fillText('Chart data unavailable',14,24);return}
+ const vals=data.flatMap(x=>[x.low,x.high]),min=Math.min(...vals),max=Math.max(...vals),pad=Math.max((max-min)*.08,.0001),lo=min-pad,hi=max+pad;
+ const left=55,right=12,top=12,bottom=30,plotW=w-left-right,plotH=h-top-bottom;
+ ctx.font='11px Arial';ctx.strokeStyle='#29415f';ctx.fillStyle='#9db0c9';ctx.lineWidth=1;
+ for(let i=0;i<=4;i++){let y=top+i*plotH/4,price=hi-(hi-lo)*i/4;ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(w-right,y);ctx.stroke();ctx.fillText(price.toFixed(4),4,y+4)}
+ const step=plotW/data.length,cw=Math.max(2,step*.65);
+ data.forEach((c,i)=>{let x=left+i*step+step/2,yo=top+(hi-c.open)/(hi-lo)*plotH,yc=top+(hi-c.close)/(hi-lo)*plotH,yh=top+(hi-c.high)/(hi-lo)*plotH,yl=top+(hi-c.low)/(hi-lo)*plotH,color=c.close>=c.open?'#42e6a4':'#ff8d8d';ctx.strokeStyle=color;ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(x,yh);ctx.lineTo(x,yl);ctx.stroke();ctx.fillRect(x-cw/2,Math.min(yo,yc),cw,Math.max(1,Math.abs(yc-yo)))});
+ ctx.fillStyle='#9db0c9';ctx.fillText(new Date(data[0].time).toLocaleString(),left,h-8);ctx.fillText(new Date(data[data.length-1].time).toLocaleTimeString(),Math.max(left,w-95),h-8);
+}
+async function loadOptionPremiumChart(){
+ const instrument=document.getElementById('chartOptInstrument').value,status=document.getElementById('chartOptStatus');
+ if(!instrument){status.textContent='पहले option contract चुनें।';return}
+ status.textContent=instrument+' का 15m premium chart लोड हो रहा है…';document.getElementById('chartOptName').textContent=instrument;
+ try{
+  const end=Date.now(),start=end-24*60*60*1000,url='https://www.deribit.com/api/v2/public/get_tradingview_chart_data?instrument_name='+encodeURIComponent(instrument)+'&start_timestamp='+start+'&end_timestamp='+end+'&resolution=15';
+  const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();if(j.error)throw new Error(j.error.message||'API error');const z=j.result||{};
+  const ticks=z.ticks||[],opens=z.open||[],highs=z.high||[],lows=z.low||[],closes=z.close||[];
+  const data=ticks.map((t,i)=>({time:t,open:Number(opens[i]),high:Number(highs[i]),low:Number(lows[i]),close:Number(closes[i])})).filter(x=>[x.open,x.high,x.low,x.close].every(Number.isFinite));
+  drawOptionPremiumChart(data);document.getElementById('chartOptLast').textContent=data.length?data[data.length-1].close.toLocaleString('en-US',{maximumFractionDigits:6}):'—';document.getElementById('chartOptUpdated').textContent=new Date().toLocaleTimeString('en-IN');status.textContent=data.length+' candles loaded ('+instrument+').';
+ }catch(e){status.textContent='Chart data नहीं मिला: '+e.message;drawOptionPremiumChart([])}
 }
 function renderCryptoOptions(){
  const coin=document.getElementById('optCurrency').value,expiry=document.getElementById('optExpiry').value,type=document.getElementById('optType').value,search=document.getElementById('optSearch').value.trim(),underlying=cryptoOptionUnderlying[coin];
