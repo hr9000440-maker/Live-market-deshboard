@@ -223,22 +223,22 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 </section>
 
 <section class="panel">
-<h2>🧮 SL / TP TRADE CALCULATOR</h2>
+<h2>🧮 स्टॉप लॉस / टारगेट ट्रेड कैलकुलेटर</h2>
 <div class="grid">
-<div><label for="side">Trade Direction</label><select id="side" onchange="calculate()"><option value="long">BUY / LONG</option><option value="short">SELL / SHORT</option></select></div>
-<div><label for="entry">Entry Price</label><input id="entry" type="number" step="any" placeholder="Entry price" oninput="calculate()"></div>
-<div><label for="sl">Stop Loss</label><input id="sl" type="number" step="any" placeholder="Stop loss" oninput="calculate()"></div>
-<div><label for="tp">Target Price</label><input id="tp" type="number" step="any" placeholder="Target" oninput="calculate()"></div>
-<div><label for="qty">Quantity</label><input id="qty" type="number" min="0" step="any" placeholder="Quantity" oninput="calculate()"></div>
+<div><label for="side">ट्रेड का प्रकार</label><select id="side" onchange="calculate()"><option value="long">खरीद / लॉन्ग</option><option value="short">बिक्री / शॉर्ट</option></select></div>
+<div><label for="entry">एंट्री प्राइस (प्रवेश भाव)</label><input id="entry" type="number" step="any" placeholder="प्रवेश भाव डालें" oninput="calculate()"></div>
+<div><label for="sl">स्टॉप लॉस (SL)</label><input id="sl" type="number" step="any" placeholder="स्टॉप लॉस डालें" oninput="calculate()"></div>
+<div><label for="tp">टारगेट प्राइस (TP)</label><input id="tp" type="number" step="any" placeholder="टारगेट डालें" oninput="calculate()"></div>
+<div><label for="qty">क्वांटिटी (मात्रा)</label><input id="qty" type="number" min="0" step="any" placeholder="मात्रा डालें" oninput="calculate()"></div>
 </div>
 <div class="grid" style="margin-top:14px">
-<div class="result"><small>SL Distance</small><strong id="slDist">—</strong></div>
-<div class="result"><small>TP Distance</small><strong id="tpDist">—</strong></div>
-<div class="result"><small>Estimated Risk</small><strong id="risk">—</strong></div>
-<div class="result"><small>Potential Reward</small><strong id="reward">—</strong></div>
-<div class="result"><small>Risk : Reward</small><strong id="rr">—</strong></div>
+<div class="result"><small>SL की दूरी</small><strong id="slDist">—</strong></div>
+<div class="result"><small>TP की दूरी</small><strong id="tpDist">—</strong></div>
+<div class="result"><small>अनुमानित नुकसान</small><strong id="risk">—</strong></div>
+<div class="result"><small>संभावित मुनाफा</small><strong id="reward">—</strong></div>
+<div class="result"><small>जोखिम : मुनाफा अनुपात</small><strong id="rr">—</strong></div>
 </div>
-<p id="warning" class="note">Entry, SL, Target और Quantity भरें। यह कैलकुलेटर ऑर्डर नहीं लगाता।</p>
+<p id="warning" class="note">एंट्री, स्टॉप लॉस, टारगेट और मात्रा भरें। यह कैलकुलेटर ऑर्डर नहीं लगाता।</p>
 </section>
 <footer class="note" style="text-align:center;padding:12px">यह dashboard जानकारी और गणना के लिए है, trade execution या financial advice नहीं। Live data, exchange permissions और symbol availability अलग-अलग हो सकती है।</footer>
 </main>
@@ -259,7 +259,7 @@ function calculate(){
  document.getElementById('risk').textContent=valid?fmt(Math.abs(riskPer*q)):'—';
  document.getElementById('reward').textContent=valid?fmt(Math.abs(rewardPer*q)):'—';
  document.getElementById('rr').textContent=valid&&riskPer>0&&rewardPer>0?(rewardPer/riskPer).toFixed(2)+' : 1':'—';
- document.getElementById('warning').textContent=!valid?'Entry, SL, Target और Quantity भरें।':(riskPer<=0||rewardPer<=0?'जाँचें: LONG में SL entry से नीचे और Target ऊपर; SHORT में SL ऊपर और Target नीचे होना चाहिए।':'अनुमानित गणना। Brokerage, taxes, slippage, lot size और funding शामिल नहीं हैं।');
+ document.getElementById('warning').textContent=!valid?'Entry, SL, Target और Quantity भरें।':(riskPer<=0||rewardPer<=0?'जाँचें: खरीद में SL एंट्री से नीचे और टारगेट ऊपर होना चाहिए। बिक्री में SL एंट्री से ऊपर और टारगेट नीचे होना चाहिए।':'यह अनुमानित गणना है। ब्रोकरेज, टैक्स, स्लिपेज, लॉट साइज़ और फंडिंग शामिल नहीं हैं।');
 }
 </script>
 </body>
