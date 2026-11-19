@@ -342,30 +342,41 @@ function drawOptionPremiumChart(data){
  data.forEach((c,i)=>{let x=left+i*step+step/2,yo=top+(hi-c.open)/(hi-lo)*plotH,yc=top+(hi-c.close)/(hi-lo)*plotH,yh=top+(hi-c.high)/(hi-lo)*plotH,yl=top+(hi-c.low)/(hi-lo)*plotH,color=c.close>=c.open?'#42e6a4':'#ff8d8d';ctx.strokeStyle=color;ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(x,yh);ctx.lineTo(x,yl);ctx.stroke();ctx.fillRect(x-cw/2,Math.min(yo,yc),cw,Math.max(1,Math.abs(yc-yo)))});
  ctx.fillStyle='#9db0c9';ctx.fillText(new Date(data[0].time).toLocaleString(),left,h-8);ctx.fillText(new Date(data[data.length-1].time).toLocaleTimeString(),Math.max(left,w-95),h-8);
 }
+function deribitExpiryDate(instrument){
+ const p=(instrument||'').split('-');if(p.length<2)return null;
+ const m={JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11};
+ const d=parseInt(p[1].slice(0,2),10),mo=m[p[1].slice(2,5)],yr=parseInt(p[1].slice(5),10);
+ return Number.isFinite(d)&&mo!==undefined&&Number.isFinite(yr)?new Date(2000+yr,mo,d,23,59,59):null;
+}
 async function loadOptionPremiumChart(){
  const instrument=document.getElementById('chartOptInstrument').value,status=document.getElementById('chartOptStatus');
- if(!instrument){status.textContent='पहले option contract चुनें।';return}
- status.textContent=instrument+' का 15m premium chart लोड हो रहा है…';
+ if(!instrument){status.textContent='Contract उपलब्ध नहीं/hidden है: पहले Coin और Expiry चुनें।';drawOptionPremiumChart([]);return}
+ const exp=deribitExpiryDate(instrument),nowDate=new Date();
+ if(exp&&exp<nowDate){status.textContent='यह contract expire हो चुका है ('+exp.toLocaleDateString('en-IN')+')। Expiry dropdown से active contract चुनें।';drawOptionPremiumChart([]);return}
+ const coin=document.getElementById('chartOptCoin').value,rows=cryptoOptionData[coin]||[];
+ if(!rows.some(x=>x.instrument_name===instrument)){status.textContent='Selected contract active list में नहीं मिला (visibility/listing issue)। Coin/Expiry बदलकर फिर चुनें।';drawOptionPremiumChart([]);return}
+ status.textContent=instrument+' • active contract verified • browser/API connection जाँच रहा है…';
  document.getElementById('chartOptName').textContent=instrument;
  document.getElementById('chartOptLast').textContent='—';document.getElementById('chartOptUpdated').textContent='—';
  drawOptionPremiumChart([]);
  const now=Date.now(),ranges=[24*60*60*1000,7*24*60*60*1000];
  const hosts=['https://www.deribit.com/api/v2/public/get_tradingview_chart_data','https://api.deribit.com/api/v2/public/get_tradingview_chart_data'];
- let lastError='कोई candle response नहीं मिला',data=[];
+ let lastError='कोई candle response नहीं मिला',data=[],diagnostics=[];
  for(const span of ranges){
   const params='?instrument_name='+encodeURIComponent(instrument)+'&start_timestamp='+(now-span)+'&end_timestamp='+now+'&resolution=15';
   for(const endpoint of hosts){
+   let controller,timeout;
    try{
-    const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),12000);
+    controller=new AbortController();timeout=setTimeout(()=>controller.abort(),12000);
     const r=await fetch(endpoint+params,{cache:'no-store',signal:controller.signal});
-    clearTimeout(timeout);
-    if(!r.ok)throw new Error('HTTP '+r.status+' ('+new URL(endpoint).host+')');
+    if(!r.ok)throw new Error('HTTP '+r.status);
     const j=await r.json();if(j.error)throw new Error(j.error.message||'Deribit API error');
     const z=j.result||{},ticks=z.ticks||[],opens=z.open||[],highs=z.high||[],lows=z.low||[],closes=z.close||[];
     data=ticks.map((t,i)=>({time:Number(t),open:Number(opens[i]),high:Number(highs[i]),low:Number(lows[i]),close:Number(closes[i])})).filter(x=>[x.time,x.open,x.high,x.low,x.close].every(Number.isFinite));
-    if(data.length)break;
-    lastError='API ने response दिया, लेकिन candle arrays खाली हैं';
-   }catch(e){lastError=e.name==='AbortError'?'Connection timeout':e.message||'Browser/API connection error'}
+    if(data.length){diagnostics.push(new URL(endpoint).host+' OK');break}
+    lastError='API response मिला, लेकिन candles खाली हैं';diagnostics.push(new URL(endpoint).host+' returned 0 candles');
+   }catch(e){lastError=e.name==='AbortError'?'12 सेकंड timeout':e.message||'Browser/API connection error';diagnostics.push(new URL(endpoint).host+': '+lastError)}
+   finally{if(timeout)clearTimeout(timeout)}
   }
   if(data.length)break;
  }
@@ -373,9 +384,9 @@ async function loadOptionPremiumChart(){
  if(data.length){
   document.getElementById('chartOptLast').textContent=data[data.length-1].close.toLocaleString('en-US',{maximumFractionDigits:8});
   document.getElementById('chartOptUpdated').textContent=new Date().toLocaleTimeString('en-IN');
-  status.textContent=data.length+' candles loaded • '+instrument+' • 15m • Deribit public API';
+  status.textContent=data.length+' candles loaded • '+instrument+' • 15m • '+diagnostics.join(' | ');
  }else{
-  status.textContent='Candles नहीं मिलीं: '+lastError+'. अगर Failed to fetch दिखे तो browser/network CORS या internet connection बाधा हो सकता है। Contract expiry/availability भी जाँचें।';
+  status.textContent='Chart data नहीं मिला • Contract active/listed है। Network/API result: '+diagnostics.join(' | ')+'. Failed to fetch/CORS हो तो browser network या internet बाधा; HTTP/API error हो तो endpoint/API; 0 candles हो तो contract में chart history/visibility issue हो सकता है।';
  }
 }
 function renderCryptoOptions(){
