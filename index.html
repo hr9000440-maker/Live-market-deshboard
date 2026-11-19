@@ -359,13 +359,13 @@ async function loadOptionPremiumChart(){
  document.getElementById('chartOptName').textContent=instrument;
  document.getElementById('chartOptLast').textContent='—';document.getElementById('chartOptUpdated').textContent='—';
  drawOptionPremiumChart([]);
- const now=Date.now(),ranges=[24*60*60*1000,7*24*60*60*1000];
- const hosts=['https://www.deribit.com/api/v2/public/get_tradingview_chart_data','https://api.deribit.com/api/v2/public/get_tradingview_chart_data'];
+ const now=Date.now(),ranges=[24*60*60*1000,7*24*60*60*1000,30*24*60*60*1000];
+ const hosts=['https://api.deribit.com/api/v2/public/get_tradingview_chart_data','https://www.deribit.com/api/v2/public/get_tradingview_chart_data'];
  let data=[],diagnostics=[];
  outer:for(const span of ranges){
   const base='?instrument_name='+encodeURIComponent(instrument)+'&start_timestamp='+(now-span)+'&end_timestamp='+now;
   for(const endpoint of hosts){
-   for(const resolutionParam of ['chart_resolution','resolution']){
+   for(const resolutionParam of ['resolution','chart_resolution']){
     let controller,timeout;
     try{
      controller=new AbortController();timeout=setTimeout(()=>controller.abort(),8000);
