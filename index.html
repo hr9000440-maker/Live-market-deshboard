@@ -210,6 +210,20 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 </section>
 
 
+
+<section class="panel" id="crypto-signals">
+<h2>🚦 CRYPTO FUTURES — 15 MIN BUY / SELL SIGNALS</h2>
+<p class="note">BTC, ETH, BNB और ZEC के लिए Binance spot 15m candles से trend signal. यह futures direction का संकेत है, order नहीं लगाता। BUY/SELL तभी दिखेगा जब EMA और RSI की शर्तें मिलें; अन्यथा WAIT.</p>
+<div class="grid">
+<div class="result"><small>BTCUSDT • 15m</small><strong id="sig-BTC">लोड हो रहा है…</strong><p class="note" id="siginfo-BTC">कैंडल डेटा जाँचा जा रहा है</p></div>
+<div class="result"><small>ETHUSDT • 15m</small><strong id="sig-ETH">लोड हो रहा है…</strong><p class="note" id="siginfo-ETH">कैंडल डेटा जाँचा जा रहा है</p></div>
+<div class="result"><small>BNBUSDT • 15m</small><strong id="sig-BNB">लोड हो रहा है…</strong><p class="note" id="siginfo-BNB">कैंडल डेटा जाँचा जा रहा है</p></div>
+<div class="result"><small>ZECUSDT • 15m</small><strong id="sig-ZEC">लोड हो रहा है…</strong><p class="note" id="siginfo-ZEC">कैंडल डेटा जाँचा जा रहा है</p></div>
+</div>
+<button type="button" onclick="loadAllCryptoSignals()">सभी Crypto Signal Refresh करें</button>
+<p class="note">Entry, SL और targets underlying USDT price levels हैं, option premium नहीं। Spot data में futures basis, fees, funding और slippage शामिल नहीं हैं।</p>
+</section>
+
 <section class="panel" id="crypto-options">
 <h2>₿ CRYPTO OPTIONS CHAIN — BTC + ETH</h2>
 <p class="note">Deribit public market data • BTC और ETH के listed options • यहां से order place नहीं होगा। Premium USD में अनुमानित है (mark price × underlying price); OI/Volume exchange की मूल इकाई में हैं।</p>
@@ -294,24 +308,41 @@ function renderCryptoOptions(){
 }
 function ema(values,period){let k=2/(period+1),v=values[0];for(let i=1;i<values.length;i++)v=values[i]*k+v*(1-k);return v}
 function rsi(values,period=14){let gains=0,losses=0;for(let i=values.length-period;i<values.length;i++){let d=values[i]-values[i-1];if(d>0)gains+=d;else losses-=d}let ag=gains/period,al=losses/period;return al===0?100:100-100/(1+ag/al)}
+async function analyzeCryptoCoin(coin){
+ const symbol=coin+'USDT',url='https://api.binance.com/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60';
+ const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw new Error('Market feed unavailable ('+res.status+')');
+ const raw=await res.json();if(!Array.isArray(raw)||raw.length<30)throw new Error('पर्याप्त candle data नहीं मिला');
+ const candles=raw.slice(0,-1),closes=candles.map(x=>Number(x[4])),highs=candles.map(x=>Number(x[2])),lows=candles.map(x=>Number(x[3]));
+ const close=closes[closes.length-1],e9=ema(closes.slice(-30),9),e21=ema(closes.slice(-50),21),rv=rsi(closes,14);
+ const ranges=[];for(let i=Math.max(1,candles.length-14);i<candles.length;i++)ranges.push(Math.max(highs[i]-lows[i],Math.abs(highs[i]-closes[i-1]),Math.abs(lows[i]-closes[i-1])));
+ const atr=ranges.reduce((a,b)=>a+b,0)/ranges.length;
+ let side='WAIT',reason='EMA/RSI में साफ पुष्टि नहीं';
+ if(close>e9&&e9>e21&&rv>=52&&rv<=70){side='BUY / LONG';reason='EMA bullish + RSI confirmation';}
+ else if(close<e9&&e9<e21&&rv>=30&&rv<=48){side='SELL / SHORT';reason='EMA bearish + RSI confirmation';}
+ const entry=close,sl=side==='BUY / LONG'?entry-1.2*atr:side==='SELL / SHORT'?entry+1.2*atr:null;
+ const risk=sl===null?null:Math.abs(entry-sl),t1=sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk),t2=sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk);
+ return {coin,side,reason,entry,sl,t1,t2,rv,e9,e21,time:new Date(Number(candles[candles.length-1][6])).toLocaleString('en-IN')};
+}
+function showCoinSignal(s){
+ const el=document.getElementById('sig-'+s.coin),info=document.getElementById('siginfo-'+s.coin);
+ if(el){el.textContent=s.side;el.className=s.side==='BUY / LONG'?'call-text':s.side==='SELL / SHORT'?'put-text':'signal-neutral';}
+ if(info)info.textContent=s.side==='WAIT'?s.reason+' • RSI '+fmt(s.rv)+' • '+s.time:'Entry '+fmt(s.entry)+' | SL '+fmt(s.sl)+' | T1 '+fmt(s.t1)+' | T2 '+fmt(s.t2)+' • '+s.reason+' • '+s.time;
+}
+async function loadAllCryptoSignals(){
+ const coins=['BTC','ETH','BNB','ZEC'];
+ await Promise.all(coins.map(async coin=>{
+  try{const s=await analyzeCryptoCoin(coin);showCoinSignal(s);cryptoTrendSignal[coin]=s.side==='BUY / LONG'?'BUY CALL':s.side==='SELL / SHORT'?'BUY PUT':'WAIT';}
+  catch(e){const el=document.getElementById('sig-'+coin),info=document.getElementById('siginfo-'+coin);if(el){el.textContent='DATA ERROR';el.className='signal-neutral';}if(info)info.textContent=e.message+' • अभी trade signal उपलब्ध नहीं';cryptoTrendSignal[coin]='WAIT';}
+ }));
+}
 async function loadCryptoSignal(){
  const coin=document.getElementById('optCurrency').value,box=document.getElementById('cryptoSignal');
  box.innerHTML='<p class="note">15m कैंडल की पुष्टि जाँची जा रही है…</p>';
  try{
-  const symbol=coin+'USDT',url='https://api.binance.com/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60';
-  const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw new Error('Market feed unavailable');
-  const raw=await res.json();if(!Array.isArray(raw)||raw.length<30)throw new Error('पर्याप्त candle data नहीं मिला');
-  const candles=raw.slice(0,-1),closes=candles.map(x=>Number(x[4])),highs=candles.map(x=>Number(x[2])),lows=candles.map(x=>Number(x[3]));
-  const close=closes[closes.length-1],e9=ema(closes.slice(-30),9),e21=ema(closes.slice(-50),21),rv=rsi(closes,14);
-  const ranges=[];for(let i=Math.max(1,candles.length-14);i<candles.length;i++)ranges.push(Math.max(highs[i]-lows[i],Math.abs(highs[i]-closes[i-1]),Math.abs(lows[i]-closes[i-1])));
-  const atr=ranges.reduce((a,b)=>a+b,0)/ranges.length;
-  let side='WAIT',reason='15m trend और RSI में साफ पुष्टि नहीं है।';
-  if(close>e9&&e9>e21&&rv>=52&&rv<=70){side='BUY CALL';reason='15m close EMA 9 और EMA 21 के ऊपर है; RSI bullish range में है।'}
-  else if(close<e9&&e9<e21&&rv>=30&&rv<=48){side='BUY PUT';reason='15m close EMA 9 और EMA 21 के नीचे है; RSI bearish range में है।'}
-  cryptoTrendSignal[coin]=side;renderCryptoOptions();
-  const entry=close,sl=side==='BUY CALL'?entry-1.2*atr:side==='BUY PUT'?entry+1.2*atr:null;
-  const risk=sl===null?null:Math.abs(entry-sl),t1=sl===null?null:(side==='BUY CALL'?entry+risk:entry-risk),t2=sl===null?null:(side==='BUY CALL'?entry+2*risk:entry-2*risk);
-  box.innerHTML='<div class="grid"><div class="result"><small>15m Signal — '+coin+'</small><strong class="'+(side==='BUY CALL'?'call-text':side==='BUY PUT'?'put-text':'signal-neutral')+'">'+side+'</strong></div><div class="result"><small>Entry (Underlying)</small><strong>'+fmt(entry)+'</strong></div><div class="result"><small>Stop Loss</small><strong>'+(sl===null?'—':fmt(sl))+'</strong></div><div class="result"><small>Target 1</small><strong>'+(t1===null?'—':fmt(t1))+'</strong></div><div class="result"><small>Target 2</small><strong>'+(t2===null?'—':fmt(t2))+'</strong></div><div class="result"><small>RSI 14 / EMA 9 / EMA 21</small><strong>'+fmt(rv)+' / '+fmt(e9)+' / '+fmt(e21)+'</strong></div></div><p class="note">'+reason+' आखिरी पूरी हुई 15m candle: '+new Date(Number(candles[candles.length-1][6])).toLocaleString('en-IN')+'. SL/targets ATR आधारित अनुमान हैं और underlying के स्तर हैं, option premium नहीं। Signal पुष्टि का इंतज़ार करें; WAIT में trade न लें।';
+  const s=await analyzeCryptoCoin(coin);
+  cryptoTrendSignal[coin]=s.side==='BUY / LONG'?'BUY CALL':s.side==='SELL / SHORT'?'BUY PUT':'WAIT';
+  showCoinSignal(s);renderCryptoOptions();
+  box.innerHTML='<div class="grid"><div class="result"><small>15m Signal — '+coin+'</small><strong class="'+(s.side==='BUY / LONG'?'call-text':s.side==='SELL / SHORT'?'put-text':'signal-neutral')+'">'+s.side+'</strong></div><div class="result"><small>Entry (Underlying)</small><strong>'+fmt(s.entry)+'</strong></div><div class="result"><small>Stop Loss</small><strong>'+(s.sl===null?'—':fmt(s.sl))+'</strong></div><div class="result"><small>Target 1</small><strong>'+(s.t1===null?'—':fmt(s.t1))+'</strong></div><div class="result"><small>Target 2</small><strong>'+(s.t2===null?'—':fmt(s.t2))+'</strong></div><div class="result"><small>RSI 14 / EMA 9 / EMA 21</small><strong>'+fmt(s.rv)+' / '+fmt(s.e9)+' / '+fmt(s.e21)+'</strong></div></div><p class="note">'+s.reason+' • आखिरी पूरी हुई 15m candle: '+s.time+'. SL/targets ATR आधारित अनुमान हैं; यह order नहीं लगाता। WAIT में trade न लें।';
  }catch(e){box.innerHTML='<p class="note">15m signal उपलब्ध नहीं: '+e.message+'. अभी WAIT रखें।</p>'}
 }
 function loadChart(){
@@ -327,7 +358,7 @@ function calculate(){
  document.getElementById('rr').textContent=valid&&riskPer>0&&rewardPer>0?(rewardPer/riskPer).toFixed(2)+' : 1':'—';
  document.getElementById('warning').textContent=!valid?'Entry, SL, Target और Quantity भरें।':(riskPer<=0||rewardPer<=0?'जाँचें: खरीद में SL एंट्री से नीचे और टारगेट ऊपर होना चाहिए। बिक्री में SL एंट्री से ऊपर और टारगेट नीचे होना चाहिए।':'यह अनुमानित गणना है। ब्रोकरेज, टैक्स, स्लिपेज, लॉट साइज़ और फंडिंग शामिल नहीं हैं।');
 }
-document.addEventListener('DOMContentLoaded',()=>{loadCryptoOptions();loadCryptoSignal()});
+document.addEventListener('DOMContentLoaded',()=>{loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals()});
 </script>
 </body>
 </html>
