@@ -225,11 +225,11 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 </section>
 
 <section class="panel" id="crypto-options">
-<h2>₿ CRYPTO OPTIONS CHAIN — BTC + ETH</h2>
-<p class="note">Deribit public market data • BTC और ETH के listed options • यहां से order place नहीं होगा। Premium USD में अनुमानित है (mark price × underlying price); OI/Volume exchange की मूल इकाई में हैं।</p>
+<h2>₿ CRYPTO OPTIONS CHAIN — BTC + ETH + ZEC</h2>
+<p class="note">Deribit public market data • BTC, ETH और ZEC के listed options • यहां से order place नहीं होगा। Premium USD में अनुमानित है (mark price × underlying price); OI/Volume exchange की मूल इकाई में हैं।</p>
 <div class="result" id="cryptoSignal" style="margin:12px 0"><p class="note">15m signal लोड हो रहा है…</p></div>
 <div class="option-controls">
-<div><label for="optCurrency">Coin</label><select id="optCurrency" onchange="loadCryptoOptions();loadCryptoSignal()"><option value="BTC">BTC — Bitcoin</option><option value="ETH">ETH — Ethereum</option></select></div>
+<div><label for="optCurrency">Coin</label><select id="optCurrency" onchange="loadCryptoOptions();loadCryptoSignal()"><option value="BTC">BTC — Bitcoin</option><option value="ETH">ETH — Ethereum</option><option value="ZEC">ZEC — Zcash</option></select></div>
 <div><label for="optExpiry">Expiry</label><select id="optExpiry" onchange="renderCryptoOptions()"><option value="">Loading…</option></select></div>
 <div><label for="optType">Option Type</label><select id="optType" onchange="renderCryptoOptions()"><option value="ALL">CALL + PUT</option><option value="C">CALL (CE)</option><option value="P">PUT (PE)</option></select></div>
 <div><label for="optSearch">Strike खोजें</label><input id="optSearch" type="number" placeholder="जैसे 90000" oninput="renderCryptoOptions()"></div>
@@ -245,7 +245,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 <h2>📉 CRYPTO OPTION PREMIUM CHART — 15 MIN</h2>
 <p class="note">Selected Deribit BTC/ETH option contract का 15-minute OHLC premium chart. यह CoinSwitch का exact contract/chart नहीं है; exchange और contract अलग हो सकते हैं।</p>
 <div class="option-controls">
-<div><label for="chartOptCoin">Coin</label><select id="chartOptCoin" onchange="document.getElementById('optCurrency').value=this.value;loadCryptoOptions();loadCryptoSignal()"><option value="BTC">BTC</option><option value="ETH">ETH</option></select></div>
+<div><label for="chartOptCoin">Coin</label><select id="chartOptCoin" onchange="document.getElementById('optCurrency').value=this.value;loadCryptoOptions();loadCryptoSignal()"><option value="BTC">BTC</option><option value="ETH">ETH</option><option value="ZEC">ZEC</option></select></div>
 <div><label for="chartOptExpiry">Expiry</label><select id="chartOptExpiry" onchange="populateOptionChartContracts()"></select></div>
 <div><label for="chartOptInstrument">Option Contract</label><select id="chartOptInstrument"></select></div>
 </div>
@@ -291,7 +291,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 </main>
 
 <script>
-let cryptoOptionData={BTC:[],ETH:[]},cryptoOptionUnderlying={BTC:null,ETH:null},cryptoTrendSignal={BTC:'WAIT',ETH:'WAIT'};
+let cryptoOptionData={BTC:[],ETH:[],ZEC:[]},cryptoOptionUnderlying={BTC:null,ETH:null,ZEC:null},cryptoTrendSignal={BTC:'WAIT',ETH:'WAIT',ZEC:'WAIT'};
 function optionUsd(v,u){return Number.isFinite(Number(v))&&u?Number(v)*u:null}
 function optionMoney(v){return v==null?'—':Number(v).toLocaleString('en-US',{maximumFractionDigits:2})}
 function optionDate(n){const p=n.split('-');return p.length>1?p[1]:''}
