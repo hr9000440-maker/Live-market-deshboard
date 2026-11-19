@@ -345,29 +345,37 @@ function drawOptionPremiumChart(data){
 async function loadOptionPremiumChart(){
  const instrument=document.getElementById('chartOptInstrument').value,status=document.getElementById('chartOptStatus');
  if(!instrument){status.textContent='पहले option contract चुनें।';return}
- status.textContent=instrument+' का 15m premium chart लोड हो रहा है…';document.getElementById('chartOptName').textContent=instrument;
+ status.textContent=instrument+' का 15m premium chart लोड हो रहा है…';
+ document.getElementById('chartOptName').textContent=instrument;
  document.getElementById('chartOptLast').textContent='—';document.getElementById('chartOptUpdated').textContent='—';
- const end=Date.now(),start=end-24*60*60*1000,params='?instrument_name='+encodeURIComponent(instrument)+'&start_timestamp='+start+'&end_timestamp='+end+'&resolution=15';
- const endpoints=['https://www.deribit.com/api/v2/public/get_tradingview_chart_data','https://api.deribit.com/api/v2/public/get_tradingview_chart_data'];
- let lastError=null,data=[];
- for(const endpoint of endpoints){
-  try{
-   const r=await fetch(endpoint+params,{cache:'no-store'});
-   if(!r.ok)throw new Error('HTTP '+r.status+' from '+new URL(endpoint).host);
-   const j=await r.json();if(j.error)throw new Error(j.error.message||'API error');
-   const z=j.result||{},ticks=z.ticks||[],opens=z.open||[],highs=z.high||[],lows=z.low||[],closes=z.close||[];
-   data=ticks.map((t,i)=>({time:t,open:Number(opens[i]),high:Number(highs[i]),low:Number(lows[i]),close:Number(closes[i])})).filter(x=>[x.open,x.high,x.low,x.close].every(Number.isFinite));
-   if(data.length)break;
-   lastError=new Error('API response में candles नहीं हैं');
-  }catch(e){lastError=e}
+ drawOptionPremiumChart([]);
+ const now=Date.now(),ranges=[24*60*60*1000,7*24*60*60*1000];
+ const hosts=['https://www.deribit.com/api/v2/public/get_tradingview_chart_data','https://api.deribit.com/api/v2/public/get_tradingview_chart_data'];
+ let lastError='कोई candle response नहीं मिला',data=[];
+ for(const span of ranges){
+  const params='?instrument_name='+encodeURIComponent(instrument)+'&start_timestamp='+(now-span)+'&end_timestamp='+now+'&resolution=15';
+  for(const endpoint of hosts){
+   try{
+    const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),12000);
+    const r=await fetch(endpoint+params,{cache:'no-store',signal:controller.signal});
+    clearTimeout(timeout);
+    if(!r.ok)throw new Error('HTTP '+r.status+' ('+new URL(endpoint).host+')');
+    const j=await r.json();if(j.error)throw new Error(j.error.message||'Deribit API error');
+    const z=j.result||{},ticks=z.ticks||[],opens=z.open||[],highs=z.high||[],lows=z.low||[],closes=z.close||[];
+    data=ticks.map((t,i)=>({time:Number(t),open:Number(opens[i]),high:Number(highs[i]),low:Number(lows[i]),close:Number(closes[i])})).filter(x=>[x.time,x.open,x.high,x.low,x.close].every(Number.isFinite));
+    if(data.length)break;
+    lastError='API ने response दिया, लेकिन candle arrays खाली हैं';
+   }catch(e){lastError=e.name==='AbortError'?'Connection timeout':e.message||'Browser/API connection error'}
+  }
+  if(data.length)break;
  }
  drawOptionPremiumChart(data);
  if(data.length){
-  document.getElementById('chartOptLast').textContent=data[data.length-1].close.toLocaleString('en-US',{maximumFractionDigits:6});
+  document.getElementById('chartOptLast').textContent=data[data.length-1].close.toLocaleString('en-US',{maximumFractionDigits:8});
   document.getElementById('chartOptUpdated').textContent=new Date().toLocaleTimeString('en-IN');
-  status.textContent=data.length+' candles loaded ('+instrument+').';
+  status.textContent=data.length+' candles loaded • '+instrument+' • 15m • Deribit public API';
  }else{
-  status.textContent='इस contract का 15m premium इतिहास API से नहीं मिला ('+(lastError?lastError.message:'unknown error')+'). Strike/expiry चुनना सही है, लेकिन Deribit API/browser connection candles नहीं दे रहा।';
+  status.textContent='Candles नहीं मिलीं: '+lastError+'. अगर Failed to fetch दिखे तो browser/network CORS या internet connection बाधा हो सकता है। Contract expiry/availability भी जाँचें।';
  }
 }
 function renderCryptoOptions(){
