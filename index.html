@@ -178,7 +178,6 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 <div class="card"><h3>OPTION CONTRACT CHART</h3><div class="note">नीचे Chart Symbol में अपने broker/TradingView का exact option symbol डालें।</div></div>
 </div>
 </section>
-
 <section class="panel">
 <h2>🥇 MCX MARKET & FUTURES</h2>
 <div class="grid">
@@ -357,28 +356,25 @@ async function loadOptionPremiumChart(){
  if(!rows.some(x=>x.instrument_name===instrument)){status.textContent='Selected contract active list में नहीं मिला। पहले '+coin+' option list load करें; फिर contract चुनें।';drawOptionPremiumChart([]);return}
  status.textContent=instrument+' • active contract verified • API connection जाँच रहा है…';
  document.getElementById('chartOptName').textContent=instrument;
- document.getElementById('chartOptLast').textContent='—';document.getElementById('chartOptUpdated').textContent='—';
- drawOptionPremiumChart([]);
+ document.getElementById('chartOptLast').textContent='—';document.getElementById('chartOptUpdated').textContent='—'; drawOptionPremiumChart([]);
  const now=Date.now(),ranges=[24*60*60*1000,7*24*60*60*1000,30*24*60*60*1000];
  const hosts=['https://api.deribit.com/api/v2/public/get_tradingview_chart_data','https://www.deribit.com/api/v2/public/get_tradingview_chart_data'];
  let data=[],diagnostics=[];
  outer:for(const span of ranges){
-  const base='?instrument_name='+encodeURIComponent(instrument)+'&start_timestamp='+(now-span)+'&end_timestamp='+now;
+  const base='?instrument_name='+encodeURIComponent(instrument)+'&start_timestamp='+(now-span)+'&end_timestamp='+now+'&chart_resolution=15';
   for(const endpoint of hosts){
-   for(const resolutionParam of ['resolution','chart_resolution']){
-    let controller,timeout;
-    try{
-     controller=new AbortController();timeout=setTimeout(()=>controller.abort(),8000);
-     const r=await fetch(endpoint+base+'&'+resolutionParam+'=15',{cache:'no-store',signal:controller.signal});
-     if(!r.ok)throw new Error('HTTP '+r.status);
-     const j=await r.json();if(j.error)throw new Error(j.error.message||'Deribit API error');
-     const z=j.result||{},ticks=z.ticks||[],opens=z.open||[],highs=z.high||[],lows=z.low||[],closes=z.close||[];
-     const candles=ticks.map((t,i)=>({time:Number(t),open:Number(opens[i]),high:Number(highs[i]),low:Number(lows[i]),close:Number(closes[i])})).filter(x=>[x.time,x.open,x.high,x.low,x.close].every(Number.isFinite));
-     if(candles.length){data=candles;diagnostics.push(new URL(endpoint).host+' '+resolutionParam+'=15 OK');break outer}
-     diagnostics.push(new URL(endpoint).host+' '+resolutionParam+'=15: 0 candles');
-    }catch(e){diagnostics.push(new URL(endpoint).host+' '+resolutionParam+'=15: '+(e.name==='AbortError'?'timeout':e.message||'fetch error'))}
-    finally{if(timeout)clearTimeout(timeout)}
-   }
+   let controller,timeout;
+   try{
+    controller=new AbortController();timeout=setTimeout(()=>controller.abort(),10000);
+    const r=await fetch(endpoint+base,{cache:'no-store',signal:controller.signal});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const j=await r.json();if(j.error)throw new Error(j.error.message||'Deribit API error');
+    const z=j.result||{},ticks=z.ticks||[],opens=z.open||[],highs=z.high||[],lows=z.low||[],closes=z.close||[];
+    const candles=ticks.map((t,i)=>({time:Number(t),open:Number(opens[i]),high:Number(highs[i]),low:Number(lows[i]),close:Number(closes[i])})).filter(x=>[x.time,x.open,x.high,x.low,x.close].every(Number.isFinite));
+    if(candles.length){data=candles;diagnostics.push(new URL(endpoint).host+' chart_resolution=15 OK');break outer}
+    diagnostics.push(new URL(endpoint).host+' chart_resolution=15: 0 candles');
+   }catch(e){diagnostics.push(new URL(endpoint).host+' chart_resolution=15: '+(e.name==='AbortError'?'timeout':e.message||'fetch error'))}
+   finally{if(timeout)clearTimeout(timeout)}
   }
  }
  drawOptionPremiumChart(data);
