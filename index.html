@@ -327,6 +327,8 @@ function populateOptionChartContracts(){
  sel.innerHTML=contracts.map(x=>'<option value="'+x.instrument_name+'">'+x.instrument_name+' | Strike '+x.strike+' | '+(x.option_type||'')+'</option>').join('');
  if(contracts.some(x=>x.instrument_name===prior))sel.value=prior;
  document.getElementById('chartOptName').textContent=sel.value||'—';
+ sel.onchange=()=>loadOptionPremiumChart();
+ if(sel.value)loadOptionPremiumChart();
 }
 function drawOptionPremiumChart(data){
  const canvas=document.getElementById('optionPremiumCanvas'),ctx=canvas.getContext('2d'),w=canvas.clientWidth||600,h=340,dpr=window.devicePixelRatio||1;
@@ -349,7 +351,7 @@ async function loadOptionPremiumChart(){
   const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();if(j.error)throw new Error(j.error.message||'API error');const z=j.result||{};
   const ticks=z.ticks||[],opens=z.open||[],highs=z.high||[],lows=z.low||[],closes=z.close||[];
   const data=ticks.map((t,i)=>({time:t,open:Number(opens[i]),high:Number(highs[i]),low:Number(lows[i]),close:Number(closes[i])})).filter(x=>[x.open,x.high,x.low,x.close].every(Number.isFinite));
-  drawOptionPremiumChart(data);document.getElementById('chartOptLast').textContent=data.length?data[data.length-1].close.toLocaleString('en-US',{maximumFractionDigits:6}):'—';document.getElementById('chartOptUpdated').textContent=new Date().toLocaleTimeString('en-IN');status.textContent=data.length+' candles loaded ('+instrument+').';
+  drawOptionPremiumChart(data);document.getElementById('chartOptLast').textContent=data.length?data[data.length-1].close.toLocaleString('en-US',{maximumFractionDigits:6}):'—';document.getElementById('chartOptUpdated').textContent=new Date().toLocaleTimeString('en-IN');status.textContent=data.length?data.length+' candles loaded ('+instrument+').':'API ने इस contract के लिए 15m historical candles नहीं भेजीं। दूसरा contract/expiry चुनें।';
  }catch(e){status.textContent='Chart data नहीं मिला: '+e.message;drawOptionPremiumChart([])}
 }
 function renderCryptoOptions(){
