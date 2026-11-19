@@ -212,7 +212,8 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 
 <section class="panel" id="crypto-options">
 <h2>₿ CRYPTO OPTIONS CHAIN — BTC + ETH</h2>
-<p class="note">Deribit public market data • BTC और ETH के listed options • यहां से order place नहीं होगा। Premium USD में अनुमानित है (mark price × underlying price); OI/Volume exchange की मूल इकाई में हैं।</p>\n<div class="result" id="cryptoSignal" style="margin:12px 0"><p class="note">15m signal लोड हो रहा है…</p></div>
+<p class="note">Deribit public market data • BTC और ETH के listed options • यहां से order place नहीं होगा। Premium USD में अनुमानित है (mark price × underlying price); OI/Volume exchange की मूल इकाई में हैं।</p>
+<div class="result" id="cryptoSignal" style="margin:12px 0"><p class="note">15m signal लोड हो रहा है…</p></div>
 <div class="option-controls">
 <div><label for="optCurrency">Coin</label><select id="optCurrency" onchange="loadCryptoOptions();loadCryptoSignal()"><option value="BTC">BTC — Bitcoin</option><option value="ETH">ETH — Ethereum</option></select></div>
 <div><label for="optExpiry">Expiry</label><select id="optExpiry" onchange="renderCryptoOptions()"><option value="">Loading…</option></select></div>
