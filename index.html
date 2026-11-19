@@ -397,20 +397,27 @@ function renderCryptoOptions(){
 }
 function ema(values,period){let k=2/(period+1),v=values[0];for(let i=1;i<values.length;i++)v=values[i]*k+v*(1-k);return v}
 function rsi(values,period=14){let gains=0,losses=0;for(let i=values.length-period;i<values.length;i++){let d=values[i]-values[i-1];if(d>0)gains+=d;else losses-=d}let ag=gains/period,al=losses/period;return al===0?100:100-100/(1+ag/al)}
+let cryptoSignalLock={BTC:null,ETH:null,BNB:null,ZEC:null};
 async function analyzeCryptoCoin(coin){
  const symbol=coin+'USDT',url='https://api.binance.com/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60';
  const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw new Error('Market feed unavailable ('+res.status+')');
  const raw=await res.json();if(!Array.isArray(raw)||raw.length<30)throw new Error('पर्याप्त candle data नहीं मिला');
- const candles=raw.slice(0,-1),closes=candles.map(x=>Number(x[4])),highs=candles.map(x=>Number(x[2])),lows=candles.map(x=>Number(x[3]));
+ // Binance returns the last candle as still-forming. Use only completed candles.
+ const candles=raw.slice(0,-1),lastClosed=Number(candles[candles.length-1][0]);
+ // Lock the signal for the same completed 15-minute candle; refreshes cannot flip it.
+ if(cryptoSignalLock[coin]&&cryptoSignalLock[coin].candleTime===lastClosed)return cryptoSignalLock[coin].signal;
+ const closes=candles.map(x=>Number(x[4])),highs=candles.map(x=>Number(x[2])),lows=candles.map(x=>Number(x[3]));
  const close=closes[closes.length-1],e9=ema(closes.slice(-30),9),e21=ema(closes.slice(-50),21),rv=rsi(closes,14);
  const ranges=[];for(let i=Math.max(1,candles.length-14);i<candles.length;i++)ranges.push(Math.max(highs[i]-lows[i],Math.abs(highs[i]-closes[i-1]),Math.abs(lows[i]-closes[i-1])));
  const atr=ranges.reduce((a,b)=>a+b,0)/ranges.length;
  let side='WAIT',reason='EMA/RSI में साफ पुष्टि नहीं';
- if(close>e9&&e9>e21&&rv>=52&&rv<=70){side='BUY / LONG';reason='EMA bullish + RSI confirmation';}
- else if(close<e9&&e9<e21&&rv>=30&&rv<=48){side='SELL / SHORT';reason='EMA bearish + RSI confirmation';}
+ if(close>e9&&e9>e21&&rv>=52&&rv<=70){side='BUY / LONG';reason='पूरी 15m candle: EMA bullish + RSI confirmation';}
+ else if(close<e9&&e9<e21&&rv>=30&&rv<=48){side='SELL / SHORT';reason='पूरी 15m candle: EMA bearish + RSI confirmation';}
  const entry=close,sl=side==='BUY / LONG'?entry-1.2*atr:side==='SELL / SHORT'?entry+1.2*atr:null;
  const risk=sl===null?null:Math.abs(entry-sl),t1=sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk),t2=sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk);
- return {coin,side,reason,entry,sl,t1,t2,rv,e9,e21,time:new Date(Number(candles[candles.length-1][6])).toLocaleString('en-IN')};
+ const signal={coin,side,reason,entry,sl,t1,t2,rv,e9,e21,time:new Date(Number(candles[candles.length-1][6])).toLocaleString('en-IN'),candleTime:lastClosed};
+ cryptoSignalLock[coin]={candleTime:lastClosed,signal};
+ return signal;
 }
 function showCoinSignal(s){
  const el=document.getElementById('sig-'+s.coin),info=document.getElementById('siginfo-'+s.coin);
