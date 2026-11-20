@@ -466,7 +466,7 @@ function openBackupOptionChart(){
 function renderCryptoOptions(){
  const coin=document.getElementById('optCurrency').value,expiry=document.getElementById('optExpiry').value,type=document.getElementById('optType').value,search=document.getElementById('optSearch').value.trim(),underlying=cryptoOptionUnderlying[coin];
  const rows=cryptoOptionData[coin].filter(x=>{const n=x.instrument_name||'',s=n.endsWith('-C')?'C':n.endsWith('-P')?'P':'',k=Number(n.split('-')[2]);return optionDate(n)===expiry&&(type==='ALL'||s===type)&&(!search||String(k).includes(search))}).sort((a,b)=>Number(a.instrument_name.split('-')[2])-Number(b.instrument_name.split('-')[2]));
- document.getElementById('optRows').innerHTML=rows.length?rows.slice(0,150).map(x=>{const p=x.instrument_name.split('-'),side=p[3]==='C'?'CALL':'PUT',bid=Number(x.bid_price),ask=Number(x.ask_price),mark=Number(x.mark_price),markUsd=optionUsd(mark,underlying),oi=Number(x.open_interest||0),vol=Number(x.volume||0),spread=mark>0?(ask-bid)/mark:null,trend=cryptoTrendSignal[coin];let signal='WAIT',why='';if(trend!==(side==='CALL'?'BUY CALL':'BUY PUT'))why='15m दिशा मेल नहीं';else if(!(bid>0&&ask>=bid&&mark>0))why='quote अधूरा';else if(spread===null||spread>0.02)why='spread 2% से अधिक';else if(oi<=0||vol<=0)why='liquidity कम';else signal=spread<=0.01?(trend==='BUY CALL'?'STRONG BUY CALL':'STRONG BUY PUT'):trend;const slUsd=signal==='WAIT'?null:markUsd*0.75,tp1Usd=signal==='WAIT'?null:markUsd*1.25,tp2Usd=signal==='WAIT'?null:markUsd*1.50;return '<tr><td>'+x.instrument_name+'</td><td>'+Number(p[2]).toLocaleString('en-US')+'</td><td class="'+(side==='CALL'?'call-text':'put-text')+'">'+side+'</td><td>'+optionMoney(optionUsd(bid,underlying))+'</td><td>'+optionMoney(optionUsd(ask,underlying))+'</td><td>'+optionMoney(markUsd)+'</td><td>'+(spread===null?'—':(spread*100).toFixed(2)+'%')+'</td><td>'+optionMoney(slUsd)+'</td><td>'+optionMoney(tp1Usd)+'</td><td>'+optionMoney(tp2Usd)+'</td><td>'+oi.toLocaleString('en-US',{maximumFractionDigits:3})+'</td><td>'+vol.toLocaleString('en-US',{maximumFractionDigits:3})+'</td><td class="'+(signal==='WAIT'?'signal-neutral':side==='CALL'?'call-text':'put-text')+'">'+signal+(why?' ('+why+')':'')+'</td></tr>'}).join(''):'<tr><td colspan="13">इस expiry/filter में contract नहीं मिला।</td></tr>';
+ document.getElementById('optRows').innerHTML=rows.length?rows.slice(0,150).map(x=>{const p=x.instrument_name.split('-'),side=p[3]==='C'?'CALL':'PUT',bid=Number(x.bid_price),ask=Number(x.ask_price),mark=Number(x.mark_price),markUsd=optionUsd(mark,underlying),oi=Number(x.open_interest||0),vol=Number(x.volume||0),spread=mark>0?(ask-bid)/mark:null,trend=cryptoTrendSignal[coin];let signal='WAIT',why='';if(trend!==(side==='CALL'?'BUY CALL':'BUY PUT'))why='15m दिशा मेल नहीं';else if(!(bid>0&&ask>=bid&&mark>0))why='quote अधूरा';else if(spread===null||spread>0.02)why='spread 2% से अधिक';else if(oi<=0||vol<=0)why='liquidity कम';else signal=spread<=0.01&&cryptoSignalStrength[coin]?(trend==='BUY CALL'?'STRONG BUY CALL':'STRONG BUY PUT'):trend;const slUsd=signal==='WAIT'?null:markUsd*0.75,tp1Usd=signal==='WAIT'?null:markUsd*1.25,tp2Usd=signal==='WAIT'?null:markUsd*1.50;return '<tr><td>'+x.instrument_name+'</td><td>'+Number(p[2]).toLocaleString('en-US')+'</td><td class="'+(side==='CALL'?'call-text':'put-text')+'">'+side+'</td><td>'+optionMoney(optionUsd(bid,underlying))+'</td><td>'+optionMoney(optionUsd(ask,underlying))+'</td><td>'+optionMoney(markUsd)+'</td><td>'+(spread===null?'—':(spread*100).toFixed(2)+'%')+'</td><td>'+optionMoney(slUsd)+'</td><td>'+optionMoney(tp1Usd)+'</td><td>'+optionMoney(tp2Usd)+'</td><td>'+oi.toLocaleString('en-US',{maximumFractionDigits:3})+'</td><td>'+vol.toLocaleString('en-US',{maximumFractionDigits:3})+'</td><td class="'+(signal==='WAIT'?'signal-neutral':side==='CALL'?'call-text':'put-text')+'">'+signal+(why?' ('+why+')':'')+'</td></tr>'}).join(''):'<tr><td colspan="13">इस expiry/filter में contract नहीं मिला।</td></tr>';
 }
 function ema(values,period){let k=2/(period+1),v=values[0];for(let i=1;i<values.length;i++)v=values[i]*k+v*(1-k);return v}
 function rsi(values,period=14){let gains=0,losses=0;for(let i=values.length-period;i<values.length;i++){let d=values[i]-values[i-1];if(d>0)gains+=d;else losses-=d}let ag=gains/period,al=losses/period;return al===0?100:100-100/(1+ag/al)}
@@ -476,30 +476,38 @@ function saveSignalLock(coin,obj){try{localStorage.setItem('signalLock_'+coin,JS
 async function analyzeCryptoCoin(coin){
  const symbol=coin+'USDT',url='https://api.binance.com/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60';
  const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw new Error('Market feed unavailable ('+res.status+')');
- const raw=await res.json();if(!Array.isArray(raw)||raw.length<30)throw new Error('पर्याप्त candle data नहीं मिला');
- // अंतिम चल रही candle को हटाएँ; सिग्नल केवल बंद 15m candle पर बनता है।
- const candles=raw.slice(0,-1),lastClosed=Number(candles[candles.length-1][0]);
- const saved=readSignalLock(coin);
+ const raw=await res.json();if(!Array.isArray(raw)||raw.length<30)throw new Error('पर्याप्त 15m candle data नहीं मिला');
+ const candles=raw.slice(0,-1),lastClosed=Number(candles[candles.length-1][0]),saved=readSignalLock(coin);
  if(saved&&saved.candleTime===lastClosed){cryptoSignalLock[coin]=saved;return saved.signal}
- const closes=candles.map(x=>Number(x[4])),highs=candles.map(x=>Number(x[2])),lows=candles.map(x=>Number(x[3]));
- const close=closes[closes.length-1],e9=ema(closes.slice(-30),9),e21=ema(closes.slice(-50),21),rv=rsi(closes,14);
+ const closes=candles.map(x=>Number(x[4])),highs=candles.map(x=>Number(x[2])),lows=candles.map(x=>Number(x[3])),volumes=candles.map(x=>Number(x[5]));
+ const close=closes.at(-1),open=Number(candles.at(-1)[1]),high=highs.at(-1),low=lows.at(-1),volume=volumes.at(-1);
+ const e9=ema(closes.slice(-30),9),e21=ema(closes.slice(-50),21),rv=rsi(closes,14);
+ const avgVol=volumes.slice(-21,-1).reduce((a,b)=>a+b,0)/20,volOk=volume>avgVol;
+ const candleRange=Math.max(high-low,1e-12),bodyStrength=Math.abs(close-open)/candleRange,closeLocation=close>open?(close-low)/candleRange:(high-close)/candleRange;
+ const candleOk=bodyStrength>=0.60&&closeLocation>=0.70;
  const ranges=[];for(let i=Math.max(1,candles.length-14);i<candles.length;i++)ranges.push(Math.max(highs[i]-lows[i],Math.abs(highs[i]-closes[i-1]),Math.abs(lows[i]-closes[i-1])));
  const atr=ranges.reduce((a,b)=>a+b,0)/ranges.length;
  let side='WAIT',reason='EMA/RSI में साफ पुष्टि नहीं';
- if(close>e9&&e9>e21&&rv>=52&&rv<=70){side='BUY / LONG';reason='बंद 15m candle: कीमत EMA9 से ऊपर, EMA9>EMA21 और RSI 52–70';}
- else if(close<e9&&e9<e21&&rv>=30&&rv<=48){side='SELL / SHORT';reason='बंद 15m candle: कीमत EMA9 से नीचे, EMA9<EMA21 और RSI 30–48';}
+ if(close>e9&&e9>e21&&rv>=52&&rv<=70){side='BUY / LONG';reason='15m EMA/RSI अनुकूल';}
+ else if(close<e9&&e9<e21&&rv>=30&&rv<=48){side='SELL / SHORT';reason='15m EMA/RSI अनुकूल';}
+ let h1Ok=false,h1Info='1h data unavailable';
+ try{
+  const hr=await fetch('https://api.binance.com/api/v3/klines?symbol='+symbol+'&interval=1h&limit=40',{cache:'no-store'});
+  if(hr.ok){const hj=await hr.json();if(Array.isArray(hj)&&hj.length>=25){const hc=hj.slice(0,-1).map(x=>Number(x[4])),hclose=hc.at(-1),he9=ema(hc.slice(-25),9),he21=ema(hc.slice(-35),21);h1Ok=side==='BUY / LONG'?hclose>he9&&he9>he21:side==='SELL / SHORT'?hclose<he9&&he9<he21:false;h1Info=h1Ok?'1h trend confirmed':'1h trend mismatch';}}
+ }catch(e){h1Info='1h confirmation unavailable'}
+ const prevSide=saved&&saved.signal?saved.signal.baseSide:null,stable=prevSide===side&&side!=='WAIT';
+ const strong=side!=='WAIT'&&h1Ok&&volOk&&candleOk&&stable;
  const entry=close,sl=side==='BUY / LONG'?entry-1.2*atr:side==='SELL / SHORT'?entry+1.2*atr:null;
  const risk=sl===null?null:Math.abs(entry-sl),t1=sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk),t2=sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk);
- const previous=saved&&saved.signal?saved.signal.side:'कोई पिछला सिग्नल नहीं';
- const changeReason=previous===side?'सिग्नल वही रहा':('सिग्नल बदला: '+previous+' → '+side+'; '+reason);
- const signal={coin,side,reason,changeReason,previous,entry,sl,t1,t2,rv,e9,e21,time:new Date(Number(candles[candles.length-1][6])).toLocaleString('en-IN'),candleTime:lastClosed};
- const lock={candleTime:lastClosed,signal};cryptoSignalLock[coin]=lock;saveSignalLock(coin,lock);
- return signal;
+ const previous=prevSide||'कोई पिछला सिग्नल नहीं',changeReason=previous===side?'सिग्नल वही रहा':('सिग्नल बदला: '+previous+' → '+side);
+ const quality='1h: '+h1Info+' • Volume '+(volOk?'औसत से अधिक':'औसत से कम')+' • Candle '+(candleOk?'मजबूत':'कमजोर')+' • 2-candle stability '+(stable?'confirmed':'pending');
+ const signal={coin,side,strong,baseSide:side,reason,quality,changeReason,previous,entry,sl,t1,t2,rv,e9,e21,volume,avgVol,time:new Date(Number(candles.at(-1)[6])).toLocaleString('en-IN'),candleTime:lastClosed};
+ const lock={candleTime:lastClosed,signal};cryptoSignalLock[coin]=lock;saveSignalLock(coin,lock);return signal;
 }
 function showCoinSignal(s){
  const el=document.getElementById('sig-'+s.coin),info=document.getElementById('siginfo-'+s.coin);
- if(el){el.textContent=s.side;el.className=s.side==='BUY / LONG'?'call-text':s.side==='SELL / SHORT'?'put-text':'signal-neutral';}
- if(info)info.textContent=s.side==='WAIT'?s.reason+' • RSI '+fmt(s.rv)+' • '+s.time:'Entry '+fmt(s.entry)+' | SL '+fmt(s.sl)+' | T1 '+fmt(s.t1)+' | T2 '+fmt(s.t2)+' • '+s.reason+' • '+s.time;
+ if(el){el.textContent=s.strong?'STRONG '+s.side:s.side;el.className=s.side==='BUY / LONG'?'call-text':s.side==='SELL / SHORT'?'put-text':'signal-neutral';}
+ if(info)info.textContent=s.side==='WAIT'?s.reason+' • RSI '+fmt(s.rv)+' • '+s.time:s.strong?'Entry '+fmt(s.entry)+' | SL '+fmt(s.sl)+' | T1 '+fmt(s.t1)+' | T2 '+fmt(s.t2)+' • STRONG: '+s.quality+' • '+s.time:'Entry '+fmt(s.entry)+' | SL '+fmt(s.sl)+' | T1 '+fmt(s.t1)+' | T2 '+fmt(s.t2)+' • '+s.reason+' • '+s.quality+' • '+s.time;
 }
 async function loadAllCryptoSignals(){
  const coins=['BTC','ETH','BNB','ZEC'];
@@ -511,9 +519,9 @@ async function loadAllCryptoSignals(){
     const direction=s.side==='BUY / LONG'?'BUY CALL':s.side==='SELL / SHORT'?'BUY PUT':'WAIT';
     if(el){el.textContent=direction;el.className=direction==='BUY CALL'?'call-text':direction==='BUY PUT'?'put-text':'signal-neutral';}
     if(info)info.textContent=s.side==='WAIT'?s.reason+' • RSI '+fmt(s.rv)+' • '+s.time:'Underlying Entry '+fmt(s.entry)+' | SL '+fmt(s.sl)+' | T1 '+fmt(s.t1)+' | T2 '+fmt(s.t2)+' • Premium plan: SL -20%, TP1 +30%, TP2 +50% • '+s.reason+' • '+s.time;
-    cryptoTrendSignal[coin]=direction;
+    cryptoTrendSignal[coin]=direction;cryptoSignalStrength[coin]=!!s.strong;
    }else{
-    showCoinSignal(s);cryptoTrendSignal[coin]=s.side==='BUY / LONG'?'BUY CALL':s.side==='SELL / SHORT'?'BUY PUT':'WAIT';
+    showCoinSignal(s);cryptoTrendSignal[coin]=s.side==='BUY / LONG'?'BUY CALL':s.side==='SELL / SHORT'?'BUY PUT':'WAIT';cryptoSignalStrength[coin]=!!s.strong;
    }
   }catch(e){
    const el=document.getElementById('sig-'+coin),info=document.getElementById('siginfo-'+coin);
@@ -530,7 +538,7 @@ async function loadCryptoSignal(){
   const s=await analyzeCryptoCoin(coin);
   cryptoTrendSignal[coin]=s.side==='BUY / LONG'?'BUY CALL':s.side==='SELL / SHORT'?'BUY PUT':'WAIT';
   showCoinSignal(s);renderCryptoOptions();
-  box.innerHTML='<div class="grid"><div class="result"><small>15m Signal — '+coin+'</small><strong class="'+(s.side==='BUY / LONG'?'call-text':s.side==='SELL / SHORT'?'put-text':'signal-neutral')+'">'+s.side+'</strong></div><div class="result"><small>Entry (Underlying)</small><strong>'+fmt(s.entry)+'</strong></div><div class="result"><small>Stop Loss</small><strong>'+(s.sl===null?'—':fmt(s.sl))+'</strong></div><div class="result"><small>Target 1</small><strong>'+(s.t1===null?'—':fmt(s.t1))+'</strong></div><div class="result"><small>Target 2</small><strong>'+(s.t2===null?'—':fmt(s.t2))+'</strong></div><div class="result"><small>RSI 14 / EMA 9 / EMA 21</small><strong>'+fmt(s.rv)+' / '+fmt(s.e9)+' / '+fmt(s.e21)+'</strong></div></div><p class="note">'+s.reason+' • '+s.changeReason+' • आखिरी पूरी हुई 15m candle: '+s.time+'. SL/targets ATR आधारित अनुमान हैं; यह order नहीं लगाता। WAIT में trade न लें।';
+  box.innerHTML='<div class="grid"><div class="result"><small>15m Signal — '+coin+'</small><strong class="'+(s.side==='BUY / LONG'?'call-text':s.side==='SELL / SHORT'?'put-text':'signal-neutral')+'">'+(s.strong?'STRONG '+s.side:s.side)+'</strong></div><div class="result"><small>Entry (Underlying)</small><strong>'+fmt(s.entry)+'</strong></div><div class="result"><small>Stop Loss</small><strong>'+(s.sl===null?'—':fmt(s.sl))+'</strong></div><div class="result"><small>Target 1</small><strong>'+(s.t1===null?'—':fmt(s.t1))+'</strong></div><div class="result"><small>Target 2</small><strong>'+(s.t2===null?'—':fmt(s.t2))+'</strong></div><div class="result"><small>RSI 14 / EMA 9 / EMA 21</small><strong>'+fmt(s.rv)+' / '+fmt(s.e9)+' / '+fmt(s.e21)+'</strong></div></div><p class="note">'+s.reason+' • '+s.changeReason+' • आखिरी पूरी हुई 15m candle: '+s.time+'. SL/targets ATR आधारित अनुमान हैं; यह order नहीं लगाता। WAIT में trade न लें।';
  }catch(e){box.innerHTML='<p class="note">15m signal उपलब्ध नहीं: '+e.message+'. अभी WAIT रखें।</p>'}
 }
 function loadChart(){
