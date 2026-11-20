@@ -212,7 +212,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 
 <section class="panel" id="crypto-signals">
 <h2>🚦 CRYPTO 15 MIN SIGNALS — BTC / ETH OPTIONS + BNB / ZEC FUTURES</h2>
-<p class="note">BTC और ETH के लिए बंद 15m candle पर EMA9/EMA21 + RSI14 से BUY CALL / BUY PUT / WAIT संकेत। Entry, SL और targets underlying price पर हैं; option premium targets खरीद के premium से अलग calculate होंगे. BNB/ZEC futures signals भी नीचे जारी हैं।</p>
+<p class="note">BTC और ETH के लिए बंद 15m candle पर EMA9/EMA21 + RSI14 से BUY CALL / BUY PUT / WAIT संकेत। Bearish RSI range 25–52 और bullish RSI range 48–75 है; मजबूत signal के लिए 1h, volume और लगातार दो 15m candles की पुष्टि भी चाहिए। Entry, SL और targets underlying price पर हैं; option premium targets खरीद के premium से अलग calculate होंगे. BNB/ZEC futures signals भी नीचे जारी हैं।</p>
 <div class="grid">
 <div class="result"><small>BTCUSDT • 15m OPTION SIGNAL</small><strong id="sig-BTC">लोड हो रहा है…</strong><p class="note" id="siginfo-BTC">कैंडल डेटा जाँचा जा रहा है</p></div>
 <div class="result"><small>ETHUSDT • 15m OPTION SIGNAL</small><strong id="sig-ETH">लोड हो रहा है…</strong><p class="note" id="siginfo-ETH">कैंडल डेटा जाँचा जा रहा है</p></div>
@@ -513,31 +513,38 @@ function saveSignalLock(coin,obj){try{localStorage.setItem('signalLock_'+coin,JS
 async function analyzeCryptoCoin(coin){
  const symbol=coin+'USDT',urls=['https://api.binance.com/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60','https://api1.binance.com/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60','https://data-api.binance.vision/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60'];
  let raw=null,lastFeedError='';for(const url of urls){try{const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw new Error('HTTP '+res.status);const data=await res.json();if(!Array.isArray(data)||data.length<30)throw new Error('15m candles कम हैं');raw=data;break;}catch(e){lastFeedError=e.message||'feed error';}}
- if(!raw)throw new Error('ETH/BTC 15m market feed unavailable: '+lastFeedError);
+ if(!raw)throw new Error(coin+' 15m market feed unavailable: '+lastFeedError);
  const candles=raw.slice(0,-1),lastClosed=Number(candles[candles.length-1][0]),saved=readSignalLock(coin);
  if(saved&&saved.candleTime===lastClosed){cryptoSignalLock[coin]=saved;return saved.signal}
  const closes=candles.map(x=>Number(x[4])),highs=candles.map(x=>Number(x[2])),lows=candles.map(x=>Number(x[3])),volumes=candles.map(x=>Number(x[5]));
  const close=closes.at(-1),open=Number(candles.at(-1)[1]),high=highs.at(-1),low=lows.at(-1),volume=volumes.at(-1);
  const e9=ema(closes.slice(-30),9),e21=ema(closes.slice(-50),21),rv=rsi(closes,14);
  const avgVol=volumes.slice(-21,-1).reduce((a,b)=>a+b,0)/20,volOk=volume>avgVol;
- const candleRange=Math.max(high-low,1e-12),bodyStrength=Math.abs(close-open)/candleRange,closeLocation=close>open?(close-low)/candleRange:(high-close)/candleRange;
- const candleOk=bodyStrength>=0.50&&closeLocation>=0.65;
+ const candleRange=Math.max(high-low,1e-12),bodyStrength=Math.abs(close-open)/candleRange;
+ const bearishCandle=close<open,bullishCandle=close>open;
+ const closeNearLow=(close-low)/candleRange<=0.40,closeNearHigh=(high-close)/candleRange<=0.40;
+ const bearCandleOk=bearishCandle&&bodyStrength>=0.40&&closeNearLow;
+ const bullCandleOk=bullishCandle&&bodyStrength>=0.40&&closeNearHigh;
  const ranges=[];for(let i=Math.max(1,candles.length-14);i<candles.length;i++)ranges.push(Math.max(highs[i]-lows[i],Math.abs(highs[i]-closes[i-1]),Math.abs(lows[i]-closes[i-1])));
  const atr=ranges.reduce((a,b)=>a+b,0)/ranges.length;
- let side='WAIT',reason='EMA/RSI में साफ पुष्टि नहीं';
- if(close>e9&&e9>e21&&rv>=52&&rv<=70){side='BUY / LONG';reason='15m EMA/RSI अनुकूल';}
- else if(close<e9&&e9<e21&&rv>=30&&rv<=48){side='SELL / SHORT';reason='15m EMA/RSI अनुकूल';}
+ let side='WAIT',reason='15m EMA/RSI या candle confirmation पूरी नहीं';
+ if(close>e9&&e9>e21&&rv>=48&&rv<=75&&bullCandleOk){side='BUY / LONG';reason='15m bullish EMA + RSI + बंद हरी candle confirmed';}
+ else if(close<e9&&e9<e21&&rv>=25&&rv<=52&&bearCandleOk){side='SELL / SHORT';reason='15m bearish EMA + RSI + बंद लाल candle confirmed';}
+ else if(close<e9&&e9<e21&&rv<25)reason='Bearish trend है, लेकिन RSI बहुत नीचे है; नई entry से पहले अगली 15m पुष्टि का इंतज़ार';
+ else if(close<e9&&e9<e21&&!bearCandleOk)reason='Bearish EMA trend है, पर बंद 15m लाल candle की मजबूती/close-position पुष्टि नहीं';
+ else if(close>e9&&e9>e21&&!bullCandleOk)reason='Bullish EMA trend है, पर बंद 15m हरी candle की मजबूती/close-position पुष्टि नहीं';
  let h1Ok=false,h1Info='1h data unavailable';
  try{
   const hr=await fetch('https://api.binance.com/api/v3/klines?symbol='+symbol+'&interval=1h&limit=40',{cache:'no-store'});
   if(hr.ok){const hj=await hr.json();if(Array.isArray(hj)&&hj.length>=25){const hc=hj.slice(0,-1).map(x=>Number(x[4])),hclose=hc.at(-1),he9=ema(hc.slice(-25),9),he21=ema(hc.slice(-35),21);h1Ok=side==='BUY / LONG'?hclose>he9&&he9>he21:side==='SELL / SHORT'?hclose<he9&&he9<he21:false;h1Info=h1Ok?'1h trend confirmed':'1h trend mismatch';}}
  }catch(e){h1Info='1h confirmation unavailable'}
  const prevSide=saved&&saved.signal?saved.signal.baseSide:null,stable=prevSide===side&&side!=='WAIT';
+ const candleOk=side==='SELL / SHORT'?bearCandleOk:side==='BUY / LONG'?bullCandleOk:false;
  const strong=side!=='WAIT'&&h1Ok&&volOk&&candleOk&&stable;
  const entry=close,sl=side==='BUY / LONG'?entry-1.2*atr:side==='SELL / SHORT'?entry+1.2*atr:null;
  const risk=sl===null?null:Math.abs(entry-sl),t1=sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk),t2=sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk);
  const previous=prevSide||'कोई पिछला सिग्नल नहीं',changeReason=previous===side?'सिग्नल वही रहा':('सिग्नल बदला: '+previous+' → '+side);
- const quality='1h: '+h1Info+' • Volume '+(volOk?'औसत से अधिक':'औसत से कम')+' • Candle '+(candleOk?'मजबूत':'कमजोर')+' • 2-candle stability '+(stable?'confirmed':'pending');
+ const quality='1h: '+h1Info+' • Volume '+(volOk?'औसत से अधिक':'औसत से कम')+' • 15m candle '+(candleOk?'confirmed':'not confirmed')+' • 2-candle stability '+(stable?'confirmed':'pending');
  const signal={coin,side,strong,baseSide:side,reason,quality,changeReason,previous,entry,sl,t1,t2,rv,e9,e21,volume,avgVol,time:new Date(Number(candles.at(-1)[6])).toLocaleString('en-IN'),candleTime:lastClosed};
  const lock={candleTime:lastClosed,signal};cryptoSignalLock[coin]=lock;saveSignalLock(coin,lock);return signal;
 }
