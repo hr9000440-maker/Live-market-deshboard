@@ -307,22 +307,44 @@ function fmt(n){return Number.isFinite(n)?n.toLocaleString('en-US',{maximumFract
 async function loadCryptoOptions(){
  const coin=document.getElementById('optCurrency').value,status=document.getElementById('optStatus');
  status.textContent=coin+' options का live data लिया जा रहा है…';
- document.getElementById('optRows').innerHTML='<tr><td colspan="12">लोड हो रहा है…</td></tr>';
+ document.getElementById('optRows').innerHTML='<tr><td colspan="13">लोड हो रहा है…</td></tr>';
+ document.getElementById('optUnderlying').textContent='—';
+ document.getElementById('optCount').textContent='—';
  try{
   let json=null,lastError=null;
-  const endpoints=['https://api.deribit.com/api/v2/public/get_book_summary_by_currency?currency='+coin+'&kind=option','https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency='+coin+'&kind=option'];
+  const endpoints=['https://api.deribit.com/api/v2/public/get_book_summary_by_currency?currency='+encodeURIComponent(coin)+'&kind=option','https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency='+encodeURIComponent(coin)+'&kind=option'];
   for(const url of endpoints){try{const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);const response=await fetch(url,{cache:'no-store',signal:controller.signal});clearTimeout(timer);if(!response.ok)throw new Error('HTTP '+response.status);const data=await response.json();if(data.error)throw new Error(data.error.message||'API error');json=data;break;}catch(e){lastError=e;}}
   if(!json)throw new Error(lastError?.name==='AbortError'?'API timeout':lastError?.message||'Fetch failed');
-  const rows=Array.isArray(json.result)?json.result:[];cryptoOptionData[coin]=rows;
-  const prices=rows.map(x=>Number(x.underlying_price)).filter(x=>x>0);cryptoOptionUnderlying[coin]=prices.length?prices[0]:null;
+  const allRows=Array.isArray(json.result)?json.result:[];
+  // Deribit response must match selected coin. Reject mismatched instruments (e.g. BTC rows while ZEC is selected).
+  const rows=allRows.filter(x=>typeof x.instrument_name==='string'&&x.instrument_name.startsWith(coin+'-'));
+  cryptoOptionData[coin]=rows;
+  let underlying=rows.map(x=>Number(x.underlying_price)).find(x=>x>0)||null;
+  if(!underlying){
+   try{const ticker=await fetch('https://api.binance.com/api/v3/ticker/price?symbol='+coin+'USDT',{cache:'no-store'});if(ticker.ok){const t=await ticker.json();const p=Number(t.price);if(p>0)underlying=p;}}catch{}
+  }
+  cryptoOptionUnderlying[coin]=underlying;
   const expiries=[...new Set(rows.map(x=>optionDate(x.instrument_name)).filter(Boolean))].sort((a,b)=>new Date(a)-new Date(b));
   const expiry=document.getElementById('optExpiry');
-  expiry.innerHTML=expiries.map(x=>'<option value="'+x+'">'+x+'</option>').join('')||'<option value="">No active expiry</option>';
-  document.getElementById('optUnderlying').textContent=cryptoOptionUnderlying[coin]?fmt(cryptoOptionUnderlying[coin]):'—';
+  expiry.innerHTML=expiries.map(x=>'<option value="'+x+'">'+x+'</option>').join('')||'<option value="">No active '+coin+' expiry</option>';
+  document.getElementById('optUnderlying').textContent=underlying?fmt(underlying)+' '+coin+' spot/underlying':'—';
   document.getElementById('optCount').textContent=rows.length.toLocaleString('en-US');
   document.getElementById('optUpdated').textContent=new Date().toLocaleTimeString('en-IN');
-  status.textContent=rows.length+' active '+coin+' option contracts मिले।';renderCryptoOptions();populateOptionChartContracts();
- }catch(e){status.textContent='Live data नहीं मिला: '+e.message+'. Internet/API access जाँचें।';document.getElementById('optRows').innerHTML='<tr><td colspan="13">डेटा उपलब्ध नहीं है।</td></tr>';cryptoOptionData[coin]=[];document.getElementById('chartOptExpiry').innerHTML='<option value="">Expiry unavailable</option>';document.getElementById('chartOptInstrument').innerHTML='<option value="">Contract unavailable</option>';document.getElementById('chartOptName').textContent='—';document.getElementById('chartOptLast').textContent='—';document.getElementById('chartOptUpdated').textContent='—';document.getElementById('chartOptStatus').textContent=coin+' options API ने डेटा नहीं दिया: '+e.message;drawOptionPremiumChart([])}
+  if(rows.length){status.textContent=rows.length+' active '+coin+' option contracts मिले।';}
+  else if(allRows.length){status.textContent='API ने '+allRows.length+' contracts लौटाए, लेकिन वे '+coin+' के नहीं थे; mismatched contracts हटाए गए। '+coin+' options उपलब्ध नहीं/डेटा गलत है।';}
+  else{status.textContent='Deribit पर '+coin+' के active option contracts नहीं मिले।';}
+  renderCryptoOptions();populateOptionChartContracts();
+ }catch(e){
+  status.textContent='Live data नहीं मिला: '+e.message+'. Internet/API access जाँचें।';
+  document.getElementById('optRows').innerHTML='<tr><td colspan="13">डेटा उपलब्ध नहीं है।</td></tr>';
+  cryptoOptionData[coin]=[];cryptoOptionUnderlying[coin]=null;
+  document.getElementById('optExpiry').innerHTML='<option value="">Expiry unavailable</option>';
+  document.getElementById('optUnderlying').textContent='—';document.getElementById('optCount').textContent='0';
+  document.getElementById('chartOptExpiry').innerHTML='<option value="">Expiry unavailable</option>';
+  document.getElementById('chartOptInstrument').innerHTML='<option value="">Contract unavailable</option>';
+  document.getElementById('chartOptName').textContent='—';document.getElementById('chartOptLast').textContent='—';document.getElementById('chartOptUpdated').textContent='—';
+  document.getElementById('chartOptStatus').textContent=coin+' options API ने डेटा नहीं दिया: '+e.message;drawOptionPremiumChart([]);
+ }
 }
 
 function populateOptionChartContracts(){
