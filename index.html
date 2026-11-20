@@ -409,7 +409,8 @@ function updateBackupOptionChart(instrument){
 function openBackupOptionChart(){
  const instrument=document.getElementById('chartOptInstrument').value;
  const name=backupOptionName(instrument);
- const coin=(instrument||'').split('-')[0]||'BTC';\n const url='https://optionsmatch.com/chart/'+encodeURIComponent(coin)+'/option'+(name?'?ins='+encodeURIComponent(name):'');
+ const coin=(instrument||'').split('-')[0]||'BTC';
+ const url='https://optionsmatch.com/chart/'+encodeURIComponent(coin)+'/option'+(name?'?ins='+encodeURIComponent(name):'');
  window.open(url,'_blank','noopener');
 }
 function renderCryptoOptions(){
