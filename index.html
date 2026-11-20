@@ -253,6 +253,15 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 <p id="chartOptStatus" class="note" aria-live="polite">Option contract चुनें और chart load करें।</p>
 <canvas id="optionPremiumCanvas" style="width:100%;height:340px;background:#09192b;border:1px solid var(--line);border-radius:8px;display:block"></canvas>
 </section>
+<section class="panel" id="option-premium-backup">
+<h2>🔄 BTC OPTION PREMIUM CHART — BACKUP</h2>
+<p class="note">Alternate external premium chart source. Contract selected above will be passed when supported. External chart may have its own venue/data availability limits.</p>
+<div class="grid"><div class="result"><small>Backup Chart Source</small><strong>OptionsMatch</strong></div><div class="result"><small>Selected Contract</small><strong id="backupOptionName">—</strong></div></div>
+<button type="button" onclick="openBackupOptionChart()">External Premium Chart खोलें</button>
+<iframe id="backupOptionFrame" title="OptionsMatch alternate BTC option premium chart" class="chart" style="height:520px;margin-top:12px" loading="lazy" src="https://optionsmatch.com/chart/BTC/option"></iframe>
+<p class="note">यदि iframe में chart न खुले, ऊपर External Premium Chart बटन दबाएँ। OptionsMatch के contract format में Deribit selected contract भेजा जाएगा।</p>
+</section>
+
 <section class="panel">
 <h2>📊 LIVE CHART (15 MIN)</h2>
 <label for="symbol">Chart Symbol</label>
@@ -356,6 +365,7 @@ async function loadOptionPremiumChart(){
  if(!rows.some(x=>x.instrument_name===instrument)){status.textContent='Selected contract active list में नहीं मिला। पहले '+coin+' option list load करें; फिर contract चुनें।';drawOptionPremiumChart([]);return}
  status.textContent=instrument+' • active contract verified • API connection जाँच रहा है…';
  document.getElementById('chartOptName').textContent=instrument;
+ updateBackupOptionChart(instrument);
  document.getElementById('chartOptLast').textContent='—';document.getElementById('chartOptUpdated').textContent='—'; drawOptionPremiumChart([]);
  const now=Date.now(),ranges=[24*60*60*1000,7*24*60*60*1000,30*24*60*60*1000];
  const hosts=['https://api.deribit.com/api/v2/public/get_tradingview_chart_data','https://www.deribit.com/api/v2/public/get_tradingview_chart_data'];
@@ -385,6 +395,22 @@ async function loadOptionPremiumChart(){
  }else{
   status.textContent='Chart data नहीं मिला • '+instrument+' • API diagnostics: '+diagnostics.join(' | ')+'.';
  }
+}
+function backupOptionName(instrument){
+ const p=(instrument||'').split('-');
+ if(p.length<4)return '';
+ return p[0]+'-'+p[1]+'-'+p[2]+'-'+p[3];
+}
+function updateBackupOptionChart(instrument){
+ const name=backupOptionName(instrument);
+ document.getElementById('backupOptionName').textContent=name||'—';
+ if(name)document.getElementById('backupOptionFrame').src='https://optionsmatch.com/chart/BTC/option?ins='+encodeURIComponent(name);
+}
+function openBackupOptionChart(){
+ const instrument=document.getElementById('chartOptInstrument').value;
+ const name=backupOptionName(instrument);
+ const url='https://optionsmatch.com/chart/BTC/option'+(name?'?ins='+encodeURIComponent(name):'');
+ window.open(url,'_blank','noopener');
 }
 function renderCryptoOptions(){
  const coin=document.getElementById('optCurrency').value,expiry=document.getElementById('optExpiry').value,type=document.getElementById('optType').value,search=document.getElementById('optSearch').value.trim(),underlying=cryptoOptionUnderlying[coin];
