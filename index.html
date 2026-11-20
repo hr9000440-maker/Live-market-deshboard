@@ -371,7 +371,7 @@ async function loadOptionPremiumChart(){
  const hosts=['https://api.deribit.com/api/v2/public/get_tradingview_chart_data','https://www.deribit.com/api/v2/public/get_tradingview_chart_data'];
  let data=[],diagnostics=[];
  outer:for(const span of ranges){
-  const base='?instrument_name='+encodeURIComponent(instrument)+'&start_timestamp='+(now-span)+'&end_timestamp='+now+'&chart_resolution=15';
+  const base='?instrument_name='+encodeURIComponent(instrument)+'&start_timestamp='+(now-span)+'&end_timestamp='+now+'&resolution=15';
   for(const endpoint of hosts){
    let controller,timeout;
    try{
@@ -381,9 +381,9 @@ async function loadOptionPremiumChart(){
     const j=await r.json();if(j.error)throw new Error(j.error.message||'Deribit API error');
     const z=j.result||{},ticks=z.ticks||[],opens=z.open||[],highs=z.high||[],lows=z.low||[],closes=z.close||[];
     const candles=ticks.map((t,i)=>({time:Number(t),open:Number(opens[i]),high:Number(highs[i]),low:Number(lows[i]),close:Number(closes[i])})).filter(x=>[x.time,x.open,x.high,x.low,x.close].every(Number.isFinite));
-    if(candles.length){data=candles;diagnostics.push(new URL(endpoint).host+' chart_resolution=15 OK');break outer}
-    diagnostics.push(new URL(endpoint).host+' chart_resolution=15: 0 candles');
-   }catch(e){diagnostics.push(new URL(endpoint).host+' chart_resolution=15: '+(e.name==='AbortError'?'timeout':e.message||'fetch error'))}
+    if(candles.length){data=candles;diagnostics.push(new URL(endpoint).host+' resolution=15 OK');break outer}
+    diagnostics.push(new URL(endpoint).host+' resolution=15: 0 candles');
+   }catch(e){diagnostics.push(new URL(endpoint).host+' resolution=15: '+(e.name==='AbortError'?'timeout':e.message||'fetch error'))}
    finally{if(timeout)clearTimeout(timeout)}
   }
  }
