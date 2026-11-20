@@ -521,7 +521,7 @@ async function analyzeCryptoCoin(coin){
  const e9=ema(closes.slice(-30),9),e21=ema(closes.slice(-50),21),rv=rsi(closes,14);
  const avgVol=volumes.slice(-21,-1).reduce((a,b)=>a+b,0)/20,volOk=volume>avgVol;
  const candleRange=Math.max(high-low,1e-12),bodyStrength=Math.abs(close-open)/candleRange,closeLocation=close>open?(close-low)/candleRange:(high-close)/candleRange;
- const candleOk=bodyStrength>=0.60&&closeLocation>=0.70;
+ const candleOk=bodyStrength>=0.50&&closeLocation>=0.65;
  const ranges=[];for(let i=Math.max(1,candles.length-14);i<candles.length;i++)ranges.push(Math.max(highs[i]-lows[i],Math.abs(highs[i]-closes[i-1]),Math.abs(lows[i]-closes[i-1])));
  const atr=ranges.reduce((a,b)=>a+b,0)/ranges.length;
  let side='WAIT',reason='EMA/RSI में साफ पुष्टि नहीं';
