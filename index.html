@@ -338,6 +338,7 @@ async function loadCryptoOptions(){
    }).filter(x=>x.instrument_name&&x.strike>0);
    underlying=rows.map(x=>x.underlying_price).find(x=>x>0)||null;
   }else{
+   if(coin==='ETH'){
    const base='https://www.deribit.com/api/v2/public/';
    const hosts=['https://api.deribit.com/api/v2/public/','https://www.deribit.com/api/v2/public/','https://deribit.com/api/v2/public/'];
    // ETH के लिए instruments endpoint से active expiry/contracts भी लें; book-summary खाली/partial होने पर expiry गायब न हो।
@@ -369,6 +370,14 @@ async function loadCryptoOptions(){
      expiry:x.instrument_name.split('-')[1]||undefined};
    }).filter(x=>Number(x.strike)>0);
    underlying=rows.map(x=>Number(x.underlying_price)).find(x=>x>0)||null;
+   }else{
+    const endpoints=['https://api.deribit.com/api/v2/public/get_book_summary_by_currency?currency='+encodeURIComponent(coin)+'&kind=option','https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency='+encodeURIComponent(coin)+'&kind=option','https://deribit.com/api/v2/public/get_book_summary_by_currency?currency='+encodeURIComponent(coin)+'&kind=option'];
+    let json=null;
+    for(const url of endpoints){try{const response=await fetch(url,{cache:'no-store'});if(!response.ok)throw new Error('HTTP '+response.status);const data=await response.json();if(data.error)throw new Error(data.error.message||'API error');json=data;break;}catch(e){lastError=e;}}
+    if(!json)throw lastError||new Error('Fetch failed');
+    rows=(json.result||[]).filter(x=>typeof x.instrument_name==='string'&&x.instrument_name.startsWith(coin+'-'));
+    underlying=rows.map(x=>Number(x.underlying_price)).find(x=>x>0)||null;
+   }
   }
   if(token!==optionLoadToken)return;
   if(!underlying){try{const ticker=await fetch('https://api.binance.com/api/v3/ticker/price?symbol='+coin+'USDT',{cache:'no-store'});if(ticker.ok){const t=await ticker.json(),p=Number(t.price);if(p>0)underlying=p;}}catch{}}
