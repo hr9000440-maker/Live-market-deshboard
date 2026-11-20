@@ -366,7 +366,7 @@ async function loadCryptoOptions(){
     return {...x,...q,instrument_name:x.instrument_name,
      strike:Number(q.strike??x.strike??0),
      option_type:q.option_type||x.option_type||'',
-     expiry:x.expiration_timestamp?new Date(Number(x.expiration_timestamp)).toISOString().slice(0,10):undefined};
+     expiry:x.instrument_name.split('-')[1]||undefined};
    }).filter(x=>Number(x.strike)>0);
    underlying=rows.map(x=>Number(x.underlying_price)).find(x=>x>0)||null;
   }
