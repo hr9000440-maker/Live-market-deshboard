@@ -309,9 +309,10 @@ async function loadCryptoOptions(){
  status.textContent=coin+' options का live data लिया जा रहा है…';
  document.getElementById('optRows').innerHTML='<tr><td colspan="12">लोड हो रहा है…</td></tr>';
  try{
-  const response=await fetch('https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency='+coin+'&kind=option',{cache:'no-store'});
-  if(!response.ok)throw new Error('HTTP '+response.status);
-  const json=await response.json();if(json.error)throw new Error(json.error.message||'API error');
+  let json=null,lastError=null;
+  const endpoints=['https://api.deribit.com/api/v2/public/get_book_summary_by_currency?currency='+coin+'&kind=option','https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency='+coin+'&kind=option'];
+  for(const url of endpoints){try{const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);const response=await fetch(url,{cache:'no-store',signal:controller.signal});clearTimeout(timer);if(!response.ok)throw new Error('HTTP '+response.status);const data=await response.json();if(data.error)throw new Error(data.error.message||'API error');json=data;break;}catch(e){lastError=e;}}
+  if(!json)throw new Error(lastError?.name==='AbortError'?'API timeout':lastError?.message||'Fetch failed');
   const rows=Array.isArray(json.result)?json.result:[];cryptoOptionData[coin]=rows;
   const prices=rows.map(x=>Number(x.underlying_price)).filter(x=>x>0);cryptoOptionUnderlying[coin]=prices.length?prices[0]:null;
   const expiries=[...new Set(rows.map(x=>optionDate(x.instrument_name)).filter(Boolean))].sort((a,b)=>new Date(a)-new Date(b));
