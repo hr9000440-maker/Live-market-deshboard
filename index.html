@@ -244,7 +244,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 <h2>📉 CRYPTO OPTION PREMIUM CHART — 15 MIN</h2>
 <p class="note">Selected Deribit BTC/ETH option contract का 15-minute OHLC premium chart. यह CoinSwitch का exact contract/chart नहीं है; exchange और contract अलग हो सकते हैं।</p>
 <div class="option-controls">
-<div><label for="chartOptCoin">Coin</label><select id="chartOptCoin" onchange="document.getElementById('optCurrency').value=this.value;loadCryptoOptions();loadCryptoSignal()"><option value="BTC">BTC</option><option value="ETH">ETH</option><option value="ZEC">ZEC</option></select></div>
+<div><label for="chartOptCoin">Coin</label><select id="chartOptCoin" onchange="changeOptionChartCoin(this.value)"><option value="BTC">BTC</option><option value="ETH">ETH</option><option value="ZEC">ZEC</option></select></div>
 <div><label for="chartOptExpiry">Expiry</label><select id="chartOptExpiry" onchange="populateOptionChartContracts()"></select></div>
 <div><label for="chartOptInstrument">Option Contract</label><select id="chartOptInstrument"></select></div>
 </div>
@@ -299,13 +299,13 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 </main>
 
 <script>
-let cryptoOptionData={BTC:[],ETH:[],ZEC:[]},cryptoOptionUnderlying={BTC:null,ETH:null,ZEC:null},cryptoTrendSignal={BTC:'WAIT',ETH:'WAIT',ZEC:'WAIT'};
+let cryptoOptionData={BTC:[],ETH:[],ZEC:[]},cryptoOptionUnderlying={BTC:null,ETH:null,ZEC:null},cryptoTrendSignal={BTC:'WAIT',ETH:'WAIT',ZEC:'WAIT'};let optionLoadToken=0;
 function optionUsd(v,u){return Number.isFinite(Number(v))&&u?Number(v)*u:null}
 function optionMoney(v){return v==null?'—':Number(v).toLocaleString('en-US',{maximumFractionDigits:2})}
 function optionDate(n){const p=n.split('-');return p.length>1?p[1]:''}
 function fmt(n){return Number.isFinite(n)?n.toLocaleString('en-US',{maximumFractionDigits:2}):'—'}
 async function loadCryptoOptions(){
- const coin=document.getElementById('optCurrency').value,status=document.getElementById('optStatus');
+ const coin=document.getElementById('optCurrency').value,status=document.getElementById('optStatus');const token=++optionLoadToken;
  status.textContent=coin+' options का live data लिया जा रहा है…';
  document.getElementById('optRows').innerHTML='<tr><td colspan="13">लोड हो रहा है…</td></tr>';
  document.getElementById('optUnderlying').textContent='—';
@@ -314,15 +314,18 @@ async function loadCryptoOptions(){
   let json=null,lastError=null;
   const endpoints=['https://api.deribit.com/api/v2/public/get_book_summary_by_currency?currency='+encodeURIComponent(coin)+'&kind=option','https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency='+encodeURIComponent(coin)+'&kind=option'];
   for(const url of endpoints){try{const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);const response=await fetch(url,{cache:'no-store',signal:controller.signal});clearTimeout(timer);if(!response.ok)throw new Error('HTTP '+response.status);const data=await response.json();if(data.error)throw new Error(data.error.message||'API error');json=data;break;}catch(e){lastError=e;}}
+  if(token!==optionLoadToken)return;
   if(!json)throw new Error(lastError?.name==='AbortError'?'API timeout':lastError?.message||'Fetch failed');
   const allRows=Array.isArray(json.result)?json.result:[];
   // Deribit response must match selected coin. Reject mismatched instruments (e.g. BTC rows while ZEC is selected).
   const rows=allRows.filter(x=>typeof x.instrument_name==='string'&&x.instrument_name.startsWith(coin+'-'));
+  if(token!==optionLoadToken)return;
   cryptoOptionData[coin]=rows;
   let underlying=rows.map(x=>Number(x.underlying_price)).find(x=>x>0)||null;
   if(!underlying){
    try{const ticker=await fetch('https://api.binance.com/api/v3/ticker/price?symbol='+coin+'USDT',{cache:'no-store'});if(ticker.ok){const t=await ticker.json();const p=Number(t.price);if(p>0)underlying=p;}}catch{}
   }
+  if(token!==optionLoadToken)return;
   cryptoOptionUnderlying[coin]=underlying;
   const expiries=[...new Set(rows.map(x=>optionDate(x.instrument_name)).filter(Boolean))].sort((a,b)=>new Date(a)-new Date(b));
   const expiry=document.getElementById('optExpiry');
@@ -347,12 +350,21 @@ async function loadCryptoOptions(){
  }
 }
 
+function changeOptionChartCoin(coin){
+ document.getElementById('optCurrency').value=coin;
+ document.getElementById('chartOptExpiry').innerHTML='<option value="">Expiry loading…</option>';
+ document.getElementById('chartOptInstrument').innerHTML='<option value="">Contract loading…</option>';
+ document.getElementById('chartOptName').textContent='—';document.getElementById('chartOptLast').textContent='—';document.getElementById('chartOptUpdated').textContent='—';
+ document.getElementById('chartOptStatus').textContent=coin+' Underlying और active option contracts लोड हो रहे हैं…';drawOptionPremiumChart([]);
+ loadCryptoOptions();loadCryptoSignal();
+}
 function populateOptionChartContracts(){
  const coin=document.getElementById('chartOptCoin').value,rows=cryptoOptionData[coin]||[];
  const expiries=[...new Set(rows.map(x=>optionDate(x.instrument_name)).filter(Boolean))].sort((a,b)=>new Date(a)-new Date(b));
  const exp=document.getElementById('chartOptExpiry'),old=exp.value;
  exp.innerHTML=expiries.map(x=>'<option value="'+x+'">'+x+'</option>').join('');
  if(expiries.includes(old))exp.value=old;
+ if(!expiries.length){exp.innerHTML='<option value="">No active '+coin+' expiry</option>';document.getElementById('chartOptInstrument').innerHTML='<option value="">No active '+coin+' option contracts</option>';document.getElementById('chartOptName').textContent='—';document.getElementById('chartOptLast').textContent='—';document.getElementById('chartOptUpdated').textContent='—';document.getElementById('chartOptStatus').textContent=coin+' Underlying price उपलब्ध है, लेकिन Deribit पर active option contracts नहीं मिले; premium chart के लिए contract data उपलब्ध नहीं।';drawOptionPremiumChart([]);return;}
  const selected=exp.value,contracts=rows.filter(x=>optionDate(x.instrument_name)===selected).sort((a,b)=>a.strike-b.strike);
  const sel=document.getElementById('chartOptInstrument'),prior=sel.value;
  sel.innerHTML=contracts.map(x=>'<option value="'+x.instrument_name+'">'+x.instrument_name+' | Strike '+x.strike+' | '+(x.option_type||'')+'</option>').join('');
