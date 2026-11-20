@@ -212,7 +212,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 
 <section class="panel" id="crypto-signals">
 <h2>🚦 CRYPTO 15 MIN SIGNALS — BTC / ETH OPTIONS + BNB / ZEC FUTURES</h2>
-<p class="note">BTC और ETH के लिए live 15m candle पर EMA9/EMA21 + RSI14 से BUY CALL / BUY PUT / WAIT संकेत; signal हर 15 सेकंड refresh होता है। Bullish RSI range 45–75 और bearish RSI range 25–55 है। मजबूत signal के लिए 1h trend और volume या एक live 15m candle की पुष्टि जरूरी है; लगातार दो 15m candles की पुष्टि जरूरी नहीं। Entry, SL और targets underlying price पर हैं; option premium targets अलग हैं। BNB/ZEC futures signals भी नीचे जारी हैं। 15 दिन केवल PAPER TRADE करें—कोई वास्तविक order नहीं।</p>
+<p class="note">BTC और ETH के लिए live 15m candle पर EMA9/EMA21 + RSI14 से BUY CALL / BUY PUT / WAIT संकेत; signal हर 15 सेकंड refresh होता है। Bullish RSI range 45–75 और bearish RSI range 25–55 है। मजबूत signal के लिए केवल एक live 15m candle की पुष्टि जरूरी है; 1h trend और volume अनिवार्य नहीं हैं। लगातार दो 15m candles की पुष्टि जरूरी नहीं। Entry, SL और targets underlying price पर हैं; option premium targets अलग हैं। BNB/ZEC futures signals भी नीचे जारी हैं। 15 दिन केवल PAPER TRADE करें—कोई वास्तविक order नहीं।</p>
 <div class="grid">
 <div class="result"><small>BTCUSDT • 15m OPTION SIGNAL</small><strong id="sig-BTC">लोड हो रहा है…</strong><p class="note" id="siginfo-BTC">कैंडल डेटा जाँचा जा रहा है</p></div>
 <div class="result"><small>ETHUSDT • 15m OPTION SIGNAL</small><strong id="sig-ETH">लोड हो रहा है…</strong><p class="note" id="siginfo-ETH">कैंडल डेटा जाँचा जा रहा है</p></div>
@@ -545,11 +545,11 @@ async function analyzeCryptoCoin(coin){
   h1Info=h1Ok?'1h trend confirmed':'1h trend mismatch';
  }catch(e){h1Info='1h confirmation unavailable: '+(e.message||'feed error')}
  const prevSide=null;
- const strong=side!=='WAIT'&&h1Ok&&(volOk||candleOk);
+ const strong=side!=='WAIT'&&candleOk;
  const entry=close,sl=side==='BUY / LONG'?entry-1.2*atr:side==='SELL / SHORT'?entry+1.2*atr:null;
  const risk=sl===null?null:Math.abs(entry-sl),t1=sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk),t2=sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk);
  const previous=prevSide||'कोई पिछला सिग्नल नहीं',changeReason=previous===side?'सिग्नल वही रहा':('सिग्नल बदला: '+previous+' → '+side);
- const quality='1h: '+h1Info+' • Volume '+(volOk?'औसत से अधिक':'औसत से कम')+' • Live 15m candle confirmation '+(candleOk?'confirmed':'pending');
+ const quality='1h trend optional: '+h1Info+' • Volume informational: '+(volOk?'औसत से अधिक':'औसत से कम')+' • Single live 15m candle confirmation '+(candleOk?'confirmed':'pending');
  const signal={coin,side,strong,baseSide:side,reason,quality,changeReason,previous,entry,sl,t1,t2,rv,e9,e21,volume,avgVol,time:new Date(Number(candles.at(-1)[6])).toLocaleString('en-IN'),candleTime:lastClosed};
  cryptoSignalLock[coin]={candleTime:lastClosed,signal};return signal;
 }
