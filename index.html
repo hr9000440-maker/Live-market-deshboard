@@ -26,7 +26,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 .option-table-wrap{overflow-x:auto;margin-top:12px}.option-table{width:100%;border-collapse:collapse;min-width:760px;font-size:12px}.option-table th,.option-table td{padding:9px 7px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}.option-table th{color:var(--cyan);background:#09192b;position:sticky;top:0}.option-table th:first-child,.option-table td:first-child{text-align:left}.option-controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px}.signal-neutral{color:#ffd166}.call-text{color:#42e6a4}.put-text{color:#ff8d8d}
 .ticker-group{margin:14px 0 20px}.ticker-group h2{font-size:16px;margin:0 0 8px}.tradingview-widget-container{width:100%;min-height:68px}.tv-info{min-height:115px;width:100%}
 @media(max-width:600px){.chart{height:390px}main{padding:10px}}
-</style>
+.history-status{font-weight:bold}.history-hit{color:#42e6a4}.history-stop{color:#ff8d8d}.history-open{color:#ffd166}</style>
 </head>
 <body>
 <header><h1>📊 LIVE MARKET DASHBOARD</h1><p>INDEX • FUTURES • OPTIONS • MCX • CRYPTO</p></header>
@@ -210,6 +210,24 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 
 
 
+<section class="panel" id="daily-signal-history">
+<h2>📚 DAILY SIGNAL HISTORY — PAPER TRADING</h2>
+<p class="note">Signals browser में date-wise सेव होंगे। यह रिकॉर्ड इसी device/browser के Local Storage में रहेगा; दूसरे device पर स्वतः sync नहीं होगा। Outcomes live refresh data से अनुमानित हैं।</p>
+<div class="grid">
+<div class="result"><small>आज के Signals</small><strong id="historyToday">0</strong></div>
+<div class="result"><small>TP Hit</small><strong id="historyWins">0</strong></div>
+<div class="result"><small>SL Hit</small><strong id="historyLosses">0</strong></div>
+<div class="result"><small>Open / Tracking</small><strong id="historyOpen">0</strong></div>
+<div class="result"><small>Win Rate (resolved)</small><strong id="historyWinRate">—</strong></div>
+</div>
+<div class="option-controls" style="margin-top:12px">
+<div><label for="historyDate">Date</label><input id="historyDate" type="date" onchange="renderSignalHistory()"></div>
+<div><label for="historyFilter">Signal Type</label><select id="historyFilter" onchange="renderSignalHistory()"><option value="ALL">All Signals</option><option value="CRYPTO">Crypto Futures</option><option value="OPTION">Crypto Options</option></select></div>
+</div>
+<div class="option-table-wrap"><table class="option-table" style="min-width:1000px"><thead><tr><th>Time</th><th>Asset / Contract</th><th>Signal</th><th>Entry</th><th>SL</th><th>TP1</th><th>TP2</th><th>Latest</th><th>Status</th></tr></thead><tbody id="historyRows"><tr><td colspan="9">कोई record नहीं।</td></tr></tbody></table></div>
+<button type="button" onclick="exportSignalHistory()">⬇️ CSV Export</button>
+<button type="button" onclick="clearSignalHistory()">🗑️ History Clear</button>
+</section>
 <section class="panel" id="crypto-signals">
 <h2>🚦 CRYPTO 15 MIN SIGNALS — BTC / ETH OPTIONS + BNB / ZEC FUTURES</h2>
 <p class="note">BTC और ETH के लिए live 15m candle पर EMA9/EMA21 + RSI14 से BUY CALL / BUY PUT / WAIT संकेत; signal हर 15 सेकंड refresh होता है। Bullish RSI range 45–75 और bearish RSI range 25–55 है। Signal trigger 15m EMA9/EMA21 + RSI14 है। 1h trend, volume और candle-body strength signal को block नहीं करेंगे; लगातार दो candles की पुष्टि नहीं चाहिए। Entry, SL और targets underlying price पर हैं; option premium targets अलग हैं। BNB/ZEC futures signals भी नीचे जारी हैं। 15 दिन केवल PAPER TRADE करें—कोई वास्तविक order नहीं।</p>
@@ -503,7 +521,7 @@ function openBackupOptionChart(){
 function renderCryptoOptions(){
  const coin=document.getElementById('optCurrency').value,expiry=document.getElementById('optExpiry').value,type=document.getElementById('optType').value,search=document.getElementById('optSearch').value.trim(),underlying=cryptoOptionUnderlying[coin];
  const rows=cryptoOptionData[coin].filter(x=>{const n=x.instrument_name||'',s=n.endsWith('-C')?'C':n.endsWith('-P')?'P':'',k=Number(n.split('-')[2]);return optionDate(n)===expiry&&(type==='ALL'||s===type)&&(!search||String(k).includes(search))}).sort((a,b)=>Number(a.instrument_name.split('-')[2])-Number(b.instrument_name.split('-')[2]));
- document.getElementById('optRows').innerHTML=rows.length?rows.slice(0,150).map(x=>{const p=x.instrument_name.split('-'),side=p[3]==='C'?'CALL':'PUT',bid=Number(x.bid_price),ask=Number(x.ask_price),mark=Number(x.mark_price),markUsd=optionUsd(mark,underlying),oi=Number(x.open_interest||0),vol=Number(x.volume||0),mid=(bid>0&&ask>=bid)?(ask+bid)/2:0,spread=mid>0?(ask-bid)/mid:null,trend=cryptoTrendSignal[coin];let signal='WAIT',why='';if(trend!==(side==='CALL'?'BUY CALL':'BUY PUT'))why='15m दिशा मेल नहीं';else if(!(bid>0&&ask>=bid&&mark>0))why='quote अधूरा';else if(spread===null)why='spread उपलब्ध नहीं';else if(spread>0.20)why='spread 20% से अधिक';else if(!(oi>0||vol>0))why='OI और volume दोनों शून्य';else signal=cryptoSignalStrength[coin]?(trend==='BUY CALL'?'STRONG BUY CALL':'STRONG BUY PUT'):trend;const slUsd=signal==='WAIT'?null:markUsd*0.80,tp1Usd=signal==='WAIT'?null:markUsd*1.30,tp2Usd=signal==='WAIT'?null:markUsd*1.50;if((signal==='STRONG BUY CALL'||signal==='STRONG BUY PUT')&&(oi>0||vol>0))notifyTelegramStrongOption(coin,x.instrument_name,signal,markUsd,spread);return '<tr><td>'+x.instrument_name+'</td><td>'+Number(p[2]).toLocaleString('en-US')+'</td><td class="'+(side==='CALL'?'call-text':'put-text')+'">'+side+'</td><td>'+optionMoney(optionUsd(bid,underlying))+'</td><td>'+optionMoney(optionUsd(ask,underlying))+'</td><td>'+optionMoney(markUsd)+'</td><td>'+(spread===null?'—':(spread*100).toFixed(2)+'%')+'</td><td>'+optionMoney(slUsd)+'</td><td>'+optionMoney(tp1Usd)+'</td><td>'+optionMoney(tp2Usd)+'</td><td>'+oi.toLocaleString('en-US',{maximumFractionDigits:3})+'</td><td>'+vol.toLocaleString('en-US',{maximumFractionDigits:3})+'</td><td class="'+(signal==='WAIT'?'signal-neutral':side==='CALL'?'call-text':'put-text')+'">'+signal+(why?' ('+why+')':'')+'</td></tr>'}).join(''):'<tr><td colspan="13">इस expiry/filter में contract नहीं मिला।</td></tr>';
+ document.getElementById('optRows').innerHTML=rows.length?rows.slice(0,150).map(x=>{const p=x.instrument_name.split('-'),side=p[3]==='C'?'CALL':'PUT',bid=Number(x.bid_price),ask=Number(x.ask_price),mark=Number(x.mark_price),markUsd=optionUsd(mark,underlying),oi=Number(x.open_interest||0),vol=Number(x.volume||0),mid=(bid>0&&ask>=bid)?(ask+bid)/2:0,spread=mid>0?(ask-bid)/mid:null,trend=cryptoTrendSignal[coin];let signal='WAIT',why='';if(trend!==(side==='CALL'?'BUY CALL':'BUY PUT'))why='15m दिशा मेल नहीं';else if(!(bid>0&&ask>=bid&&mark>0))why='quote अधूरा';else if(spread===null)why='spread उपलब्ध नहीं';else if(spread>0.20)why='spread 20% से अधिक';else if(!(oi>0||vol>0))why='OI और volume दोनों शून्य';else signal=cryptoSignalStrength[coin]?(trend==='BUY CALL'?'STRONG BUY CALL':'STRONG BUY PUT'):trend;const slUsd=signal==='WAIT'?null:markUsd*0.80,tp1Usd=signal==='WAIT'?null:markUsd*1.30,tp2Usd=signal==='WAIT'?null:markUsd*1.50;if((signal==='STRONG BUY CALL'||signal==='STRONG BUY PUT')&&(oi>0||vol>0))notifyTelegramStrongOption(coin,x.instrument_name,signal,markUsd,spread);if(signal==='STRONG BUY CALL'||signal==='STRONG BUY PUT')addOptionHistory(coin,x.instrument_name,signal,markUsd,spread);return '<tr><td>'+x.instrument_name+'</td><td>'+Number(p[2]).toLocaleString('en-US')+'</td><td class="'+(side==='CALL'?'call-text':'put-text')+'">'+side+'</td><td>'+optionMoney(optionUsd(bid,underlying))+'</td><td>'+optionMoney(optionUsd(ask,underlying))+'</td><td>'+optionMoney(markUsd)+'</td><td>'+(spread===null?'—':(spread*100).toFixed(2)+'%')+'</td><td>'+optionMoney(slUsd)+'</td><td>'+optionMoney(tp1Usd)+'</td><td>'+optionMoney(tp2Usd)+'</td><td>'+oi.toLocaleString('en-US',{maximumFractionDigits:3})+'</td><td>'+vol.toLocaleString('en-US',{maximumFractionDigits:3})+'</td><td class="'+(signal==='WAIT'?'signal-neutral':side==='CALL'?'call-text':'put-text')+'">'+signal+(why?' ('+why+')':'')+'</td></tr>'}).join(''):'<tr><td colspan="13">इस expiry/filter में contract नहीं मिला।</td></tr>';
 }
 function ema(values,period){let k=2/(period+1),v=values[0];for(let i=1;i<values.length;i++)v=values[i]*k+v*(1-k);return v}
 function rsi(values,period=14){let gains=0,losses=0;for(let i=values.length-period;i<values.length;i++){let d=values[i]-values[i-1];if(d>0)gains+=d;else losses-=d}let ag=gains/period,al=losses/period;return al===0?100:100-100/(1+ag/al)}
@@ -512,6 +530,51 @@ let cryptoSignalLock={BTC:null,ETH:null,BNB:null,ZEC:null};
 const cryptoH1Cache={};
 function readSignalLock(coin){try{return JSON.parse(localStorage.getItem('signalLock_'+coin)||'null')}catch{return null}}
 function saveSignalLock(coin,obj){try{localStorage.setItem('signalLock_'+coin,JSON.stringify(obj))}catch{}}
+const SIGNAL_HISTORY_KEY='dailySignalHistory_v1';
+function getSignalHistory(){try{return JSON.parse(localStorage.getItem(SIGNAL_HISTORY_KEY)||'[]')}catch{return []}}
+function saveSignalHistory(rows){try{localStorage.setItem(SIGNAL_HISTORY_KEY,JSON.stringify(rows))}catch(e){console.warn('Signal history storage unavailable',e)}}
+function indiaDate(ts=Date.now()){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).format(ts)}
+function historyTime(ts){return new Date(ts).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})}
+function addCryptoHistory(s){
+ if(!s||s.side==='WAIT'||!s.strong)return;
+ const rows=getSignalHistory(),date=indiaDate(s.candleTime||Date.now()),key='CRYPTO|'+s.coin+'|'+date+'|'+String(s.candleTime||'')+'|'+s.side;
+ if(rows.some(x=>x.key===key))return;
+ rows.unshift({key,type:'CRYPTO',date,ts:Date.now(),time:historyTime(Date.now()),asset:s.coin,signal:s.side,entry:s.entry,sl:s.sl,tp1:s.t1,tp2:s.t2,latest:s.entry,status:'TRACKING',direction:s.side==='BUY / LONG'?1:-1});
+ saveSignalHistory(rows);renderSignalHistory();
+}
+function addOptionHistory(coin,contract,signal,entry,spread){
+ if(!signal||signal==='WAIT'||!(entry>0))return;
+ const rows=getSignalHistory(),date=indiaDate(),key='OPTION|'+coin+'|'+contract+'|'+date+'|'+signal;
+ let item=rows.find(x=>x.key===key);
+ if(!item){item={key,type:'OPTION',date,ts:Date.now(),time:historyTime(Date.now()),asset:coin+' '+contract,signal,entry,sl:entry*.8,tp1:entry*1.3,tp2:entry*1.5,latest:entry,status:'TRACKING',spread};rows.unshift(item);}
+ item.latest=entry;
+ if(item.status==='TRACKING'){if(entry>=item.tp2)item.status='TP2 HIT';else if(entry>=item.tp1)item.status='TP1 HIT';else if(entry<=item.sl)item.status='SL HIT';}
+ saveSignalHistory(rows);renderSignalHistory();
+}
+function updateCryptoHistory(s){
+ const rows=getSignalHistory();let changed=false;
+ for(const x of rows){if(x.type!=='CRYPTO'||x.asset!==s.coin||x.status!=='TRACKING')continue;
+  const price=Number(s.entry);if(!(price>0))continue;x.latest=price;
+  if(x.direction===1){if(price>=x.tp2)x.status='TP2 HIT';else if(price>=x.tp1)x.status='TP1 HIT';else if(price<=x.sl)x.status='SL HIT';}
+  else{if(price<=x.tp2)x.status='TP2 HIT';else if(price<=x.tp1)x.status='TP1 HIT';else if(price>=x.sl)x.status='SL HIT';}
+  changed=true;
+ }
+ if(changed){saveSignalHistory(rows);renderSignalHistory();}
+}
+function renderSignalHistory(){
+ const rows=getSignalHistory(),dateEl=document.getElementById('historyDate'),filterEl=document.getElementById('historyFilter');if(!dateEl||!filterEl)return;
+ if(!dateEl.value)dateEl.value=indiaDate();
+ const today=indiaDate(),todayRows=rows.filter(x=>x.date===today),resolved=todayRows.filter(x=>x.status!=='TRACKING'),wins=resolved.filter(x=>x.status.startsWith('TP')).length,losses=resolved.filter(x=>x.status==='SL HIT').length;
+ document.getElementById('historyToday').textContent=todayRows.length;
+ document.getElementById('historyWins').textContent=wins;
+ document.getElementById('historyLosses').textContent=losses;
+ document.getElementById('historyOpen').textContent=todayRows.filter(x=>x.status==='TRACKING').length;
+ document.getElementById('historyWinRate').textContent=resolved.length?Math.round(wins/resolved.length*100)+'%':'—';
+ const selected=rows.filter(x=>x.date===dateEl.value&&(filterEl.value==='ALL'||x.type===filterEl.value));
+ const tbody=document.getElementById('historyRows');tbody.innerHTML=selected.length?selected.map(x=>'<tr><td>'+x.time+'</td><td>'+x.asset+'</td><td>'+x.signal+'</td><td>'+Number(x.entry).toLocaleString('en-US',{maximumFractionDigits:8})+'</td><td>'+Number(x.sl).toLocaleString('en-US',{maximumFractionDigits:8})+'</td><td>'+Number(x.tp1).toLocaleString('en-US',{maximumFractionDigits:8})+'</td><td>'+Number(x.tp2).toLocaleString('en-US',{maximumFractionDigits:8})+'</td><td>'+Number(x.latest).toLocaleString('en-US',{maximumFractionDigits:8})+'</td><td class="history-status '+(x.status.startsWith('TP')?'history-hit':x.status==='SL HIT'?'history-stop':'history-open')+'">'+x.status+'</td></tr>').join(''):'<tr><td colspan="9">इस तारीख के records नहीं हैं।</td></tr>';
+}
+function exportSignalHistory(){const rows=getSignalHistory();if(!rows.length){alert('Export करने के लिए records नहीं हैं।');return;}const headers=['date','time','type','asset','signal','entry','sl','tp1','tp2','latest','status','spread'];const csv=[headers.join(','),...rows.map(x=>headers.map(k=>JSON.stringify(x[k]??'')).join(','))].join('\n');const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='daily-signal-history.csv';a.click();URL.revokeObjectURL(url);}
+function clearSignalHistory(){if(!confirm('सभी Paper Trading records इस browser से हटाएँ?'))return;localStorage.removeItem(SIGNAL_HISTORY_KEY);renderSignalHistory();}
 async function analyzeCryptoCoin(coin){
  const symbol=coin+'USDT',urls=['https://api.binance.com/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60','https://api1.binance.com/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60','https://data-api.binance.vision/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60'];
  let raw=null,lastFeedError='';for(const url of urls){try{const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw new Error('HTTP '+res.status);const data=await res.json();if(!Array.isArray(data)||data.length<30)throw new Error('15m candles कम हैं');raw=data;break;}catch(e){lastFeedError=e.message||'feed error';}}
@@ -577,6 +640,7 @@ async function loadAllCryptoSignals(){
  await Promise.all(coins.map(async coin=>{
   try{
    const s=await analyzeCryptoCoin(coin);
+   addCryptoHistory(s);updateCryptoHistory(s);
    notifyStrongSignal(s);
    if(coin==='BTC'||coin==='ETH'){
     const el=document.getElementById('sig-'+coin),info=document.getElementById('siginfo-'+coin);
@@ -623,7 +687,7 @@ function calculate(){
  document.getElementById('rr').textContent=valid&&riskPer>0&&rewardPer>0?(rewardPer/riskPer).toFixed(2)+' : 1':'—';
  document.getElementById('warning').textContent=!valid?'Entry, SL, Target और Quantity भरें।':(riskPer<=0||rewardPer<=0?'जाँचें: खरीद में SL एंट्री से नीचे और टारगेट ऊपर होना चाहिए। बिक्री में SL एंट्री से ऊपर और टारगेट नीचे होना चाहिए।':'यह अनुमानित गणना है। ब्रोकरेज, टैक्स, स्लिपेज, लॉट साइज़ और फंडिंग शामिल नहीं हैं।');
 }
-document.addEventListener('DOMContentLoaded',()=>{loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals();if(localStorage.getItem('signalNotificationsEnabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){document.getElementById('notificationStatus').textContent='Notification: चालू';}setInterval(loadAllCryptoSignals,15000)});
+document.addEventListener('DOMContentLoaded',()=>{renderSignalHistory();loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals();if(localStorage.getItem('signalNotificationsEnabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){document.getElementById('notificationStatus').textContent='Notification: चालू';}setInterval(loadAllCryptoSignals,15000)});
 </script>
 </body>
 </html>
