@@ -508,6 +508,8 @@ function renderCryptoOptions(){
 function ema(values,period){let k=2/(period+1),v=values[0];for(let i=1;i<values.length;i++)v=values[i]*k+v*(1-k);return v}
 function rsi(values,period=14){let gains=0,losses=0;for(let i=values.length-period;i<values.length;i++){let d=values[i]-values[i-1];if(d>0)gains+=d;else losses-=d}let ag=gains/period,al=losses/period;return al===0?100:100-100/(1+ag/al)}
 let cryptoSignalLock={BTC:null,ETH:null,BNB:null,ZEC:null};
+// Cache the slower 1h confirmation so rapid dashboard refreshes do not overload the public market API.
+const cryptoH1Cache={};
 function readSignalLock(coin){try{return JSON.parse(localStorage.getItem('signalLock_'+coin)||'null')}catch{return null}}
 function saveSignalLock(coin,obj){try{localStorage.setItem('signalLock_'+coin,JSON.stringify(obj))}catch{}}
 async function analyzeCryptoCoin(coin){
@@ -529,9 +531,19 @@ async function analyzeCryptoCoin(coin){
  else if(close<e9&&e9<e21&&rv>=30&&rv<=48){side='SELL / SHORT';reason='15m EMA/RSI अनुकूल';}
  let h1Ok=false,h1Info='1h data unavailable';
  try{
-  const hr=await fetch('https://api.binance.com/api/v3/klines?symbol='+symbol+'&interval=1h&limit=40',{cache:'no-store'});
-  if(hr.ok){const hj=await hr.json();if(Array.isArray(hj)&&hj.length>=25){const hc=hj.slice(0,-1).map(x=>Number(x[4])),hclose=hc.at(-1),he9=ema(hc.slice(-25),9),he21=ema(hc.slice(-35),21);h1Ok=side==='BUY / LONG'?hclose>he9&&he9>he21:side==='SELL / SHORT'?hclose<he9&&he9<he21:false;h1Info=h1Ok?'1h trend confirmed':'1h trend mismatch';}}
- }catch(e){h1Info='1h confirmation unavailable'}
+  let cached=cryptoH1Cache[coin];
+  if(!cached||Date.now()-cached.at>300000){
+   const hr=await fetch('https://api.binance.com/api/v3/klines?symbol='+symbol+'&interval=1h&limit=40',{cache:'no-store'});
+   if(!hr.ok)throw new Error('HTTP '+hr.status);
+   const hj=await hr.json();
+   if(!Array.isArray(hj)||hj.length<25)throw new Error('1h candles कम हैं');
+   const hc=hj.slice(0,-1).map(x=>Number(x[4])),hclose=hc.at(-1),he9=ema(hc.slice(-25),9),he21=ema(hc.slice(-35),21);
+   cached={at:Date.now(),bull:hclose>he9&&he9>he21,bear:hclose<he9&&he9<he21};
+   cryptoH1Cache[coin]=cached;
+  }
+  h1Ok=side==='BUY / LONG'?cached.bull:side==='SELL / SHORT'?cached.bear:false;
+  h1Info=h1Ok?'1h trend confirmed':'1h trend mismatch';
+ }catch(e){h1Info='1h confirmation unavailable: '+(e.message||'feed error')}
  const prevSide=null;
  const strong=side!=='WAIT'&&h1Ok&&volOk&&candleOk;
  const entry=close,sl=side==='BUY / LONG'?entry-1.2*atr:side==='SELL / SHORT'?entry+1.2*atr:null;
@@ -623,7 +635,7 @@ function calculate(){
  document.getElementById('rr').textContent=valid&&riskPer>0&&rewardPer>0?(rewardPer/riskPer).toFixed(2)+' : 1':'—';
  document.getElementById('warning').textContent=!valid?'Entry, SL, Target और Quantity भरें।':(riskPer<=0||rewardPer<=0?'जाँचें: खरीद में SL एंट्री से नीचे और टारगेट ऊपर होना चाहिए। बिक्री में SL एंट्री से ऊपर और टारगेट नीचे होना चाहिए।':'यह अनुमानित गणना है। ब्रोकरेज, टैक्स, स्लिपेज, लॉट साइज़ और फंडिंग शामिल नहीं हैं।');
 }
-document.addEventListener('DOMContentLoaded',()=>{loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals();if(localStorage.getItem('signalNotificationsEnabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){document.getElementById('notificationStatus').textContent='Notification: चालू';}setInterval(loadAllCryptoSignals,1000)});
+document.addEventListener('DOMContentLoaded',()=>{loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals();if(localStorage.getItem('signalNotificationsEnabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){document.getElementById('notificationStatus').textContent='Notification: चालू';}setInterval(loadAllCryptoSignals,15000)});
 </script>
 </body>
 </html>
