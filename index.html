@@ -302,7 +302,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 </main>
 
 <script>
-let cryptoOptionData={BTC:[],ETH:[],ZEC:[]},cryptoOptionUnderlying={BTC:null,ETH:null,ZEC:null},cryptoTrendSignal={BTC:'WAIT',ETH:'WAIT',ZEC:'WAIT'};let optionLoadToken=0;
+let cryptoOptionData={BTC:[],ETH:[],ZEC:[]},cryptoOptionUnderlying={BTC:null,ETH:null,ZEC:null},cryptoTrendSignal={BTC:'WAIT',ETH:'WAIT',BNB:'WAIT',ZEC:'WAIT'},cryptoSignalStrength={BTC:false,ETH:false,BNB:false,ZEC:false};let optionLoadToken=0;
 function optionUsd(v,u){return Number.isFinite(Number(v))&&u?Number(v)*u:null}
 function optionMoney(v){return v==null?'—':Number(v).toLocaleString('en-US',{maximumFractionDigits:2})}
 function optionDate(n){const p=n.split('-');if(p[0]==='ZEC'&&p[1]==='USD'&&p.length>2)return p[2];return p.length>1?p[1]:''}
@@ -603,7 +603,7 @@ async function loadAllCryptoSignals(){
    const el=document.getElementById('sig-'+coin),info=document.getElementById('siginfo-'+coin);
    if(el){el.textContent='DATA ERROR';el.className='signal-neutral';}
    if(info)info.textContent=e.message+' • अभी trade signal उपलब्ध नहीं';
-   cryptoTrendSignal[coin]='WAIT';
+   cryptoTrendSignal[coin]='WAIT';cryptoSignalStrength[coin]=false;
   }
  }));
  // Refresh the option table after BTC/ETH trend directions are updated.
