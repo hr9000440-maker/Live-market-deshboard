@@ -532,12 +532,12 @@ async function analyzeCryptoCoin(coin){
   const hr=await fetch('https://api.binance.com/api/v3/klines?symbol='+symbol+'&interval=1h&limit=40',{cache:'no-store'});
   if(hr.ok){const hj=await hr.json();if(Array.isArray(hj)&&hj.length>=25){const hc=hj.slice(0,-1).map(x=>Number(x[4])),hclose=hc.at(-1),he9=ema(hc.slice(-25),9),he21=ema(hc.slice(-35),21);h1Ok=side==='BUY / LONG'?hclose>he9&&he9>he21:side==='SELL / SHORT'?hclose<he9&&he9<he21:false;h1Info=h1Ok?'1h trend confirmed':'1h trend mismatch';}}
  }catch(e){h1Info='1h confirmation unavailable'}
- const prevSide=saved&&saved.signal?saved.signal.baseSide:null,stable=prevSide===side&&side!=='WAIT';
- const strong=side!=='WAIT'&&h1Ok&&volOk&&candleOk&&stable;
+ const prevSide=saved&&saved.signal?saved.signal.baseSide:null,stable=true;
+ const strong=side!=='WAIT'&&h1Ok&&volOk&&candleOk;
  const entry=close,sl=side==='BUY / LONG'?entry-1.2*atr:side==='SELL / SHORT'?entry+1.2*atr:null;
  const risk=sl===null?null:Math.abs(entry-sl),t1=sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk),t2=sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk);
  const previous=prevSide||'कोई पिछला सिग्नल नहीं',changeReason=previous===side?'सिग्नल वही रहा':('सिग्नल बदला: '+previous+' → '+side);
- const quality='1h: '+h1Info+' • Volume '+(volOk?'औसत से अधिक':'औसत से कम')+' • Candle '+(candleOk?'मजबूत':'कमजोर')+' • 2-candle stability '+(stable?'confirmed':'pending');
+ const quality='1h: '+h1Info+' • Volume '+(volOk?'औसत से अधिक':'औसत से कम')+' • Single completed 15m candle confirmation '+(candleOk?'confirmed':'pending');
  const signal={coin,side,strong,baseSide:side,reason,quality,changeReason,previous,entry,sl,t1,t2,rv,e9,e21,volume,avgVol,time:new Date(Number(candles.at(-1)[6])).toLocaleString('en-IN'),candleTime:lastClosed};
  const lock={candleTime:lastClosed,signal};cryptoSignalLock[coin]=lock;saveSignalLock(coin,lock);return signal;
 }
