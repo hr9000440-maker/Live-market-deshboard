@@ -212,7 +212,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 
 <section class="panel" id="crypto-signals">
 <h2>🚦 CRYPTO 15 MIN SIGNALS — BTC / ETH OPTIONS + BNB / ZEC FUTURES</h2>
-<p class="note">BTC और ETH के लिए live 15m candle पर EMA9/EMA21 + RSI14 से BUY CALL / BUY PUT / WAIT संकेत; signal हर 15 सेकंड refresh होता है। Bullish RSI range 45–75 और bearish RSI range 25–55 है। मजबूत signal के लिए केवल एक live 15m candle की पुष्टि जरूरी है; 1h trend और volume अनिवार्य नहीं हैं। लगातार दो 15m candles की पुष्टि जरूरी नहीं। Entry, SL और targets underlying price पर हैं; option premium targets अलग हैं। BNB/ZEC futures signals भी नीचे जारी हैं। 15 दिन केवल PAPER TRADE करें—कोई वास्तविक order नहीं।</p>
+<p class="note">BTC और ETH के लिए live 15m candle पर EMA9/EMA21 + RSI14 से BUY CALL / BUY PUT / WAIT संकेत; signal हर 15 सेकंड refresh होता है। Bullish RSI range 45–75 और bearish RSI range 25–55 है। Signal trigger 15m EMA9/EMA21 + RSI14 है। 1h trend, volume और candle-body strength signal को block नहीं करेंगे; लगातार दो candles की पुष्टि नहीं चाहिए। Entry, SL और targets underlying price पर हैं; option premium targets अलग हैं। BNB/ZEC futures signals भी नीचे जारी हैं। 15 दिन केवल PAPER TRADE करें—कोई वास्तविक order नहीं।</p>
 <div class="grid">
 <div class="result"><small>BTCUSDT • 15m OPTION SIGNAL</small><strong id="sig-BTC">लोड हो रहा है…</strong><p class="note" id="siginfo-BTC">कैंडल डेटा जाँचा जा रहा है</p></div>
 <div class="result"><small>ETHUSDT • 15m OPTION SIGNAL</small><strong id="sig-ETH">लोड हो रहा है…</strong><p class="note" id="siginfo-ETH">कैंडल डेटा जाँचा जा रहा है</p></div>
@@ -529,27 +529,15 @@ async function analyzeCryptoCoin(coin){
  let side='WAIT',reason='EMA/RSI में साफ पुष्टि नहीं';
  if(close>e9&&e9>e21&&rv>=45&&rv<=75){side='BUY / LONG';reason='15m EMA trend bullish और RSI 45–75';}
  else if(close<e9&&e9<e21&&rv>=25&&rv<=55){side='SELL / SHORT';reason='15m EMA trend bearish और RSI 25–55';}
- let h1Ok=false,h1Info='1h data unavailable';
- try{
-  let cached=cryptoH1Cache[coin];
-  if(!cached||Date.now()-cached.at>300000){
-   const hr=await fetch('https://api.binance.com/api/v3/klines?symbol='+symbol+'&interval=1h&limit=40',{cache:'no-store'});
-   if(!hr.ok)throw new Error('HTTP '+hr.status);
-   const hj=await hr.json();
-   if(!Array.isArray(hj)||hj.length<25)throw new Error('1h candles कम हैं');
-   const hc=hj.slice(0,-1).map(x=>Number(x[4])),hclose=hc.at(-1),he9=ema(hc.slice(-25),9),he21=ema(hc.slice(-35),21);
-   cached={at:Date.now(),bull:hclose>he9&&he9>he21,bear:hclose<he9&&he9<he21};
-   cryptoH1Cache[coin]=cached;
-  }
-  h1Ok=side==='BUY / LONG'?cached.bull:side==='SELL / SHORT'?cached.bear:false;
-  h1Info=h1Ok?'1h trend confirmed':'1h trend mismatch';
- }catch(e){h1Info='1h confirmation unavailable: '+(e.message||'feed error')}
+ // 15m EMA/RSI direction is the signal trigger. Higher-timeframe, volume and candle-body
+ // filters are informational only, so they cannot silently suppress a valid directional signal.
+ const h1Info='1h filter disabled';
  const prevSide=null;
- const strong=side!=='WAIT'&&candleOk;
+ const strong=side!=='WAIT';
  const entry=close,sl=side==='BUY / LONG'?entry-1.2*atr:side==='SELL / SHORT'?entry+1.2*atr:null;
  const risk=sl===null?null:Math.abs(entry-sl),t1=sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk),t2=sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk);
  const previous=prevSide||'कोई पिछला सिग्नल नहीं',changeReason=previous===side?'सिग्नल वही रहा':('सिग्नल बदला: '+previous+' → '+side);
- const quality='1h trend optional: '+h1Info+' • Volume informational: '+(volOk?'औसत से अधिक':'औसत से कम')+' • Single live 15m candle confirmation '+(candleOk?'confirmed':'pending');
+ const quality='1h filter off • Volume informational: '+(volOk?'औसत से अधिक':'औसत से कम')+' • Candle body informational: '+(candleOk?'strong':'weak')+' • EMA/RSI 15m direction active';
  const signal={coin,side,strong,baseSide:side,reason,quality,changeReason,previous,entry,sl,t1,t2,rv,e9,e21,volume,avgVol,time:new Date(Number(candles.at(-1)[6])).toLocaleString('en-IN'),candleTime:lastClosed};
  cryptoSignalLock[coin]={candleTime:lastClosed,signal};return signal;
 }
