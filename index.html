@@ -514,8 +514,8 @@ async function analyzeCryptoCoin(coin){
  const symbol=coin+'USDT',urls=['https://api.binance.com/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60','https://api1.binance.com/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60','https://data-api.binance.vision/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60'];
  let raw=null,lastFeedError='';for(const url of urls){try{const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw new Error('HTTP '+res.status);const data=await res.json();if(!Array.isArray(data)||data.length<30)throw new Error('15m candles कम हैं');raw=data;break;}catch(e){lastFeedError=e.message||'feed error';}}
  if(!raw)throw new Error(coin+' 15m market feed unavailable: '+lastFeedError);
- const candles=raw.slice(0,-1),lastClosed=Number(candles[candles.length-1][0]),saved=readSignalLock(coin);
- if(saved&&saved.candleTime===lastClosed){cryptoSignalLock[coin]=saved;return saved.signal}
+ const candles=raw,lastClosed=Number(candles[candles.length-1][0]),saved=null;
+ // Live mode: include the currently-forming 15m candle so the signal can update between candle closes.
  const closes=candles.map(x=>Number(x[4])),highs=candles.map(x=>Number(x[2])),lows=candles.map(x=>Number(x[3])),volumes=candles.map(x=>Number(x[5]));
  const close=closes.at(-1),open=Number(candles.at(-1)[1]),high=highs.at(-1),low=lows.at(-1),volume=volumes.at(-1);
  const e9=ema(closes.slice(-30),9),e21=ema(closes.slice(-50),21),rv=rsi(closes,14);
@@ -532,14 +532,14 @@ async function analyzeCryptoCoin(coin){
   const hr=await fetch('https://api.binance.com/api/v3/klines?symbol='+symbol+'&interval=1h&limit=40',{cache:'no-store'});
   if(hr.ok){const hj=await hr.json();if(Array.isArray(hj)&&hj.length>=25){const hc=hj.slice(0,-1).map(x=>Number(x[4])),hclose=hc.at(-1),he9=ema(hc.slice(-25),9),he21=ema(hc.slice(-35),21);h1Ok=side==='BUY / LONG'?hclose>he9&&he9>he21:side==='SELL / SHORT'?hclose<he9&&he9<he21:false;h1Info=h1Ok?'1h trend confirmed':'1h trend mismatch';}}
  }catch(e){h1Info='1h confirmation unavailable'}
- const prevSide=saved&&saved.signal?saved.signal.baseSide:null,stable=true;
+ const prevSide=null;
  const strong=side!=='WAIT'&&h1Ok&&volOk&&candleOk;
  const entry=close,sl=side==='BUY / LONG'?entry-1.2*atr:side==='SELL / SHORT'?entry+1.2*atr:null;
  const risk=sl===null?null:Math.abs(entry-sl),t1=sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk),t2=sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk);
  const previous=prevSide||'कोई पिछला सिग्नल नहीं',changeReason=previous===side?'सिग्नल वही रहा':('सिग्नल बदला: '+previous+' → '+side);
- const quality='1h: '+h1Info+' • Volume '+(volOk?'औसत से अधिक':'औसत से कम')+' • Single completed 15m candle confirmation '+(candleOk?'confirmed':'pending');
+ const quality='1h: '+h1Info+' • Volume '+(volOk?'औसत से अधिक':'औसत से कम')+' • Live 15m candle confirmation '+(candleOk?'confirmed':'pending');
  const signal={coin,side,strong,baseSide:side,reason,quality,changeReason,previous,entry,sl,t1,t2,rv,e9,e21,volume,avgVol,time:new Date(Number(candles.at(-1)[6])).toLocaleString('en-IN'),candleTime:lastClosed};
- const lock={candleTime:lastClosed,signal};cryptoSignalLock[coin]=lock;saveSignalLock(coin,lock);return signal;
+ cryptoSignalLock[coin]={candleTime:lastClosed,signal};return signal;
 }
 function showCoinSignal(s){
  const el=document.getElementById('sig-'+s.coin),info=document.getElementById('siginfo-'+s.coin);
@@ -571,6 +571,8 @@ async function sendTelegramText(message){const q=tgConfig();if(!q.token||!q.chat
 async function testTelegramAlert(){saveTelegramSettings();try{await sendTelegramText('✅ Telegram connected. BTC/ETH STRONG option alerts इस bot पर आएंगे।');telegramStatus('Test message भेज दिया गया।')}catch(e){telegramStatus('Test message नहीं गया: '+e.message)}}
 function notifyTelegramStrongOption(coin,contract,signal,markUsd,spread){if(coin!=='BTC'&&coin!=='ETH')return;const cfg=tgConfig(),lock=cryptoSignalLock[coin],candle=lock?.signal?.candleTime||'';if(!cfg.token||!cfg.chatId)return;const key='tgSent_'+coin+'_'+contract+'_'+signal,stamp=String(candle)+'_'+signal;if(localStorage.getItem(key)===stamp)return;sendTelegramText('🚨 STRONG '+coin+' OPTION SIGNAL\\n'+signal+'\\nContract: '+contract+'\\nMark premium: '+optionMoney(markUsd)+' USD\\nSpread: '+(spread*100).toFixed(2)+'%\\n15m candle confirmation: confirmed\\nUnderlying entry/SL/targets dashboard पर जाँचें।').then(()=>localStorage.setItem(key,stamp)).catch(e=>telegramStatus('Telegram alert error: '+e.message))}
 async function loadAllCryptoSignals(){
+ if(window.cryptoSignalRefreshBusy)return;window.cryptoSignalRefreshBusy=true;
+ try{
  const coins=['BTC','ETH','BNB','ZEC'];
  await Promise.all(coins.map(async coin=>{
   try{
@@ -595,6 +597,7 @@ async function loadAllCryptoSignals(){
  // Refresh the option table after BTC/ETH trend directions are updated.
  // This prevents an initial WAIT state from remaining visible after async data loads.
  if(document.getElementById('optCurrency'))renderCryptoOptions();
+ }finally{window.cryptoSignalRefreshBusy=false;}
 }
 async function loadCryptoSignal(){
  const coin=document.getElementById('optCurrency').value,box=document.getElementById('cryptoSignal');
@@ -620,7 +623,7 @@ function calculate(){
  document.getElementById('rr').textContent=valid&&riskPer>0&&rewardPer>0?(rewardPer/riskPer).toFixed(2)+' : 1':'—';
  document.getElementById('warning').textContent=!valid?'Entry, SL, Target और Quantity भरें।':(riskPer<=0||rewardPer<=0?'जाँचें: खरीद में SL एंट्री से नीचे और टारगेट ऊपर होना चाहिए। बिक्री में SL एंट्री से ऊपर और टारगेट नीचे होना चाहिए।':'यह अनुमानित गणना है। ब्रोकरेज, टैक्स, स्लिपेज, लॉट साइज़ और फंडिंग शामिल नहीं हैं।');
 }
-document.addEventListener('DOMContentLoaded',()=>{loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals();if(localStorage.getItem('signalNotificationsEnabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){document.getElementById('notificationStatus').textContent='Notification: चालू';}setInterval(loadAllCryptoSignals,60000)});
+document.addEventListener('DOMContentLoaded',()=>{loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals();if(localStorage.getItem('signalNotificationsEnabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){document.getElementById('notificationStatus').textContent='Notification: चालू';}setInterval(loadAllCryptoSignals,1000)});
 </script>
 </body>
 </html>
