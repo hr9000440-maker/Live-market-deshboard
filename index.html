@@ -338,7 +338,7 @@ async function loadCryptoOptions(){
    }).filter(x=>x.instrument_name&&x.strike>0);
    underlying=rows.map(x=>x.underlying_price).find(x=>x>0)||null;
   }else{
-   const endpoints=['https://api.deribit.com/api/v2/public/get_book_summary_by_currency?currency='+encodeURIComponent(coin)+'&kind=option','https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency='+encodeURIComponent(coin)+'&kind=option'];
+   const endpoints=['https://api.deribit.com/api/v2/public/get_book_summary_by_currency?currency='+encodeURIComponent(coin)+'&kind=option','https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency='+encodeURIComponent(coin)+'&kind=option','https://deribit.com/api/v2/public/get_book_summary_by_currency?currency='+encodeURIComponent(coin)+'&kind=option'];
    let json=null;
    for(const url of endpoints){try{const response=await fetch(url,{cache:'no-store'});if(!response.ok)throw new Error('HTTP '+response.status);const data=await response.json();if(data.error)throw new Error(data.error.message||'API error');json=data;break;}catch(e){lastError=e;}}
    if(!json)throw lastError||new Error('Fetch failed');
@@ -477,9 +477,9 @@ let cryptoSignalLock={BTC:null,ETH:null,BNB:null,ZEC:null};
 function readSignalLock(coin){try{return JSON.parse(localStorage.getItem('signalLock_'+coin)||'null')}catch{return null}}
 function saveSignalLock(coin,obj){try{localStorage.setItem('signalLock_'+coin,JSON.stringify(obj))}catch{}}
 async function analyzeCryptoCoin(coin){
- const symbol=coin+'USDT',url='https://api.binance.com/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60';
- const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw new Error('Market feed unavailable ('+res.status+')');
- const raw=await res.json();if(!Array.isArray(raw)||raw.length<30)throw new Error('पर्याप्त 15m candle data नहीं मिला');
+ const symbol=coin+'USDT',urls=['https://api.binance.com/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60','https://api1.binance.com/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60','https://data-api.binance.vision/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60'];
+ let raw=null,lastFeedError='';for(const url of urls){try{const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw new Error('HTTP '+res.status);const data=await res.json();if(!Array.isArray(data)||data.length<30)throw new Error('15m candles कम हैं');raw=data;break;}catch(e){lastFeedError=e.message||'feed error';}}
+ if(!raw)throw new Error('ETH/BTC 15m market feed unavailable: '+lastFeedError);
  const candles=raw.slice(0,-1),lastClosed=Number(candles[candles.length-1][0]),saved=readSignalLock(coin);
  if(saved&&saved.candleTime===lastClosed){cryptoSignalLock[coin]=saved;return saved.signal}
  const closes=candles.map(x=>Number(x[4])),highs=candles.map(x=>Number(x[2])),lows=candles.map(x=>Number(x[3])),volumes=candles.map(x=>Number(x[5]));
