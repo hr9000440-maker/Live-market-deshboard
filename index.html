@@ -321,7 +321,7 @@ async function loadCryptoOptions(){
   document.getElementById('optCount').textContent=rows.length.toLocaleString('en-US');
   document.getElementById('optUpdated').textContent=new Date().toLocaleTimeString('en-IN');
   status.textContent=rows.length+' active '+coin+' option contracts मिले।';renderCryptoOptions();populateOptionChartContracts();
- }catch(e){status.textContent='Live data नहीं मिला: '+e.message+'. Internet/API access जाँचें।';document.getElementById('optRows').innerHTML='<tr><td colspan="12">डेटा उपलब्ध नहीं है।</td></tr>'}
+ }catch(e){status.textContent='Live data नहीं मिला: '+e.message+'. Internet/API access जाँचें।';document.getElementById('optRows').innerHTML='<tr><td colspan="12">डेटा उपलब्ध नहीं है।</td></tr>';cryptoOptionData[coin]=[];document.getElementById('chartOptExpiry').innerHTML='<option value="">Expiry unavailable</option>';document.getElementById('chartOptInstrument').innerHTML='<option value="">Contract unavailable</option>';document.getElementById('chartOptName').textContent='—';document.getElementById('chartOptLast').textContent='—';document.getElementById('chartOptUpdated').textContent='—';document.getElementById('chartOptStatus').textContent=coin+' options API ने डेटा नहीं दिया: '+e.message;drawOptionPremiumChart([])}
 }
 
 function populateOptionChartContracts(){
@@ -409,7 +409,7 @@ function updateBackupOptionChart(instrument){
 function openBackupOptionChart(){
  const instrument=document.getElementById('chartOptInstrument').value;
  const name=backupOptionName(instrument);
- const url='https://optionsmatch.com/chart/BTC/option'+(name?'?ins='+encodeURIComponent(name):'');
+ const coin=(instrument||'').split('-')[0]||'BTC';\n const url='https://optionsmatch.com/chart/'+encodeURIComponent(coin)+'/option'+(name?'?ins='+encodeURIComponent(name):'');
  window.open(url,'_blank','noopener');
 }
 function renderCryptoOptions(){
