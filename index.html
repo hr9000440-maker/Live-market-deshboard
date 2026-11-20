@@ -220,6 +220,8 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 <div class="result"><small>ZECUSDT • 15m FUTURES</small><strong id="sig-ZEC">लोड हो रहा है…</strong><p class="note" id="siginfo-ZEC">कैंडल डेटा जाँचा जा रहा है</p></div>
 </div>
 <button type="button" onclick="loadAllCryptoSignals()">सभी Crypto Signal Refresh करें</button>
+<button type="button" onclick="enableSignalNotifications()">🔔 Strong Signal Notification चालू करें</button>
+<p class="note" id="notificationStatus">Notification: बंद</p>
 <p class="note">BTC/ETH: BUY CALL या BUY PUT दिशा का संकेत है, option contract/premium का live quote अलग Option Chain से जाँचें। Premium risk plan: SL -20%, TP1 +30%, TP2 +50% (entry premium से); spread/expiry/volatility का जोखिम लागू। BNB/ZEC: Entry, SL और targets underlying USDT price levels हैं। Spot data futures basis, fees, funding और slippage से अलग हो सकता है।</p>
 </section>
 
@@ -509,11 +511,28 @@ function showCoinSignal(s){
  if(el){el.textContent=s.strong?'STRONG '+s.side:s.side;el.className=s.side==='BUY / LONG'?'call-text':s.side==='SELL / SHORT'?'put-text':'signal-neutral';}
  if(info)info.textContent=s.side==='WAIT'?s.reason+' • RSI '+fmt(s.rv)+' • '+s.time:s.strong?'Entry '+fmt(s.entry)+' | SL '+fmt(s.sl)+' | T1 '+fmt(s.t1)+' | T2 '+fmt(s.t2)+' • STRONG: '+s.quality+' • '+s.time:'Entry '+fmt(s.entry)+' | SL '+fmt(s.sl)+' | T1 '+fmt(s.t1)+' | T2 '+fmt(s.t2)+' • '+s.reason+' • '+s.quality+' • '+s.time;
 }
+function enableSignalNotifications(){
+ if(!('Notification' in window)){document.getElementById('notificationStatus').textContent='इस browser में Notification supported नहीं';return;}
+ Notification.requestPermission().then(p=>{
+  document.getElementById('notificationStatus').textContent=p==='granted'?'Notification: चालू — Strong signal पर alert मिलेगा': 'Notification अनुमति नहीं मिली';
+  if(p==='granted') localStorage.setItem('signalNotificationsEnabled','1');
+ });
+}
+function notifyStrongSignal(s){
+ if(!('Notification' in window)||Notification.permission!=='granted'||localStorage.getItem('signalNotificationsEnabled')!=='1'||!s.strong||s.side==='WAIT')return;
+ const direction=(s.coin==='BTC'||s.coin==='ETH')?(s.side==='BUY / LONG'?'BUY CALL':'BUY PUT'):(s.side==='BUY / LONG'?'BUY / LONG':'SELL / SHORT');
+ const key='lastStrongNotification_'+s.coin;
+ const stamp=String(s.candleTime||s.time||'')+'_'+direction;
+ if(localStorage.getItem(key)===stamp)return;
+ localStorage.setItem(key,stamp);
+ new Notification('🚨 STRONG '+s.coin+' SIGNAL',{body:direction+' | Entry '+fmt(s.entry)+' | SL '+fmt(s.sl)+' | T1 '+fmt(s.t1)+' | T2 '+fmt(s.t2),tag:'crypto-'+s.coin});
+}
 async function loadAllCryptoSignals(){
  const coins=['BTC','ETH','BNB','ZEC'];
  await Promise.all(coins.map(async coin=>{
   try{
    const s=await analyzeCryptoCoin(coin);
+   notifyStrongSignal(s);
    if(coin==='BTC'||coin==='ETH'){
     const el=document.getElementById('sig-'+coin),info=document.getElementById('siginfo-'+coin);
     const direction=s.side==='BUY / LONG'?'BUY CALL':s.side==='SELL / SHORT'?'BUY PUT':'WAIT';
@@ -554,7 +573,7 @@ function calculate(){
  document.getElementById('rr').textContent=valid&&riskPer>0&&rewardPer>0?(rewardPer/riskPer).toFixed(2)+' : 1':'—';
  document.getElementById('warning').textContent=!valid?'Entry, SL, Target और Quantity भरें।':(riskPer<=0||rewardPer<=0?'जाँचें: खरीद में SL एंट्री से नीचे और टारगेट ऊपर होना चाहिए। बिक्री में SL एंट्री से ऊपर और टारगेट नीचे होना चाहिए।':'यह अनुमानित गणना है। ब्रोकरेज, टैक्स, स्लिपेज, लॉट साइज़ और फंडिंग शामिल नहीं हैं।');
 }
-document.addEventListener('DOMContentLoaded',()=>{loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals()});
+document.addEventListener('DOMContentLoaded',()=>{loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals();if(localStorage.getItem('signalNotificationsEnabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){document.getElementById('notificationStatus').textContent='Notification: चालू';}setInterval(loadAllCryptoSignals,60000)});
 </script>
 </body>
 </html>
