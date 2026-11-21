@@ -1,6 +1,10 @@
 name: Server Crypto Signal Monitor
 
 on:
+  push:
+    paths:
+      - 'monitor.py'
+      - '.github/workflows/server-signal-monitor.yml'
   schedule:
     - cron: "*/5 * * * *"
   workflow_dispatch:
