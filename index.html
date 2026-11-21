@@ -227,7 +227,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 <div class="result"><small>BNBUSDT • 15m FUTURES</small><strong id="sig-BNB">लोड हो रहा है…</strong><p class="note" id="siginfo-BNB">कैंडल डेटा जाँचा जा रहा है</p></div>
 <div class="result"><small>ZECUSDT • 15m FUTURES</small><strong id="sig-ZEC">लोड हो रहा है…</strong><p class="note" id="siginfo-ZEC">कैंडल डेटा जाँचा जा रहा है</p></div>
 </div>
-<section class="panel" id="crypto-order-signals"><h2>👀 LIVE WATCH SIGNALS</h2><p class="note">केवल BUY / SELL / WAIT दिशा, RSI और अपडेट समय देखें। कोई entry, SL, TP या trade formula नहीं। Signals चर्चा के लिए हैं, order नहीं।</p><div class="option-table-wrap"><table class="option-table" style="min-width:520px"><thead><tr><th>Coin</th><th>Watch Signal</th><th>RSI</th><th>Updated</th></tr></thead><tbody id="cryptoOrderRows"><tr><td colspan="4">Live data लोड हो रहा है…</td></tr></tbody></table></div></section>
+<section class="panel" id="crypto-order-signals"><h2>👀 LIVE WATCH SIGNALS</h2><p class="note">केवल BUY / SELL / WAIT दिशा, RSI और अपडेट समय देखें। कोई entry, SL, TP या trade formula नहीं। Signals चर्चा के लिए हैं, order नहीं।</p><div class="option-table-wrap"><table class="option-table" style="min-width:800px"><thead><tr><th>Coin</th><th>Watch Signal</th><th>Entry</th><th>SL</th><th>TP1</th><th>TP2</th><th>RSI</th><th>Updated</th></tr></thead><tbody id="cryptoOrderRows"><tr><td colspan="4">Live data लोड हो रहा है…</td></tr></tbody></table></div></section>
 <button type="button" onclick="loadAllCryptoSignals()">सभी Crypto Signal Refresh करें</button>
 <button type="button" onclick="enableSignalNotifications()">🔔 Watch Signal Notification चालू करें</button>
 <p class="note" id="notificationStatus">Notification: बंद</p>
@@ -557,12 +557,12 @@ function renderCryptoOrderRow(s){
  const tbody=document.getElementById('cryptoOrderRows');if(!tbody||!s)return;
  const rows=window.cryptoOrderSnapshots||{};rows[s.coin]=s;window.cryptoOrderSnapshots=rows;
  const names=['BTC','ETH','BNB','ZEC'];
- tbody.innerHTML=names.map(coin=>{const x=rows[coin];if(!x)return '<tr><td>'+coin+'</td><td>DATA LOADING</td><td colspan="2">—</td></tr>';const direction=(coin==='BTC'||coin==='ETH')?(x.side==='BUY / LONG'?'BUY CALL':x.side==='SELL / SHORT'?'BUY PUT':'WAIT'):(x.side==='BUY / LONG'?'BUY / LONG':x.side==='SELL / SHORT'?'SELL / SHORT':'WAIT');const cls=direction.includes('BUY')?'call-text':direction.includes('SELL')||direction.includes('PUT')?'put-text':'signal-neutral';return '<tr><td>'+coin+'</td><td class="'+cls+'"><strong>'+direction+'</strong></td><td>'+fmt(x.rv)+'</td><td>'+x.time+'</td></tr>'}).join('');
+ tbody.innerHTML=names.map(coin=>{const x=rows[coin];if(!x)return '<tr><td>'+coin+'</td><td>DATA LOADING</td><td colspan="2">—</td></tr>';const direction=(coin==='BTC'||coin==='ETH')?(x.side==='BUY / LONG'?'BUY CALL':x.side==='SELL / SHORT'?'BUY PUT':'WAIT'):(x.side==='BUY / LONG'?'BUY / LONG':x.side==='SELL / SHORT'?'SELL / SHORT':'WAIT');const cls=direction.includes('BUY')?'call-text':direction.includes('SELL')||direction.includes('PUT')?'put-text':'signal-neutral';return '<tr><td>'+coin+'</td><td class="'+cls+'"><strong>'+direction+'</strong></td><td>'+fmt(x.entry)+'</td><td>'+fmt(x.sl)+'</td><td>'+fmt(x.t1)+'</td><td>'+fmt(x.t2)+'</td><td>'+fmt(x.rv)+'</td><td>'+x.time+'</td></tr>'}).join('');
 }
 function showCoinSignal(s){
  const el=document.getElementById('sig-'+s.coin),info=document.getElementById('siginfo-'+s.coin);
  if(el){el.textContent=s.strong?'STRONG '+s.side:s.side;el.className=s.side==='BUY / LONG'?'call-text':s.side==='SELL / SHORT'?'put-text':'signal-neutral';}
- if(info)info.textContent=s.reason+' • RSI '+fmt(s.rv)+' • EMA9 '+fmt(s.e9)+' / EMA21 '+fmt(s.e21)+' • '+s.quality+' • '+s.time;
+ if(info)info.textContent=s.reason+' • Entry '+fmt(s.entry)+' | SL '+fmt(s.sl)+' | TP1 '+fmt(s.t1)+' | TP2 '+fmt(s.t2)+' • RSI '+fmt(s.rv)+' • EMA9 '+fmt(s.e9)+' / EMA21 '+fmt(s.e21)+' • '+s.quality+' • '+s.time;
 }
 function enableSignalNotifications(){
  if(!('Notification' in window)){document.getElementById('notificationStatus').textContent='इस browser में Notification supported नहीं';return;}
@@ -614,7 +614,7 @@ async function loadAllCryptoSignals(){
     const el=document.getElementById('sig-'+coin),info=document.getElementById('siginfo-'+coin);
     const direction=s.side==='BUY / LONG'?'BUY CALL':s.side==='SELL / SHORT'?'BUY PUT':'WAIT';
     if(el){el.textContent=direction;el.className=direction==='BUY CALL'?'call-text':direction==='BUY PUT'?'put-text':'signal-neutral';}
-    if(info)info.textContent=s.reason+' • RSI '+fmt(s.rv)+' • EMA9 '+fmt(s.e9)+' / EMA21 '+fmt(s.e21)+' • WATCH ONLY • '+s.time;
+    if(info)info.textContent=s.reason+' • Entry '+fmt(s.entry)+' | SL '+fmt(s.sl)+' | TP1 '+fmt(s.t1)+' | TP2 '+fmt(s.t2)+' • RSI '+fmt(s.rv)+' • EMA9 '+fmt(s.e9)+' / EMA21 '+fmt(s.e21)+' • WATCH ONLY • '+s.time;
     cryptoTrendSignal[coin]=direction;cryptoSignalStrength[coin]=!!s.strong;
    }else{
     showCoinSignal(s);cryptoTrendSignal[coin]=s.side==='BUY / LONG'?'BUY CALL':s.side==='SELL / SHORT'?'BUY PUT':'WAIT';cryptoSignalStrength[coin]=!!s.strong;
