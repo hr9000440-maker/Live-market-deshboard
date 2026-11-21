@@ -548,7 +548,9 @@ async function analyzeCryptoCoin(coin){
   {name:'Binance Spot',url:'https://api.binance.com/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60',parse:j=>j},
   {name:'Binance Spot Backup',url:'https://data-api.binance.vision/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60',parse:j=>j},
   {name:'Binance Futures',url:'https://fapi.binance.com/fapi/v1/klines?symbol='+symbol+'&interval=15m&limit=60',parse:j=>j},
-  {name:'Bybit Futures',url:'https://api.bybit.com/v5/market/kline?category=linear&symbol='+symbol+'&interval=15&limit=60',parse:j=>(j.result?.list||[]).slice().reverse().map(x=>[Number(x[0]),x[1],x[2],x[3],x[4],x[5],Number(x[0])+900000-1])}
+  {name:'Bybit Futures',url:'https://api.bybit.com/v5/market/kline?category=linear&symbol='+symbol+'&interval=15&limit=60',parse:j=>(j.result?.list||[]).slice().reverse().map(x=>[Number(x[0]),x[1],x[2],x[3],x[4],x[5],Number(x[0])+900000-1])},
+  // Independent public spot fallback for all four coins when Binance/Bybit are blocked or unavailable.
+  {name:'Gate.io Spot Backup',url:'https://api.gateio.ws/api/v4/spot/candlesticks?currency_pair='+coin+'_USDT&interval=15m&limit=60',parse:j=>(Array.isArray(j)?j:[]).map(x=>[Number(x[0])*1000,String(x[5]),String(x[3]),String(x[4]),String(x[2]),String(x[1]),Number(x[0])*1000+900000-1]).sort((a,b)=>a[0]-b[0])}
  ];
  let raw=null,lastFeedError='',usedFeed='';
  // Run independent public feeds in parallel so one slow endpoint cannot delay the whole dashboard.
@@ -560,7 +562,10 @@ async function analyzeCryptoCoin(coin){
    const json=await res.json();if(json.code&&json.code!==0)throw new Error(json.retMsg||json.msg||'API error');
    const data=feed.parse(json);
    if(!Array.isArray(data)||data.length<30)throw new Error('15m candles कम हैं');
-   return {data,feed:feed.name};
+   const valid=data.filter(x=>Array.isArray(x)&&x.length>=6&&[0,1,2,3,4,5].every(i=>Number.isFinite(Number(x[i])))&&Number(x[1])>0&&Number(x[2])>0&&Number(x[3])>0&&Number(x[4])>0);
+   if(valid.length<30)throw new Error('15m candles में valid OHLCV डेटा कम है');
+   valid.sort((a,b)=>Number(a[0])-Number(b[0]));
+   return {data:valid,feed:feed.name};
   }finally{clearTimeout(timeout)}
  });
  try{const winner=await Promise.any(feedAttempts);raw=winner.data;usedFeed=winner.feed}
