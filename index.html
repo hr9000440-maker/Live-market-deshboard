@@ -220,7 +220,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 </section>
 <section class="panel" id="crypto-signals">
 <h2>🚦 CRYPTO 15 MIN SIGNALS — BTC / ETH OPTIONS + BNB / ZEC FUTURES</h2>
-<p class="note">BTC और ETH के लिए live 15m candle पर EMA9/EMA21 + RSI14 से BUY CALL / BUY PUT / WAIT संकेत; signal हर 5 सेकंड refresh होता है। Bullish RSI range 45–75 और bearish RSI range 25–55 है। Signal trigger 15m EMA9/EMA21 + RSI14 है। 1h trend, volume और candle-body strength signal को block नहीं करेंगे; लगातार दो candles की पुष्टि नहीं चाहिए। Underlying Entry/SL/TP1/TP2/TP3 ATR-based हैं; option premium पर अलग 25% SL और 25%/50%/75% TP levels हैं। BNB/ZEC futures signals भी नीचे जारी हैं। TRADE SIGNAL MODE: BUY/SELL संकेत, Entry, SL और TP1/TP2/TP3 दिखेंगे। यह signal-only dashboard है; अपने-आप order place नहीं होगा।</p>
+<p class="note">BTC और ETH के लिए live 15m candle पर EMA9/EMA21 + RSI14 से BUY CALL / BUY PUT / WAIT संकेत; signal हर 10 सेकंड refresh होता है। Bullish RSI range 45–75 और bearish RSI range 25–55 है। Signal trigger 15m EMA9/EMA21 + RSI14 है। 1h trend, volume और candle-body strength signal को block नहीं करेंगे; लगातार दो candles की पुष्टि नहीं चाहिए। Underlying Entry/SL/TP1/TP2/TP3 ATR-based हैं; option premium पर अलग 25% SL और 25%/50%/75% TP levels हैं। BNB/ZEC futures signals भी नीचे जारी हैं। TRADE SIGNAL MODE: BUY/SELL संकेत, Entry, SL और TP1/TP2/TP3 दिखेंगे। यह signal-only dashboard है; अपने-आप order place नहीं होगा।</p>
 <div class="grid">
 <div class="result"><small>BTCUSDT • 15m OPTION SIGNAL</small><strong id="sig-BTC">लोड हो रहा है…</strong><p class="note" id="siginfo-BTC">कैंडल डेटा जाँचा जा रहा है</p></div>
 <div class="result"><small>ETHUSDT • 15m OPTION SIGNAL</small><strong id="sig-ETH">लोड हो रहा है…</strong><p class="note" id="siginfo-ETH">कैंडल डेटा जाँचा जा रहा है</p></div>
@@ -512,15 +512,20 @@ async function analyzeCryptoCoin(coin){
   {name:'Bybit Futures',url:'https://api.bybit.com/v5/market/kline?category=linear&symbol='+symbol+'&interval=15&limit=60',parse:j=>(j.result?.list||[]).slice().reverse().map(x=>[Number(x[0]),x[1],x[2],x[3],x[4],x[5],Number(x[0])+900000-1])}
  ];
  let raw=null,lastFeedError='',usedFeed='';
- for(const feed of feeds){try{
-  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),7000);
-  let res;try{res=await fetch(feed.url,{cache:'no-store',signal:controller.signal})}finally{clearTimeout(timeout)}
-  if(!res.ok)throw new Error('HTTP '+res.status);
-  const json=await res.json();if(json.code&&json.code!==0)throw new Error(json.retMsg||json.msg||'API error');
-  const data=feed.parse(json);
-  if(!Array.isArray(data)||data.length<30)throw new Error('15m candles कम हैं');
-  raw=data;usedFeed=feed.name;break;
- }catch(e){lastFeedError=feed.name+': '+(e.name==='AbortError'?'timeout':e.message||'feed error');}}
+ // Run independent public feeds in parallel so one slow endpoint cannot delay the whole dashboard.
+ const feedAttempts=feeds.map(async feed=>{
+  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),5000);
+  try{
+   const res=await fetch(feed.url,{cache:'no-store',signal:controller.signal});
+   if(!res.ok)throw new Error('HTTP '+res.status);
+   const json=await res.json();if(json.code&&json.code!==0)throw new Error(json.retMsg||json.msg||'API error');
+   const data=feed.parse(json);
+   if(!Array.isArray(data)||data.length<30)throw new Error('15m candles कम हैं');
+   return {data,feed:feed.name};
+  }finally{clearTimeout(timeout)}
+ });
+ try{const winner=await Promise.any(feedAttempts);raw=winner.data;usedFeed=winner.feed}
+ catch(e){lastFeedError=e.errors?.map(x=>x.name==='AbortError'?'timeout':x.message||'feed error').join(' | ')||'all feeds failed'}
  if(!raw)throw new Error(coin+' 15m market feed unavailable. सभी स्रोत असफल: '+lastFeedError);
  const candles=raw,lastClosed=Number(candles[candles.length-1][0]),saved=null;
  // Live mode: include the currently-forming 15m candle so the signal can update between candle closes.
@@ -568,7 +573,7 @@ function captureCryptoMovement(s){
  const rows=getCryptoMovementLog(),ts=Date.now(),price=Number(s.entry),candleTime=Number(s.candleTime||0);
  const item={ts,time:historyTime(ts),date:indiaDate(ts),coin:s.coin,price,open:Number(s.open),high:Number(s.high),low:Number(s.low),rsi:Number(s.rv),ema9:Number(s.e9),ema21:Number(s.e21),side:s.side,candleTime};
  const last=rows.find(x=>x.coin===item.coin);
- // Per-coin dedupe: record each changed price/indicator/signal snapshot; refresh polling is 5 seconds.
+ // Per-coin dedupe: record each changed price/indicator/signal snapshot; refresh polling is 10 seconds.
  if(last&&last.candleTime===item.candleTime&&last.price===item.price&&last.rsi===item.rsi&&last.side===item.side&&last.ema9===item.ema9&&last.ema21===item.ema21)return;
  rows.unshift(item);if(rows.length>10000)rows.length=10000;saveCryptoMovementLog(rows);renderCryptoMovementLog();
 }
@@ -662,6 +667,7 @@ async function loadAllCryptoSignals(){
  await Promise.all(coins.map(async coin=>{
   try{
    const s=await analyzeCryptoCoin(coin);
+   window.cryptoLastGoodSignals=window.cryptoLastGoodSignals||{};window.cryptoLastGoodSignals[coin]=s;
    captureCryptoMovement(s);renderCryptoOrderRow(s);
    notifyStrongSignal(s);
    if(coin==='BTC'||coin==='ETH'){
@@ -675,8 +681,14 @@ async function loadAllCryptoSignals(){
    }
   }catch(e){
    const el=document.getElementById('sig-'+coin),info=document.getElementById('siginfo-'+coin);
-   if(el){el.textContent='DATA ERROR';el.className='signal-neutral';}
-   if(info)info.textContent=e.message+' • Trade signal उपलब्ध नहीं';
+   const cached=window.cryptoLastGoodSignals?.[coin];
+   if(cached){
+    if(el){el.textContent='STALE • '+cached.side;el.className=cached.side==='BUY / LONG'?'call-text':cached.side==='SELL / SHORT'?'put-text':'signal-neutral';}
+    if(info)info.textContent='⚠️ Live data unavailable; last good snapshot '+cached.time+' • Entry '+fmt(cached.entry)+' | SL '+fmt(cached.sl)+' | TP1 '+fmt(cached.t1)+' | TP2 '+fmt(cached.t2)+' | TP3 '+fmt(cached.t3)+' • '+e.message;
+   }else{
+    if(el){el.textContent='DATA ERROR';el.className='signal-neutral';}
+    if(info)info.textContent=e.message+' • Trade signal उपलब्ध नहीं';
+   }
    notifyCryptoDataError(coin,e.message||'Market data unavailable');
    cryptoTrendSignal[coin]='WAIT';cryptoSignalStrength[coin]=false;
   }
@@ -710,7 +722,7 @@ function calculate(){
  document.getElementById('rr').textContent=valid&&riskPer>0&&rewardPer>0?(rewardPer/riskPer).toFixed(2)+' : 1':'—';
  document.getElementById('warning').textContent=!valid?'Entry, SL, Target और Quantity भरें।':(riskPer<=0||rewardPer<=0?'जाँचें: खरीद में SL एंट्री से नीचे और टारगेट ऊपर होना चाहिए। बिक्री में SL एंट्री से ऊपर और टारगेट नीचे होना चाहिए।':'यह अनुमानित गणना है। ब्रोकरेज, टैक्स, स्लिपेज, लॉट साइज़ और फंडिंग शामिल नहीं हैं।');
 }
-document.addEventListener('DOMContentLoaded',()=>{renderCryptoMovementLog();loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals();if(localStorage.getItem('signalNotificationsEnabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){document.getElementById('notificationStatus').textContent='Notification: चालू';}setInterval(loadAllCryptoSignals,5000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadAllCryptoSignals();});window.addEventListener('online',()=>loadAllCryptoSignals());});
+document.addEventListener('DOMContentLoaded',()=>{renderCryptoMovementLog();loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals();if(localStorage.getItem('signalNotificationsEnabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){document.getElementById('notificationStatus').textContent='Notification: चालू';}setInterval(loadAllCryptoSignals,10000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadAllCryptoSignals();});window.addEventListener('online',()=>loadAllCryptoSignals());});
 </script>
 </body>
 </html>
