@@ -408,7 +408,7 @@ async function loadCryptoOptions(){
   cryptoOptionData[coin]=rows;cryptoOptionUnderlying[coin]=underlying;
   const expiries=[...new Set(rows.map(x=>x.expiry||optionDate(x.instrument_name)).filter(Boolean))].sort((a,b)=>expiryDateValue(a)-expiryDateValue(b));
   const expiry=document.getElementById('optExpiry');const previous=expiry.value;const today=todayISTExpiryValue();const todayExpiry=expiries.find(x=>expiryDateValue(x)===today);const nearestFuture=expiries.find(x=>expiryDateValue(x)>=today);const defaultExpiry=todayExpiry||nearestFuture||expiries[0]||'';const chosen=expiries.includes(previous)?previous:defaultExpiry;expiry.innerHTML=expiries.map(x=>'<option value="'+x+'">'+expiryLabel(x)+'</option>').join('')||'<option value="">No active '+coin+' expiry</option>';if(chosen)expiry.value=chosen;
-  const expiryStatus=document.getElementById('optExpiryStatus');if(expiryStatus){const chosenDate=expiryDateValue(chosen),todayDate=todayISTExpiryValue();expiryStatus.textContent=chosen?(chosenDate===todayDate?'आज की Expiry उपलब्ध है: '+expiryLabel(chosen):chosenDate>todayDate?'आज की Expiry API में उपलब्ध नहीं है। अगली उपलब्ध Expiry: '+expiryLabel(chosen):'API Expiry: '+expiryLabel(chosen)):'API से कोई active Expiry उपलब्ध नहीं है।';}
+  const expiryStatus=document.getElementById('optExpiryStatus');if(expiryStatus){const chosenDate=expiryDateValue(chosen),todayDate=todayISTExpiryValue();expiryStatus.textContent=chosen?(chosenDate===todayDate?'आज की Expiry उपलब्ध है: '+expiryLabel(chosen):chosenDate>todayDate?'आज की expiry के contracts API में active नहीं हैं (संभवतः expiry time बीत चुका है)। अगली active expiry: '+expiryLabel(chosen):'API Expiry: '+expiryLabel(chosen)):'API से कोई active Expiry उपलब्ध नहीं है।';}
   document.getElementById('optUnderlying').textContent=underlying?fmt(underlying)+' '+coin+' spot/underlying':'—';
   document.getElementById('optCount').textContent=rows.length.toLocaleString('en-US');document.getElementById('optUpdated').textContent=new Date().toLocaleTimeString('en-IN');
   status.textContent=rows.length?rows.length+' active '+coin+' option contracts मिले।'+(coin==='ZEC'?' स्रोत: Paradex public API.':''):'API से active '+coin+' option contracts नहीं मिले।';
@@ -595,7 +595,7 @@ async function analyzeCryptoCoin(coin){
  const risk=sl===null?null:Math.abs(entry-sl),t1=sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk),t2=sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk),t3=sl===null?null:(side==='BUY / LONG'?entry+3*risk:entry-3*risk);
  const previous=prevSide||'कोई पिछला सिग्नल नहीं',changeReason=previous===side?'सिग्नल वही रहा':('सिग्नल बदला: '+previous+' → '+side);
  const quality='DATA: '+usedFeed+' • TRADE SIGNAL • 15m momentum/EMA + RSI active • Volume informational: '+(volOk?'औसत से अधिक':'औसत से कम')+' • Candle body informational: '+(candleOk?'strong':'weak');
- const signal={coin,side,strong,baseSide:side,reason,diagnostic,quality,changeReason,previous,entry,sl,t1,t2,t3,rv,e9,e21,volume,avgVol,open,high,low,time:new Date(Number(candles.at(-1)[6])).toLocaleString('en-IN'),candleTime:lastClosed};
+ const signal={coin,side,strong,baseSide:side,reason,diagnostic,quality,changeReason,previous,entry,sl,t1,t2,t3,rv,e9,e21,volume,avgVol,open,high,low,time:new Date(Number(candles.at(-1)[0])).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),candleTime:lastClosed};
  cryptoSignalLock[coin]={candleTime:lastClosed,signal};return signal;
 }
 const CRYPTO_MOVEMENT_KEY='cryptoMovementLog_v1';
