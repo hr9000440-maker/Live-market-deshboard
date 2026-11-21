@@ -723,7 +723,7 @@ function notifyTelegramStrongOption(coin,contract,signal,markUsd,spread,slUsd,tp
  '🎯 TP1 (+25%): '+optionMoney(tp1Usd)+' USD\n'+
  '🎯 TP2 (+50%): '+optionMoney(tp2Usd)+' USD\n'+
  '🎯 TP3 (+75%): '+optionMoney(tp3Usd)+' USD\n'+
- 'Signal Strength: STRONG\n'+
+ 'Signal Strength: '+signal+'\n'+
  'Reason: '+(reason||'15m trend + quote/spread confirmation')+'\n'+
  'Underlying Direction: '+(cryptoTrendSignal[coin]||'WAIT')+'\n'+
  '⚠️ Signal only — automatic order नहीं। Live quote verify करें.';
