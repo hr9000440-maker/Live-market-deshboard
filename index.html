@@ -210,6 +210,14 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 
 
 
+<section class="panel" id="crypto-movement-log">
+<h2>📈 CRYPTO EVERY MOVEMENT LOG — BTC / ETH / BNB / ZEC</h2>
+<p class="note">हर refresh पर चारों coins का price, 15m candle OHLC, RSI, EMA9/EMA21 और BUY/SELL/WAIT status capture होगा। Price/स्थिति बदलने पर नया snapshot save होगा; data इसी browser के Local Storage में रहेगा।</p>
+<div class="grid"><div class="result"><small>Captured Movements</small><strong id="movementCount">0</strong></div><div class="result"><small>Last Capture</small><strong id="movementLast">—</strong></div></div>
+<div class="option-table-wrap"><table class="option-table" style="min-width:900px"><thead><tr><th>Time (IST)</th><th>Coin</th><th>Price</th><th>15m Open</th><th>High</th><th>Low</th><th>RSI</th><th>EMA9</th><th>EMA21</th><th>Status</th></tr></thead><tbody id="movementRows"><tr><td colspan="10">Capture शुरू होने का इंतज़ार…</td></tr></tbody></table></div>
+<button type="button" onclick="exportCryptoMovementLog()">⬇️ Movement CSV Export</button>
+<button type="button" onclick="clearCryptoMovementLog()">🗑️ Movement Log Clear</button>
+</section>
 <section class="panel" id="daily-signal-history">
 <h2>📚 DAILY SIGNAL HISTORY — PAPER TRADING</h2>
 <p class="note">Signals browser में date-wise सेव होंगे। यह रिकॉर्ड इसी device/browser के Local Storage में रहेगा; दूसरे device पर स्वतः sync नहीं होगा। Outcomes live refresh data से अनुमानित हैं।</p>
@@ -601,9 +609,29 @@ async function analyzeCryptoCoin(coin){
  const risk=sl===null?null:Math.abs(entry-sl),t1=sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk),t2=sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk);
  const previous=prevSide||'कोई पिछला सिग्नल नहीं',changeReason=previous===side?'सिग्नल वही रहा':('सिग्नल बदला: '+previous+' → '+side);
  const quality='1h filter off • Volume informational: '+(volOk?'औसत से अधिक':'औसत से कम')+' • Candle body informational: '+(candleOk?'strong':'weak')+' • EMA/RSI 15m direction active';
- const signal={coin,side,strong,baseSide:side,reason,quality,changeReason,previous,entry,sl,t1,t2,rv,e9,e21,volume,avgVol,time:new Date(Number(candles.at(-1)[6])).toLocaleString('en-IN'),candleTime:lastClosed};
+ const signal={coin,side,strong,baseSide:side,reason,quality,changeReason,previous,entry,sl,t1,t2,rv,e9,e21,volume,avgVol,open,high,low,time:new Date(Number(candles.at(-1)[6])).toLocaleString('en-IN'),candleTime:lastClosed};
  cryptoSignalLock[coin]={candleTime:lastClosed,signal};return signal;
 }
+const CRYPTO_MOVEMENT_KEY='cryptoMovementLog_v1';
+function getCryptoMovementLog(){try{return JSON.parse(localStorage.getItem(CRYPTO_MOVEMENT_KEY)||'[]')}catch{return []}}
+function saveCryptoMovementLog(rows){try{localStorage.setItem(CRYPTO_MOVEMENT_KEY,JSON.stringify(rows))}catch(e){console.warn('Movement log storage full/unavailable',e)}}
+function captureCryptoMovement(s){
+ if(!s||!s.coin||!(Number(s.entry)>0))return;
+ const rows=getCryptoMovementLog(),ts=Date.now(),price=Number(s.entry),candleTime=Number(s.candleTime||0);
+ const item={ts,time:historyTime(ts),date:indiaDate(ts),coin:s.coin,price,open:Number(s.open),high:Number(s.high),low:Number(s.low),rsi:Number(s.rv),ema9:Number(s.e9),ema21:Number(s.e21),side:s.side,candleTime};
+ const last=rows[0];
+ // Capture whenever price or indicator/signal changes, while retaining periodic snapshots.
+ if(last&&last.coin===item.coin&&last.candleTime===item.candleTime&&last.price===item.price&&last.rsi===item.rsi&&last.side===item.side)return;
+ rows.unshift(item);if(rows.length>10000)rows.length=10000;saveCryptoMovementLog(rows);renderCryptoMovementLog();
+}
+function renderCryptoMovementLog(){
+ const rows=getCryptoMovementLog(),count=document.getElementById('movementCount'),last=document.getElementById('movementLast'),tbody=document.getElementById('movementRows');
+ if(count)count.textContent=rows.length.toLocaleString('en-IN');
+ if(last)last.textContent=rows.length?rows[0].time+' • '+rows[0].coin:'—';
+ if(tbody)tbody.innerHTML=rows.slice(0,100).map(x=>'<tr><td>'+x.time+'</td><td>'+x.coin+'</td><td>'+fmt(x.price)+'</td><td>'+fmt(x.open)+'</td><td>'+fmt(x.high)+'</td><td>'+fmt(x.low)+'</td><td>'+fmt(x.rsi)+'</td><td>'+fmt(x.ema9)+'</td><td>'+fmt(x.ema21)+'</td><td>'+x.side+'</td></tr>').join('')||'<tr><td colspan="10">Capture शुरू होने का इंतज़ार…</td></tr>';
+}
+function exportCryptoMovementLog(){const rows=getCryptoMovementLog();if(!rows.length){alert('Export करने के लिए movement records नहीं हैं।');return;}const headers=['date','time','coin','price','open','high','low','rsi','ema9','ema21','side','candleTime'];const csv=[headers.join(','),...rows.map(x=>headers.map(k=>JSON.stringify(x[k]??'')).join(','))].join('\n');const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='crypto-movement-log.csv';a.click();URL.revokeObjectURL(url);}
+function clearCryptoMovementLog(){if(!confirm('सभी Crypto movement records इस browser से हटाएँ?'))return;localStorage.removeItem(CRYPTO_MOVEMENT_KEY);renderCryptoMovementLog();}
 function showCoinSignal(s){
  const el=document.getElementById('sig-'+s.coin),info=document.getElementById('siginfo-'+s.coin);
  if(el){el.textContent=s.strong?'STRONG '+s.side:s.side;el.className=s.side==='BUY / LONG'?'call-text':s.side==='SELL / SHORT'?'put-text':'signal-neutral';}
@@ -640,7 +668,7 @@ async function loadAllCryptoSignals(){
  await Promise.all(coins.map(async coin=>{
   try{
    const s=await analyzeCryptoCoin(coin);
-   addCryptoHistory(s);updateCryptoHistory(s);
+   captureCryptoMovement(s);addCryptoHistory(s);updateCryptoHistory(s);
    notifyStrongSignal(s);
    if(coin==='BTC'||coin==='ETH'){
     const el=document.getElementById('sig-'+coin),info=document.getElementById('siginfo-'+coin);
@@ -687,7 +715,7 @@ function calculate(){
  document.getElementById('rr').textContent=valid&&riskPer>0&&rewardPer>0?(rewardPer/riskPer).toFixed(2)+' : 1':'—';
  document.getElementById('warning').textContent=!valid?'Entry, SL, Target और Quantity भरें।':(riskPer<=0||rewardPer<=0?'जाँचें: खरीद में SL एंट्री से नीचे और टारगेट ऊपर होना चाहिए। बिक्री में SL एंट्री से ऊपर और टारगेट नीचे होना चाहिए।':'यह अनुमानित गणना है। ब्रोकरेज, टैक्स, स्लिपेज, लॉट साइज़ और फंडिंग शामिल नहीं हैं।');
 }
-document.addEventListener('DOMContentLoaded',()=>{renderSignalHistory();loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals();if(localStorage.getItem('signalNotificationsEnabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){document.getElementById('notificationStatus').textContent='Notification: चालू';}setInterval(loadAllCryptoSignals,15000)});
+document.addEventListener('DOMContentLoaded',()=>{renderCryptoMovementLog();renderSignalHistory();loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals();if(localStorage.getItem('signalNotificationsEnabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){document.getElementById('notificationStatus').textContent='Notification: चालू';}setInterval(loadAllCryptoSignals,15000)});
 </script>
 </body>
 </html>
