@@ -319,12 +319,12 @@ function expiryDateValue(v){
  if(!v)return NaN;
  const s=String(v).trim();
  // ISO / YYYY-MM-DD from APIs
- if(/^\\d{4}-\\d{2}-\\d{2}/.test(s))return Date.parse(s.slice(0,10)+'T00:00:00Z');
+ if(/^\d{4}-\d{2}-\d{2}/.test(s))return Date.parse(s.slice(0,10)+'T00:00:00Z');
  // Deribit contract suffix: 21NOV26
- const m=s.match(/^(\\d{1,2})([A-Z]{3})(\\d{2,4})$/i);
+ const m=s.match(/^(\d{1,2})([A-Z]{3})(\d{2,4})$/i);
  if(m){const months={JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11};let y=Number(m[3]);if(y<100)y+=2000;return Date.UTC(y,months[m[2].toUpperCase()],Number(m[1]));}
  // Unix seconds or milliseconds
- if(/^\\d{10,13}$/.test(s)){const n=Number(s);return n<1e12?n*1000:n;}
+ if(/^\d{10,13}$/.test(s)){const n=Number(s);return n<1e12?n*1000:n;}
  return Date.parse(s);
 }
 function todayISTExpiryValue(){const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const y=parts.find(p=>p.type==='year').value,m=parts.find(p=>p.type==='month').value,d=parts.find(p=>p.type==='day').value;return Date.UTC(Number(y),Number(m)-1,Number(d));}
