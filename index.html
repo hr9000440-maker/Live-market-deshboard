@@ -504,9 +504,24 @@ const cryptoH1Cache={};
 function readSignalLock(coin){try{return JSON.parse(localStorage.getItem('signalLock_'+coin)||'null')}catch{return null}}
 function saveSignalLock(coin,obj){try{localStorage.setItem('signalLock_'+coin,JSON.stringify(obj))}catch{}}
 async function analyzeCryptoCoin(coin){
- const symbol=coin+'USDT',urls=['https://api.binance.com/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60','https://api1.binance.com/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60','https://data-api.binance.vision/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60'];
- let raw=null,lastFeedError='';for(const url of urls){try{const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw new Error('HTTP '+res.status);const data=await res.json();if(!Array.isArray(data)||data.length<30)throw new Error('15m candles कम हैं');raw=data;break;}catch(e){lastFeedError=e.message||'feed error';}}
- if(!raw)throw new Error(coin+' 15m market feed unavailable: '+lastFeedError);
+ const symbol=coin+'USDT';
+ const feeds=[
+  {name:'Binance Spot',url:'https://api.binance.com/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60',parse:j=>j},
+  {name:'Binance Spot Backup',url:'https://data-api.binance.vision/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60',parse:j=>j},
+  {name:'Binance Futures',url:'https://fapi.binance.com/fapi/v1/klines?symbol='+symbol+'&interval=15m&limit=60',parse:j=>j},
+  {name:'Bybit Futures',url:'https://api.bybit.com/v5/market/kline?category=linear&symbol='+symbol+'&interval=15&limit=60',parse:j=>(j.result?.list||[]).slice().reverse().map(x=>[Number(x[0]),x[1],x[2],x[3],x[4],x[5],Number(x[0])+900000-1])}
+ ];
+ let raw=null,lastFeedError='',usedFeed='';
+ for(const feed of feeds){try{
+  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),7000);
+  let res;try{res=await fetch(feed.url,{cache:'no-store',signal:controller.signal})}finally{clearTimeout(timeout)}
+  if(!res.ok)throw new Error('HTTP '+res.status);
+  const json=await res.json();if(json.code&&json.code!==0)throw new Error(json.retMsg||json.msg||'API error');
+  const data=feed.parse(json);
+  if(!Array.isArray(data)||data.length<30)throw new Error('15m candles कम हैं');
+  raw=data;usedFeed=feed.name;break;
+ }catch(e){lastFeedError=feed.name+': '+(e.name==='AbortError'?'timeout':e.message||'feed error');}}
+ if(!raw)throw new Error(coin+' 15m market feed unavailable. सभी स्रोत असफल: '+lastFeedError);
  const candles=raw,lastClosed=Number(candles[candles.length-1][0]),saved=null;
  // Live mode: include the currently-forming 15m candle so the signal can update between candle closes.
  const closes=candles.map(x=>Number(x[4])),highs=candles.map(x=>Number(x[2])),lows=candles.map(x=>Number(x[3])),volumes=candles.map(x=>Number(x[5]));
@@ -529,7 +544,7 @@ async function analyzeCryptoCoin(coin){
  const entry=close,sl=side==='BUY / LONG'?entry-1.2*atr:side==='SELL / SHORT'?entry+1.2*atr:null;
  const risk=sl===null?null:Math.abs(entry-sl),t1=sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk),t2=sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk);
  const previous=prevSide||'कोई पिछला सिग्नल नहीं',changeReason=previous===side?'सिग्नल वही रहा':('सिग्नल बदला: '+previous+' → '+side);
- const quality='WATCH ONLY • 15m momentum/EMA + RSI active • Volume informational: '+(volOk?'औसत से अधिक':'औसत से कम')+' • Candle body informational: '+(candleOk?'strong':'weak');
+ const quality='DATA: '+usedFeed+' • WATCH ONLY • 15m momentum/EMA + RSI active • Volume informational: '+(volOk?'औसत से अधिक':'औसत से कम')+' • Candle body informational: '+(candleOk?'strong':'weak');
  const signal={coin,side,strong,baseSide:side,reason,quality,changeReason,previous,entry,sl,t1,t2,rv,e9,e21,volume,avgVol,open,high,low,time:new Date(Number(candles.at(-1)[6])).toLocaleString('en-IN'),candleTime:lastClosed};
  cryptoSignalLock[coin]={candleTime:lastClosed,signal};return signal;
 }
