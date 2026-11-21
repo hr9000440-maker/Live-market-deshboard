@@ -45,23 +45,36 @@ for symbol in COINS:
     try:
         klines=get_json(f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=15m&limit=100")
         closes=[float(k[4]) for k in klines]
+        highs=[float(k[2]) for k in klines]
+        lows=[float(k[3]) for k in klines]
         times=[int(k[0]) for k in klines]
         # Use only closed candle; Binance's final row is often still forming.
-        closes=closes[:-1]; times=times[:-1]
+        closes=closes[:-1]; highs=highs[:-1]; lows=lows[:-1]; times=times[:-1]
         e9=ema(closes,9); e21=ema(closes,21); rv=rsi(closes)
         price=closes[-1]; candle_ts=times[-1]
         direction="WAIT"
         if price>e9[-1]>e21[-1] and 40<=rv<=80: direction="BUY / LONG"
         elif price<e9[-1]<e21[-1] and 20<=rv<=60: direction="SELL / SHORT"
+        # 14-candle ATR risk levels; indicative underlying-price levels.
+        true_ranges=[]
+        for i in range(max(1,len(closes)-14),len(closes)):
+            true_ranges.append(max(highs[i]-lows[i],abs(highs[i]-closes[i-1]),abs(lows[i]-closes[i-1])))
+        atr=sum(true_ranges)/len(true_ranges) if true_ranges else 0
+        sl=price-1.2*atr if direction=="BUY / LONG" else price+1.2*atr if direction=="SELL / SHORT" else None
+        risk=abs(price-sl) if sl is not None else None
+        tp1=price+risk if direction=="BUY / LONG" else price-risk if direction=="SELL / SHORT" else None
+        tp2=price+2*risk if direction=="BUY / LONG" else price-2*risk if direction=="SELL / SHORT" else None
+        tp3=price+3*risk if direction=="BUY / LONG" else price-3*risk if direction=="SELL / SHORT" else None
         prev=state.get(symbol,{})
-        # Notify only when the closed 15m candle's direction changes to a trade signal.
-        if direction!="WAIT" and prev.get("direction")!=direction:
-            msg=(f"📡 SERVER SIGNAL — {symbol}\n{direction}\n"
+        # Send once per new closed 15m candle for each active direction.
+        if direction!="WAIT" and (prev.get("direction")!=direction or prev.get("candle")!=candle_ts):
+            msg=(f"🚦 TRADE SIGNAL — {symbol}\n{direction}\n"
                  f"Closed 15m candle: {datetime.datetime.fromtimestamp(candle_ts/1000,datetime.timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\n"
-                 f"Entry reference: {price:.8g}\nEMA9: {e9[-1]:.8g} | EMA21: {e21[-1]:.8g}\nRSI14: {rv:.1f}\n"
-                 f"SL/TP: risk-managed levels require exchange/contract-specific sizing; paper trade only.\nChecked: {now}")
+                 f"Entry: {price:.8g}\nStop Loss: {sl:.8g}\nTP1: {tp1:.8g}\nTP2: {tp2:.8g}\nTP3: {tp3:.8g}\n"
+                 f"EMA9: {e9[-1]:.8g} | EMA21: {e21[-1]:.8g} | RSI14: {rv:.1f}\n"
+                 f"Signal only; no automatic order placement.\nChecked: {now}")
             send(msg)
-        state[symbol]={"direction":direction,"candle":candle_ts,"price":price,"ema9":e9[-1],"ema21":e21[-1],"rsi":rv,"checked":now}
+        state[symbol]={"direction":direction,"candle":candle_ts,"price":price,"ema9":e9[-1],"ema21":e21[-1],"rsi":rv,"entry":price,"sl":sl,"tp1":tp1,"tp2":tp2,"tp3":tp3,"checked":now}
         print(f"{symbol}: {direction} price={price} RSI={rv:.1f}")
     except Exception as e:
         print(f"{symbol}: DATA ERROR: {e}")
