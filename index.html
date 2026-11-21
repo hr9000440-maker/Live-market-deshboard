@@ -578,8 +578,13 @@ async function analyzeCryptoCoin(coin){
  // or on a break of the previous candle high/low. CONFIRMED SIGNAL uses the stricter
  // original EMA alignment / breakout rules. This keeps early alerts visible without hiding confirmation.
  let earlySide='WAIT',earlyReason='';
- if((close>e9&&rv>=45&&rv<=90)||breakUp){earlySide='BUY / LONG';earlyReason=breakUp?'EARLY breakout above previous 15m high':'EARLY EMA9 reclaim + RSI momentum';}
- else if((close<e9&&rv>=10&&rv<=55)||breakDown){earlySide='SELL / SHORT';earlyReason=breakDown?'EARLY breakdown below previous 15m low':'EARLY EMA9 loss + RSI momentum';}
+ // EARLY alerts use the live 15m candle before full EMA9/EMA21 alignment.
+ // Require a modest move from the candle open plus RSI direction, or a prior-candle break.
+ const candleMovePct=open>0?((close-open)/open)*100:0;
+ const earlyBuyMomentum=close>open&&candleMovePct>=0.12&&rv>=40&&rv<=90;
+ const earlySellMomentum=close<open&&candleMovePct<=-0.12&&rv>=10&&rv<=60;
+ if(breakUp||earlyBuyMomentum){earlySide='BUY / LONG';earlyReason=breakUp?'EARLY breakout above previous 15m high':'EARLY bullish 15m candle + 0.12% momentum + RSI';}
+ else if(breakDown||earlySellMomentum){earlySide='SELL / SHORT';earlyReason=breakDown?'EARLY breakdown below previous 15m low':'EARLY bearish 15m candle + 0.12% momentum + RSI';}
  if(close>e9&&(e9>e21||breakUp)&&rv>=30&&rv<=90){side='BUY / LONG';reason=breakUp?'CONFIRMED 15m momentum breakout + RSI':'CONFIRMED 15m EMA direction + RSI';}
  else if(close<e9&&(e9<e21||breakDown)&&rv>=10&&rv<=70){side='SELL / SHORT';reason=breakDown?'CONFIRMED 15m momentum breakdown + RSI':'CONFIRMED 15m EMA direction + RSI';}
  if(side==='WAIT'&&earlySide!=='WAIT'){side=earlySide;reason=earlyReason;}
