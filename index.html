@@ -238,19 +238,19 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 </section>
 <section class="panel" id="crypto-signals">
 <h2>🚦 CRYPTO 15 MIN SIGNALS — BTC / ETH OPTIONS + BNB / ZEC FUTURES</h2>
-<p class="note">BTC और ETH के लिए live 15m candle पर EMA9/EMA21 + RSI14 से BUY CALL / BUY PUT / WAIT संकेत; signal हर 5 सेकंड refresh होता है। Bullish RSI range 45–75 और bearish RSI range 25–55 है। Signal trigger 15m EMA9/EMA21 + RSI14 है। 1h trend, volume और candle-body strength signal को block नहीं करेंगे; लगातार दो candles की पुष्टि नहीं चाहिए। Entry, SL और targets underlying price पर हैं; option premium targets अलग हैं। BNB/ZEC futures signals भी नीचे जारी हैं। 15 दिन केवल PAPER TRADE करें—कोई वास्तविक order नहीं।</p>
+<p class="note">BTC और ETH के लिए live 15m candle पर EMA9/EMA21 + RSI14 से BUY CALL / BUY PUT / WAIT संकेत; signal हर 5 सेकंड refresh होता है। Bullish RSI range 45–75 और bearish RSI range 25–55 है। Signal trigger 15m EMA9/EMA21 + RSI14 है। 1h trend, volume और candle-body strength signal को block नहीं करेंगे; लगातार दो candles की पुष्टि नहीं चाहिए। Entry, SL और targets underlying price पर हैं; option premium targets अलग हैं। BNB/ZEC futures signals भी नीचे जारी हैं। WATCH ONLY: कोई trade/order नहीं लिया जाएगा। Signals केवल देखने और चर्चा के लिए हैं।</p>
 <div class="grid">
 <div class="result"><small>BTCUSDT • 15m OPTION SIGNAL</small><strong id="sig-BTC">लोड हो रहा है…</strong><p class="note" id="siginfo-BTC">कैंडल डेटा जाँचा जा रहा है</p></div>
 <div class="result"><small>ETHUSDT • 15m OPTION SIGNAL</small><strong id="sig-ETH">लोड हो रहा है…</strong><p class="note" id="siginfo-ETH">कैंडल डेटा जाँचा जा रहा है</p></div>
 <div class="result"><small>BNBUSDT • 15m FUTURES</small><strong id="sig-BNB">लोड हो रहा है…</strong><p class="note" id="siginfo-BNB">कैंडल डेटा जाँचा जा रहा है</p></div>
 <div class="result"><small>ZECUSDT • 15m FUTURES</small><strong id="sig-ZEC">लोड हो रहा है…</strong><p class="note" id="siginfo-ZEC">कैंडल डेटा जाँचा जा रहा है</p></div>
 </div>
-<section class="panel" id="crypto-order-signals"><h2>🧾 LIVE PAPER ORDER SIGNALS</h2><p class="note">हर coin का वर्तमान signal, entry, SL और targets एक table में। WAIT का अर्थ कोई paper order नहीं।</p><div class="option-table-wrap"><table class="option-table" style="min-width:800px"><thead><tr><th>Coin</th><th>Order Signal</th><th>Entry</th><th>SL</th><th>TP1</th><th>TP2</th><th>RSI</th><th>Updated</th></tr></thead><tbody id="cryptoOrderRows"><tr><td colspan="8">Live data लोड हो रहा है…</td></tr></tbody></table></div></section>
+<section class="panel" id="crypto-order-signals"><h2>👀 LIVE WATCH SIGNALS</h2><p class="note">केवल BUY / SELL / WAIT दिशा, RSI और अपडेट समय देखें। कोई entry, SL, TP या trade formula नहीं। Signals चर्चा के लिए हैं, order नहीं।</p><div class="option-table-wrap"><table class="option-table" style="min-width:520px"><thead><tr><th>Coin</th><th>Watch Signal</th><th>RSI</th><th>Updated</th></tr></thead><tbody id="cryptoOrderRows"><tr><td colspan="4">Live data लोड हो रहा है…</td></tr></tbody></table></div></section>
 <button type="button" onclick="loadAllCryptoSignals()">सभी Crypto Signal Refresh करें</button>
 <button type="button" onclick="enableSignalNotifications()">🔔 Strong Signal Notification चालू करें</button>
 <p class="note" id="notificationStatus">Notification: बंद</p>
 <section class="panel" id="telegram-alerts"><h2>✈️ TELEGRAM SIGNAL ALERTS — BTC / ETH / BNB / ZEC</h2><p class="note">Bot token और Chat ID इसी browser के local storage में रहेंगे; GitHub source में नहीं जाएंगे।</p><label for="telegramToken">Telegram Bot Token (गोपनीय रखें)</label><input id="telegramToken" type="password" autocomplete="off" placeholder="BotFather token"><label for="telegramChatId">Telegram Chat ID</label><input id="telegramChatId" type="text" inputmode="numeric" placeholder="Chat ID"><button type="button" onclick="findTelegramChatId()">Chat ID पता करें</button><button type="button" onclick="saveTelegramSettings()">सेटिंग सुरक्षित करें</button><button type="button" onclick="testTelegramAlert()">Test Message भेजें</button><p class="note" id="telegramStatus">अपने bot को Telegram में खोलें, Start दबाएँ और /start भेजें।</p></section>
-<p class="note">BTC/ETH: BUY CALL या BUY PUT दिशा का संकेत है, option contract/premium का live quote अलग Option Chain से जाँचें। Premium risk plan: SL -20%, TP1 +30%, TP2 +50% (entry premium से); spread/expiry/volatility का जोखिम लागू। BNB/ZEC: Entry, SL और targets underlying USDT price levels हैं। Spot data futures basis, fees, funding और slippage से अलग हो सकता है।</p>
+<p class="note">BTC/ETH: BUY CALL या BUY PUT दिशा का संकेत है, option contract/premium का live quote अलग Option Chain से जाँचें। Premium/SL/TP formula हटाया गया है; केवल watch signal और spread review करें। BNB/ZEC: Entry, SL और targets underlying USDT price levels हैं। Spot data futures basis, fees, funding और slippage से अलग हो सकता है।</p>
 </section>
 
 <section class="panel" id="crypto-options">
@@ -265,8 +265,8 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 </div>
 <div class="grid" style="margin-top:12px"><div class="result"><small>Underlying Price</small><strong id="optUnderlying">—</strong></div><div class="result"><small>Listed Contracts</small><strong id="optCount">—</strong></div><div class="result"><small>Data Updated</small><strong id="optUpdated">—</strong></div></div>
 <p id="optStatus" class="note" aria-live="polite">Options data लोड हो रहा है…</p>
-<div class="option-table-wrap"><table class="option-table"><thead><tr><th>Contract</th><th>Strike</th><th>Type</th><th>Bid (USD)</th><th>Ask (USD)</th><th>Mark (USD)</th><th>Spread (%)</th><th>SL (USD)</th><th>TP1 (USD)</th><th>TP2 (USD)</th><th>OI</th><th>24h Vol</th><th>Signal</th></tr></thead><tbody id="optRows"><tr><td colspan="13">डेटा लोड हो रहा है…</td></tr></tbody></table></div>
-<p class="note">Spread filter सक्रिय: केवल 20% या उससे कम spread वाले matching CALL/PUT contracts को signal मिलेगा। Spread bid-ask midpoint से निकाला जाता है। 20% से अधिक spread, अधूरा quote या OI और 24h volume दोनों शून्य होने पर WAIT दिखेगा। 15m EMA trend और RSI दिशा की पुष्टि करते हैं; volume और OI में से कम-से-कम एक उपलब्ध होना चाहिए। Signal को trade न समझें और manually verify करें। BUY में option premium (USD) के अनुमानित levels entry mark premium से SL 20% नीचे, TP1 30% ऊपर और TP2 50% ऊपर हैं; WAIT में levels नहीं दिखेंगे। ये fixed-premium estimates हैं, ATR-based नहीं; expiry, volatility, spread और slippage से वास्तविक कीमत बदल सकती है। यह order नहीं लगाता। Quotes USD equivalent में हैं, INR नहीं।</p>
+<div class="option-table-wrap"><table class="option-table"><thead><tr><th>Contract</th><th>Strike</th><th>Type</th><th>Bid (USD)</th><th>Ask (USD)</th><th>Mark (USD)</th><th>Spread (%)</th><th>OI</th><th>24h Vol</th><th>Signal</th></tr></thead><tbody id="optRows"><tr><td colspan="13">डेटा लोड हो रहा है…</td></tr></tbody></table></div>
+<p class="note">Spread filter सक्रिय: केवल 5% या उससे कम bid-ask midpoint spread वाले matching CALL/PUT contracts को watch signal मिलेगा। 5% से अधिक spread, अधूरा quote या OI और 24h volume दोनों शून्य होने पर WAIT दिखेगा। 15m EMA/RSI direction, volume और OI को देखें; watch signal को live quote से verify करके चर्चा करें। कोई order, SL या TP formula नहीं। ये fixed-premium estimates हैं, ATR-based नहीं; expiry, volatility, spread और slippage से वास्तविक कीमत बदल सकती है। यह order नहीं लगाता। Quotes USD equivalent में हैं, INR नहीं।</p>
 </section>
 
 
@@ -325,7 +325,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 </div>
 <p id="warning" class="note">एंट्री, स्टॉप लॉस, टारगेट और मात्रा भरें। यह कैलकुलेटर ऑर्डर नहीं लगाता।</p>
 </section>
-<footer class="note" style="text-align:center;padding:12px">यह dashboard जानकारी और गणना के लिए है, trade execution या financial advice नहीं। Live data, exchange permissions और symbol availability अलग-अलग हो सकती है।</footer>
+<footer class="note" style="text-align:center;padding:12px">यह dashboard watch और चर्चा के लिए है; कोई trade/order नहीं। Live data, exchange permissions और symbol availability अलग-अलग हो सकती है।</footer>
 </main>
 
 <script>
@@ -530,7 +530,7 @@ function openBackupOptionChart(){
 function renderCryptoOptions(){
  const coin=document.getElementById('optCurrency').value,expiry=document.getElementById('optExpiry').value,type=document.getElementById('optType').value,search=document.getElementById('optSearch').value.trim(),underlying=cryptoOptionUnderlying[coin];
  const rows=cryptoOptionData[coin].filter(x=>{const n=x.instrument_name||'',s=n.endsWith('-C')?'C':n.endsWith('-P')?'P':'',k=Number(n.split('-')[2]);return optionDate(n)===expiry&&(type==='ALL'||s===type)&&(!search||String(k).includes(search))}).sort((a,b)=>Number(a.instrument_name.split('-')[2])-Number(b.instrument_name.split('-')[2]));
- document.getElementById('optRows').innerHTML=rows.length?rows.slice(0,150).map(x=>{const p=x.instrument_name.split('-'),side=p[3]==='C'?'CALL':'PUT',bid=Number(x.bid_price),ask=Number(x.ask_price),mark=Number(x.mark_price),markUsd=optionUsd(mark,underlying),oi=Number(x.open_interest||0),vol=Number(x.volume||0),mid=(bid>0&&ask>=bid)?(ask+bid)/2:0,spread=mid>0?(ask-bid)/mid:null,trend=cryptoTrendSignal[coin];let signal='WAIT',why='';if(trend!==(side==='CALL'?'BUY CALL':'BUY PUT'))why='15m दिशा मेल नहीं';else if(!(bid>0&&ask>=bid&&mark>0))why='quote अधूरा';else if(spread===null)why='spread उपलब्ध नहीं';else if(spread>0.20)why='spread 20% से अधिक';else if(!(oi>0||vol>0))why='OI और volume दोनों शून्य';else signal=cryptoSignalStrength[coin]?(trend==='BUY CALL'?'STRONG BUY CALL':'STRONG BUY PUT'):trend;const slUsd=signal==='WAIT'?null:markUsd*0.80,tp1Usd=signal==='WAIT'?null:markUsd*1.30,tp2Usd=signal==='WAIT'?null:markUsd*1.50;if((signal==='STRONG BUY CALL'||signal==='STRONG BUY PUT')&&(oi>0||vol>0))notifyTelegramStrongOption(coin,x.instrument_name,signal,markUsd,spread);if(signal==='STRONG BUY CALL'||signal==='STRONG BUY PUT')addOptionHistory(coin,x.instrument_name,signal,markUsd,spread);return '<tr><td>'+x.instrument_name+'</td><td>'+Number(p[2]).toLocaleString('en-US')+'</td><td class="'+(side==='CALL'?'call-text':'put-text')+'">'+side+'</td><td>'+optionMoney(optionUsd(bid,underlying))+'</td><td>'+optionMoney(optionUsd(ask,underlying))+'</td><td>'+optionMoney(markUsd)+'</td><td>'+(spread===null?'—':(spread*100).toFixed(2)+'%')+'</td><td>'+optionMoney(slUsd)+'</td><td>'+optionMoney(tp1Usd)+'</td><td>'+optionMoney(tp2Usd)+'</td><td>'+oi.toLocaleString('en-US',{maximumFractionDigits:3})+'</td><td>'+vol.toLocaleString('en-US',{maximumFractionDigits:3})+'</td><td class="'+(signal==='WAIT'?'signal-neutral':side==='CALL'?'call-text':'put-text')+'">'+signal+(why?' ('+why+')':'')+'</td></tr>'}).join(''):'<tr><td colspan="13">इस expiry/filter में contract नहीं मिला।</td></tr>';
+ document.getElementById('optRows').innerHTML=rows.length?rows.slice(0,150).map(x=>{const p=x.instrument_name.split('-'),side=p[3]==='C'?'CALL':'PUT',bid=Number(x.bid_price),ask=Number(x.ask_price),mark=Number(x.mark_price),markUsd=optionUsd(mark,underlying),oi=Number(x.open_interest||0),vol=Number(x.volume||0),mid=(bid>0&&ask>=bid)?(ask+bid)/2:0,spread=mid>0?(ask-bid)/mid:null,trend=cryptoTrendSignal[coin];let signal='WAIT',why='';if(trend!==(side==='CALL'?'BUY CALL':'BUY PUT'))why='15m दिशा मेल नहीं';else if(!(bid>0&&ask>=bid&&mark>0))why='quote अधूरा';else if(spread===null)why='spread उपलब्ध नहीं';else if(spread>0.05)why='spread 5% से अधिक';else if(!(oi>0||vol>0))why='OI और volume दोनों शून्य';else signal=cryptoSignalStrength[coin]?(trend==='BUY CALL'?'STRONG BUY CALL':'STRONG BUY PUT'):trend;const slUsd=null,tp1Usd=null,tp2Usd=null;if((signal==='STRONG BUY CALL'||signal==='STRONG BUY PUT')&&(oi>0||vol>0))notifyTelegramStrongOption(coin,x.instrument_name,signal,markUsd,spread);if(signal==='STRONG BUY CALL'||signal==='STRONG BUY PUT')addOptionHistory(coin,x.instrument_name,signal,markUsd,spread);return '<tr><td>'+x.instrument_name+'</td><td>'+Number(p[2]).toLocaleString('en-US')+'</td><td class="'+(side==='CALL'?'call-text':'put-text')+'">'+side+'</td><td>'+optionMoney(optionUsd(bid,underlying))+'</td><td>'+optionMoney(optionUsd(ask,underlying))+'</td><td>'+optionMoney(markUsd)+'</td><td>'+(spread===null?'—':(spread*100).toFixed(2)+'%')+'</td><td>'+oi.toLocaleString('en-US',{maximumFractionDigits:3})+'</td><td>'+vol.toLocaleString('en-US',{maximumFractionDigits:3})+'</td><td class="'+(signal==='WAIT'?'signal-neutral':side==='CALL'?'call-text':'put-text')+'">'+signal+(why?' ('+why+')':'')+'</td></tr>'}).join(''):'<tr><td colspan="13">इस expiry/filter में contract नहीं मिला।</td></tr>';
 }
 function ema(values,period){let k=2/(period+1),v=values[0];for(let i=1;i<values.length;i++)v=values[i]*k+v*(1-k);return v}
 function rsi(values,period=14){let gains=0,losses=0;for(let i=values.length-period;i<values.length;i++){let d=values[i]-values[i-1];if(d>0)gains+=d;else losses-=d}let ag=gains/period,al=losses/period;return al===0?100:100-100/(1+ag/al)}
@@ -583,7 +583,7 @@ function renderSignalHistory(){
  const tbody=document.getElementById('historyRows');tbody.innerHTML=selected.length?selected.map(x=>'<tr><td>'+x.time+'</td><td>'+x.asset+'</td><td>'+x.signal+'</td><td>'+Number(x.entry).toLocaleString('en-US',{maximumFractionDigits:8})+'</td><td>'+Number(x.sl).toLocaleString('en-US',{maximumFractionDigits:8})+'</td><td>'+Number(x.tp1).toLocaleString('en-US',{maximumFractionDigits:8})+'</td><td>'+Number(x.tp2).toLocaleString('en-US',{maximumFractionDigits:8})+'</td><td>'+Number(x.latest).toLocaleString('en-US',{maximumFractionDigits:8})+'</td><td class="history-status '+(x.status.startsWith('TP')?'history-hit':x.status==='SL HIT'?'history-stop':'history-open')+'">'+x.status+'</td></tr>').join(''):'<tr><td colspan="9">इस तारीख के records नहीं हैं।</td></tr>';
 }
 function exportSignalHistory(){const rows=getSignalHistory();if(!rows.length){alert('Export करने के लिए records नहीं हैं।');return;}const headers=['date','time','type','asset','signal','entry','sl','tp1','tp2','latest','status','spread'];const csv=[headers.join(','),...rows.map(x=>headers.map(k=>JSON.stringify(x[k]??'')).join(','))].join('\n');const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='daily-signal-history.csv';a.click();URL.revokeObjectURL(url);}
-function clearSignalHistory(){if(!confirm('सभी Paper Trading records इस browser से हटाएँ?'))return;localStorage.removeItem(SIGNAL_HISTORY_KEY);renderSignalHistory();}
+function clearSignalHistory(){if(!confirm('सभी signal watch records इस browser से हटाएँ?'))return;localStorage.removeItem(SIGNAL_HISTORY_KEY);renderSignalHistory();}
 async function analyzeCryptoCoin(coin){
  const symbol=coin+'USDT',urls=['https://api.binance.com/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60','https://api1.binance.com/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60','https://data-api.binance.vision/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60'];
  let raw=null,lastFeedError='';for(const url of urls){try{const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw new Error('HTTP '+res.status);const data=await res.json();if(!Array.isArray(data)||data.length<30)throw new Error('15m candles कम हैं');raw=data;break;}catch(e){lastFeedError=e.message||'feed error';}}
@@ -599,8 +599,9 @@ async function analyzeCryptoCoin(coin){
  const ranges=[];for(let i=Math.max(1,candles.length-14);i<candles.length;i++)ranges.push(Math.max(highs[i]-lows[i],Math.abs(highs[i]-closes[i-1]),Math.abs(lows[i]-closes[i-1])));
  const atr=ranges.reduce((a,b)=>a+b,0)/ranges.length;
  let side='WAIT',reason='EMA/RSI में साफ पुष्टि नहीं';
- if(close>e9&&e9>e21&&rv>=40&&rv<=80){side='BUY / LONG';reason='15m EMA trend bullish और RSI 40–80';}
- else if(close<e9&&e9<e21&&rv>=20&&rv<=60){side='SELL / SHORT';reason='15m EMA trend bearish और RSI 20–60';}
+ const prevHigh=highs.at(-2),prevLow=lows.at(-2),breakUp=close>prevHigh,breakDown=close<prevLow;
+ if(close>e9&&(e9>e21||breakUp)&&rv>=30&&rv<=90){side='BUY / LONG';reason=breakUp?'15m price momentum breakout + RSI':'15m EMA direction + RSI';}
+ else if(close<e9&&(e9<e21||breakDown)&&rv>=10&&rv<=70){side='SELL / SHORT';reason=breakDown?'15m price momentum breakdown + RSI':'15m EMA direction + RSI';}
  // 15m EMA/RSI direction is the signal trigger. Higher-timeframe, volume and candle-body
  // filters are informational only, so they cannot silently suppress a valid directional signal.
  const h1Info='1h filter disabled';
@@ -609,7 +610,7 @@ async function analyzeCryptoCoin(coin){
  const entry=close,sl=side==='BUY / LONG'?entry-1.2*atr:side==='SELL / SHORT'?entry+1.2*atr:null;
  const risk=sl===null?null:Math.abs(entry-sl),t1=sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk),t2=sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk);
  const previous=prevSide||'कोई पिछला सिग्नल नहीं',changeReason=previous===side?'सिग्नल वही रहा':('सिग्नल बदला: '+previous+' → '+side);
- const quality='1h filter off • Volume informational: '+(volOk?'औसत से अधिक':'औसत से कम')+' • Candle body informational: '+(candleOk?'strong':'weak')+' • EMA/RSI 15m direction active';
+ const quality='WATCH ONLY • 15m momentum/EMA + RSI active • Volume informational: '+(volOk?'औसत से अधिक':'औसत से कम')+' • Candle body informational: '+(candleOk?'strong':'weak');
  const signal={coin,side,strong,baseSide:side,reason,quality,changeReason,previous,entry,sl,t1,t2,rv,e9,e21,volume,avgVol,open,high,low,time:new Date(Number(candles.at(-1)[6])).toLocaleString('en-IN'),candleTime:lastClosed};
  cryptoSignalLock[coin]={candleTime:lastClosed,signal};return signal;
 }
@@ -637,12 +638,12 @@ function renderCryptoOrderRow(s){
  const tbody=document.getElementById('cryptoOrderRows');if(!tbody||!s)return;
  const rows=window.cryptoOrderSnapshots||{};rows[s.coin]=s;window.cryptoOrderSnapshots=rows;
  const names=['BTC','ETH','BNB','ZEC'];
- tbody.innerHTML=names.map(coin=>{const x=rows[coin];if(!x)return '<tr><td>'+coin+'</td><td>DATA LOADING</td><td colspan="6">—</td></tr>';const direction=(coin==='BTC'||coin==='ETH')?(x.side==='BUY / LONG'?'BUY CALL':x.side==='SELL / SHORT'?'BUY PUT':'WAIT'):(x.side==='BUY / LONG'?'BUY / LONG':x.side==='SELL / SHORT'?'SELL / SHORT':'WAIT');const cls=direction.includes('BUY')?'call-text':direction.includes('SELL')||direction.includes('PUT')?'put-text':'signal-neutral';return '<tr><td>'+coin+'</td><td class="'+cls+'"><strong>'+direction+'</strong></td><td>'+fmt(x.entry)+'</td><td>'+fmt(x.sl)+'</td><td>'+fmt(x.t1)+'</td><td>'+fmt(x.t2)+'</td><td>'+fmt(x.rv)+'</td><td>'+x.time+'</td></tr>'}).join('');
+ tbody.innerHTML=names.map(coin=>{const x=rows[coin];if(!x)return '<tr><td>'+coin+'</td><td>DATA LOADING</td><td colspan="2">—</td></tr>';const direction=(coin==='BTC'||coin==='ETH')?(x.side==='BUY / LONG'?'BUY CALL':x.side==='SELL / SHORT'?'BUY PUT':'WAIT'):(x.side==='BUY / LONG'?'BUY / LONG':x.side==='SELL / SHORT'?'SELL / SHORT':'WAIT');const cls=direction.includes('BUY')?'call-text':direction.includes('SELL')||direction.includes('PUT')?'put-text':'signal-neutral';return '<tr><td>'+coin+'</td><td class="'+cls+'"><strong>'+direction+'</strong></td><td>'+fmt(x.rv)+'</td><td>'+x.time+'</td></tr>'}).join('');
 }
 function showCoinSignal(s){
  const el=document.getElementById('sig-'+s.coin),info=document.getElementById('siginfo-'+s.coin);
  if(el){el.textContent=s.strong?'STRONG '+s.side:s.side;el.className=s.side==='BUY / LONG'?'call-text':s.side==='SELL / SHORT'?'put-text':'signal-neutral';}
- if(info)info.textContent=s.side==='WAIT'?s.reason+' • RSI '+fmt(s.rv)+' • EMA9 '+fmt(s.e9)+' / EMA21 '+fmt(s.e21)+' • '+s.time:s.strong?'Entry '+fmt(s.entry)+' | SL '+fmt(s.sl)+' | T1 '+fmt(s.t1)+' | T2 '+fmt(s.t2)+' • STRONG: '+s.quality+' • '+s.time:'Entry '+fmt(s.entry)+' | SL '+fmt(s.sl)+' | T1 '+fmt(s.t1)+' | T2 '+fmt(s.t2)+' • '+s.reason+' • '+s.quality+' • '+s.time;
+ if(info)info.textContent=s.reason+' • RSI '+fmt(s.rv)+' • EMA9 '+fmt(s.e9)+' / EMA21 '+fmt(s.e21)+' • '+s.quality+' • '+s.time;
 }
 function enableSignalNotifications(){
  if(!('Notification' in window)){document.getElementById('notificationStatus').textContent='इस browser में Notification supported नहीं';return;}
@@ -658,12 +659,12 @@ function notifyStrongSignal(s){
  const stamp=String(s.candleTime||s.time||'')+'_'+direction;
  if('Notification' in window&&Notification.permission==='granted'&&localStorage.getItem('signalNotificationsEnabled')==='1'&&localStorage.getItem(key)!==stamp){
   localStorage.setItem(key,stamp);
-  new Notification('🚨 STRONG '+s.coin+' SIGNAL',{body:direction+' | Entry '+fmt(s.entry)+' | SL '+fmt(s.sl)+' | T1 '+fmt(s.t1)+' | T2 '+fmt(s.t2),tag:'crypto-'+s.coin});
+  new Notification('👀 '+s.coin+' WATCH SIGNAL',{body:direction+' | RSI '+fmt(s.rv)+' | EMA9 '+fmt(s.e9)+' | EMA21 '+fmt(s.e21),tag:'crypto-'+s.coin});
  }
  const cfg=tgConfig();
  const tgKey='tgCryptoSent_'+s.coin;
  if(cfg.token&&cfg.chatId&&localStorage.getItem(tgKey)!==stamp){
-  const message='🚨 STRONG '+s.coin+' SIGNAL\n'+direction+'\nEntry: '+fmt(s.entry)+'\nSL: '+fmt(s.sl)+'\nTP1: '+fmt(s.t1)+'\nTP2: '+fmt(s.t2)+'\nTP3: '+fmt(s.side==='BUY / LONG'?s.entry+3*Math.abs(s.entry-s.sl):s.entry-3*Math.abs(s.entry-s.sl))+'\nRSI: '+fmt(s.rv)+'\nEMA9: '+fmt(s.e9)+' | EMA21: '+fmt(s.e21)+'\n15m: '+s.time+'\nPaper-trade alert — verify live price before entry.';
+  const message='👀 '+s.coin+' WATCH SIGNAL\n'+direction+'\nRSI: '+fmt(s.rv)+'\nEMA9: '+fmt(s.e9)+' | EMA21: '+fmt(s.e21)+'\n15m: '+s.time+'\nWatch-only alert — no trade/order.';
   sendTelegramText(message).then(()=>localStorage.setItem(tgKey,stamp)).catch(e=>telegramStatus('Telegram signal error: '+e.message));
  }
 }
@@ -674,7 +675,7 @@ function telegramStatus(s){const e=document.getElementById('telegramStatus');if(
 async function findTelegramChatId(){const token=document.getElementById('telegramToken').value.trim()||tgConfig().token;if(!token){telegramStatus('पहले BotFather token भरें।');return}telegramStatus('Bot और /start message जाँचा जा रहा है…');try{const m=await(await fetch('https://api.telegram.org/bot'+encodeURIComponent(token)+'/getMe')).json();if(!m.ok)throw Error(m.description);const u=await(await fetch('https://api.telegram.org/bot'+encodeURIComponent(token)+'/getUpdates')).json();if(!u.ok)throw Error(u.description);const chats=(u.result||[]).map(x=>x.message?.chat||x.edited_message?.chat).filter(x=>x&&x.type==='private');if(!chats.length){telegramStatus('Bot @'+m.result.username+' सही है। Telegram में bot खोलकर Start और /start भेजें, फिर दोबारा दबाएँ।');return}document.getElementById('telegramToken').value=token;document.getElementById('telegramChatId').value=String(chats[chats.length-1].id);saveTelegramSettings();telegramStatus('Bot @'+m.result.username+' जुड़ गया; Chat ID मिल गई। अब Test Message भेजें।')}catch(e){telegramStatus('Telegram connect error: '+e.message)}}
 async function sendTelegramText(message){const q=tgConfig();if(!q.token||!q.chatId)throw Error('पहले Bot token और Chat ID सेट करें।');const r=await fetch('https://api.telegram.org/bot'+encodeURIComponent(q.token)+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:q.chatId,text:message,disable_web_page_preview:true})});const j=await r.json();if(!j.ok)throw Error(j.description||'Send failed')}
 async function testTelegramAlert(){saveTelegramSettings();try{await sendTelegramText('✅ Telegram connected. BTC/ETH option और BTC/ETH/BNB/ZEC futures के signal alerts इस bot पर आएंगे।');telegramStatus('Test message भेज दिया गया।')}catch(e){telegramStatus('Test message नहीं गया: '+e.message)}}
-function notifyTelegramStrongOption(coin,contract,signal,markUsd,spread){if(!['BTC','ETH','ZEC'].includes(coin))return;const cfg=tgConfig(),lock=cryptoSignalLock[coin],candle=lock?.signal?.candleTime||'';if(!cfg.token||!cfg.chatId)return;const key='tgSent_'+coin+'_'+contract+'_'+signal,stamp=String(candle)+'_'+signal;if(localStorage.getItem(key)===stamp)return;sendTelegramText('🚨 STRONG '+coin+' OPTION SIGNAL\n'+signal+'\nContract: '+contract+'\nMark premium: '+optionMoney(markUsd)+' USD\nSpread: '+(spread*100).toFixed(2)+'%\nUnderlying direction: '+(cryptoTrendSignal[coin]||'WAIT')+'\nSL: '+optionMoney(markUsd*0.80)+' USD\nTP1: '+optionMoney(markUsd*1.30)+' USD\nTP2: '+optionMoney(markUsd*1.50)+' USD\nPaper-trade alert — dashboard पर live quote/SL/targets verify करें।').then(()=>localStorage.setItem(key,stamp)).catch(e=>telegramStatus('Telegram alert error: '+e.message))}
+function notifyTelegramStrongOption(coin,contract,signal,markUsd,spread){if(!['BTC','ETH','ZEC'].includes(coin))return;const cfg=tgConfig(),lock=cryptoSignalLock[coin],candle=lock?.signal?.candleTime||'';if(!cfg.token||!cfg.chatId)return;const key='tgSent_'+coin+'_'+contract+'_'+signal,stamp=String(candle)+'_'+signal;if(localStorage.getItem(key)===stamp)return;sendTelegramText('👀 '+coin+' OPTION WATCH SIGNAL\n'+signal+'\nContract: '+contract+'\nMark premium: '+optionMoney(markUsd)+' USD\nSpread: '+(spread*100).toFixed(2)+'%\nUnderlying direction: '+(cryptoTrendSignal[coin]||'WAIT')+'\nWatch-only — no trade/order; discuss after checking live quote.').then(()=>localStorage.setItem(key,stamp)).catch(e=>telegramStatus('Telegram alert error: '+e.message))}
 function notifyCryptoDataError(coin,message){
  const cfg=tgConfig();if(!cfg.token||!cfg.chatId)return;
  const key='tgCryptoDataError_'+coin,stamp=String(Math.floor(Date.now()/900000));
@@ -694,7 +695,7 @@ async function loadAllCryptoSignals(){
     const el=document.getElementById('sig-'+coin),info=document.getElementById('siginfo-'+coin);
     const direction=s.side==='BUY / LONG'?'BUY CALL':s.side==='SELL / SHORT'?'BUY PUT':'WAIT';
     if(el){el.textContent=direction;el.className=direction==='BUY CALL'?'call-text':direction==='BUY PUT'?'put-text':'signal-neutral';}
-    if(info)info.textContent=s.side==='WAIT'?s.reason+' • RSI '+fmt(s.rv)+' • '+s.time:'Underlying Entry '+fmt(s.entry)+' | SL '+fmt(s.sl)+' | T1 '+fmt(s.t1)+' | T2 '+fmt(s.t2)+' • Premium plan: SL -20%, TP1 +30%, TP2 +50% • '+s.reason+' • '+s.time;
+    if(info)info.textContent=s.reason+' • RSI '+fmt(s.rv)+' • EMA9 '+fmt(s.e9)+' / EMA21 '+fmt(s.e21)+' • WATCH ONLY • '+s.time;
     cryptoTrendSignal[coin]=direction;cryptoSignalStrength[coin]=!!s.strong;
    }else{
     showCoinSignal(s);cryptoTrendSignal[coin]=s.side==='BUY / LONG'?'BUY CALL':s.side==='SELL / SHORT'?'BUY PUT':'WAIT';cryptoSignalStrength[coin]=!!s.strong;
@@ -702,7 +703,7 @@ async function loadAllCryptoSignals(){
   }catch(e){
    const el=document.getElementById('sig-'+coin),info=document.getElementById('siginfo-'+coin);
    if(el){el.textContent='DATA ERROR';el.className='signal-neutral';}
-   if(info)info.textContent=e.message+' • अभी trade signal उपलब्ध नहीं';
+   if(info)info.textContent=e.message+' • Watch signal उपलब्ध नहीं';
    notifyCryptoDataError(coin,e.message||'Market data unavailable');
    cryptoTrendSignal[coin]='WAIT';cryptoSignalStrength[coin]=false;
   }
@@ -720,7 +721,7 @@ async function loadCryptoSignal(){
   cryptoTrendSignal[coin]=s.side==='BUY / LONG'?'BUY CALL':s.side==='SELL / SHORT'?'BUY PUT':'WAIT';
   cryptoSignalStrength[coin]=!!s.strong;
   showCoinSignal(s);renderCryptoOptions();
-  box.innerHTML='<div class="grid"><div class="result"><small>15m Signal — '+coin+'</small><strong class="'+(s.side==='BUY / LONG'?'call-text':s.side==='SELL / SHORT'?'put-text':'signal-neutral')+'">'+(coin==='ZEC'?(s.side==='BUY / LONG'?'BUY CALL DIRECTION':s.side==='SELL / SHORT'?'BUY PUT DIRECTION':'WAIT'):(s.strong?'STRONG '+s.side:s.side))+'</strong></div><div class="result"><small>Entry (Underlying)</small><strong>'+fmt(s.entry)+'</strong></div><div class="result"><small>Stop Loss</small><strong>'+(s.sl===null?'—':fmt(s.sl))+'</strong></div><div class="result"><small>Target 1</small><strong>'+(s.t1===null?'—':fmt(s.t1))+'</strong></div><div class="result"><small>Target 2</small><strong>'+(s.t2===null?'—':fmt(s.t2))+'</strong></div><div class="result"><small>RSI 14 / EMA 9 / EMA 21</small><strong>'+fmt(s.rv)+' / '+fmt(s.e9)+' / '+fmt(s.e21)+'</strong></div></div><p class="note">'+s.reason+' • '+s.changeReason+' • आखिरी पूरी हुई 15m candle: '+s.time+'. SL/targets ATR आधारित अनुमान हैं; यह order नहीं लगाता। WAIT में trade न लें।';
+  box.innerHTML='<div class="grid"><div class="result"><small>15m Watch Signal — '+coin+'</small><strong class="'+(s.side==='BUY / LONG'?'call-text':s.side==='SELL / SHORT'?'put-text':'signal-neutral')+'">'+(coin==='ZEC'?(s.side==='BUY / LONG'?'BUY CALL DIRECTION':s.side==='SELL / SHORT'?'BUY PUT DIRECTION':'WAIT'):s.side)+'</strong></div><div class="result"><small>RSI 14 / EMA 9 / EMA 21</small><strong>'+fmt(s.rv)+' / '+fmt(s.e9)+' / '+fmt(s.e21)+'</strong></div></div><p class="note">'+s.reason+' • '+s.changeReason+' • 15m candle: '+s.time+'. WATCH ONLY — कोई trade/order नहीं।'
  }catch(e){box.innerHTML='<p class="note">15m signal उपलब्ध नहीं: '+e.message+'. अभी WAIT रखें।</p>'}
 }
 function loadChart(){
