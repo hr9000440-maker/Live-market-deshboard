@@ -591,8 +591,8 @@ async function analyzeCryptoCoin(coin){
  const earlySellMomentum=close<open&&candleMovePct<=-0.12&&rv>=10&&rv<=60;
  if(breakUp||earlyBuyMomentum){earlySide='BUY / LONG';earlyReason=breakUp?'EARLY breakout above previous 15m high':'EARLY bullish 15m candle + 0.12% momentum + RSI';}
  else if(breakDown||earlySellMomentum){earlySide='SELL / SHORT';earlyReason=breakDown?'EARLY breakdown below previous 15m low':'EARLY bearish 15m candle + 0.12% momentum + RSI';}
- if(close>e9&&(e9>e21||breakUp)&&rv>=30&&rv<=90){side='BUY / LONG';reason=breakUp?'CONFIRMED 15m momentum breakout + RSI':'CONFIRMED 15m EMA direction + RSI';}
- else if(close<e9&&(e9<e21||breakDown)&&rv>=10&&rv<=70){side='SELL / SHORT';reason=breakDown?'CONFIRMED 15m momentum breakdown + RSI':'CONFIRMED 15m EMA direction + RSI';}
+ if(close>e9&&rv>=40&&rv<=85){side='BUY / LONG';reason=breakUp?'CONFIRMED 15m momentum breakout + RSI':'CONFIRMED 15m EMA direction + RSI';}
+ else if(close<e9&&rv>=15&&rv<=60){side='SELL / SHORT';reason=breakDown?'CONFIRMED 15m momentum breakdown + RSI':'CONFIRMED 15m EMA direction + RSI';}
  if(side==='WAIT'&&earlySide!=='WAIT'){side=earlySide;reason=earlyReason;}
  if(side==='WAIT'){
   const failed=[];
