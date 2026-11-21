@@ -315,6 +315,20 @@ let cryptoOptionData={BTC:[],ETH:[],ZEC:[]},cryptoOptionUnderlying={BTC:null,ETH
 function optionUsd(v,u){return Number.isFinite(Number(v))&&u?Number(v)*u:null}
 function optionMoney(v){return v==null?'—':Number(v).toLocaleString('en-US',{maximumFractionDigits:2})}
 function optionDate(n){const p=n.split('-');if(p[0]==='ZEC'&&p[1]==='USD'&&p.length>2)return p[2];return p.length>1?p[1]:''}
+function expiryDateValue(v){
+ if(!v)return NaN;
+ const s=String(v).trim();
+ // ISO / YYYY-MM-DD from APIs
+ if(/^\\d{4}-\\d{2}-\\d{2}/.test(s))return Date.parse(s.slice(0,10)+'T00:00:00Z');
+ // Deribit contract suffix: 21NOV26
+ const m=s.match(/^(\\d{1,2})([A-Z]{3})(\\d{2,4})$/i);
+ if(m){const months={JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11};let y=Number(m[3]);if(y<100)y+=2000;return Date.UTC(y,months[m[2].toUpperCase()],Number(m[1]));}
+ // Unix seconds or milliseconds
+ if(/^\\d{10,13}$/.test(s)){const n=Number(s);return n<1e12?n*1000:n;}
+ return Date.parse(s);
+}
+function todayISTExpiryValue(){const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const y=parts.find(p=>p.type==='year').value,m=parts.find(p=>p.type==='month').value,d=parts.find(p=>p.type==='day').value;return Date.UTC(Number(y),Number(m)-1,Number(d));}
+function expiryLabel(v){const t=expiryDateValue(v);if(!Number.isFinite(t))return String(v);const today=todayISTExpiryValue();const d=new Date(t);const base=new Date(today);const delta=Math.round((t-today)/86400000);const date=d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'});return date+(delta===0?' • TODAY':delta===1?' • NEXT DAY':delta>1?' • NEXT AVAILABLE':' • EXPIRED');}
 function fmt(n){return Number.isFinite(n)?n.toLocaleString('en-US',{maximumFractionDigits:2}):'—'}
 async function loadCryptoOptions(){
  const coin=document.getElementById('optCurrency').value,status=document.getElementById('optStatus');const token=++optionLoadToken;
@@ -392,8 +406,8 @@ async function loadCryptoOptions(){
   if(!underlying){try{const ticker=await fetch('https://api.binance.com/api/v3/ticker/price?symbol='+coin+'USDT',{cache:'no-store'});if(ticker.ok){const t=await ticker.json(),p=Number(t.price);if(p>0)underlying=p;}}catch{}}
   if(token!==optionLoadToken)return;
   cryptoOptionData[coin]=rows;cryptoOptionUnderlying[coin]=underlying;
-  const expiries=[...new Set(rows.map(x=>x.expiry||optionDate(x.instrument_name)).filter(Boolean))].sort((a,b)=>new Date(a)-new Date(b));
-  const expiry=document.getElementById('optExpiry');expiry.innerHTML=expiries.map(x=>'<option value="'+x+'">'+x+'</option>').join('')||'<option value="">No active '+coin+' expiry</option>';
+  const expiries=[...new Set(rows.map(x=>x.expiry||optionDate(x.instrument_name)).filter(Boolean))].sort((a,b)=>expiryDateValue(a)-expiryDateValue(b));
+  const expiry=document.getElementById('optExpiry');const previous=expiry.value;const today=todayISTExpiryValue();const todayExpiry=expiries.find(x=>expiryDateValue(x)===today);const nearestFuture=expiries.find(x=>expiryDateValue(x)>=today);const defaultExpiry=todayExpiry||nearestFuture||expiries[0]||'';const chosen=expiries.includes(previous)?previous:defaultExpiry;expiry.innerHTML=expiries.map(x=>'<option value="'+x+'">'+expiryLabel(x)+'</option>').join('')||'<option value="">No active '+coin+' expiry</option>';if(chosen)expiry.value=chosen;
   document.getElementById('optUnderlying').textContent=underlying?fmt(underlying)+' '+coin+' spot/underlying':'—';
   document.getElementById('optCount').textContent=rows.length.toLocaleString('en-US');document.getElementById('optUpdated').textContent=new Date().toLocaleTimeString('en-IN');
   status.textContent=rows.length?rows.length+' active '+coin+' option contracts मिले।'+(coin==='ZEC'?' स्रोत: Paradex public API.':''):'API से active '+coin+' option contracts नहीं मिले।';
