@@ -4,9 +4,20 @@ COINS = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "ZECUSDT"]
 STATE_PATH = ".signal-state/state.json"
 
 def get_json(url):
-    req = urllib.request.Request(url, headers={"User-Agent":"market-signal-monitor"})
-    with urllib.request.urlopen(req, timeout=20) as r:
-        return json.loads(r.read())
+    # Binance's primary API may return HTTP 451 from hosted runners.
+    # Retry the same public market-data endpoint on Binance's data-only host.
+    urls=[url]
+    if "https://api.binance.com/" in url:
+        urls.append(url.replace("https://api.binance.com/","https://data-api.binance.vision/"))
+    last_error=None
+    for candidate in urls:
+        try:
+            req=urllib.request.Request(candidate,headers={"User-Agent":"market-signal-monitor"})
+            with urllib.request.urlopen(req,timeout=20) as r:
+                return json.loads(r.read())
+        except Exception as e:
+            last_error=e
+    raise last_error
 
 def ema(values, period):
     k=2/(period+1)
