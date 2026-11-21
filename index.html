@@ -637,7 +637,7 @@ async function loadAllCryptoSignals(){
   }catch(e){
    const el=document.getElementById('sig-'+coin),info=document.getElementById('siginfo-'+coin);
    if(el){el.textContent='DATA ERROR';el.className='signal-neutral';}
-   if(info)info.textContent=e.message+' • Watch signal उपलब्ध नहीं';
+   if(info)info.textContent=e.message+' • Trade signal उपलब्ध नहीं';
    notifyCryptoDataError(coin,e.message||'Market data unavailable');
    cryptoTrendSignal[coin]='WAIT';cryptoSignalStrength[coin]=false;
   }
@@ -655,7 +655,7 @@ async function loadCryptoSignal(){
   cryptoTrendSignal[coin]=s.side==='BUY / LONG'?'BUY CALL':s.side==='SELL / SHORT'?'BUY PUT':'WAIT';
   cryptoSignalStrength[coin]=!!s.strong;
   showCoinSignal(s);renderCryptoOptions();
-  box.innerHTML='<div class="grid"><div class="result"><small>15m Trade Signal — '+coin+'</small><strong class="'+(s.side==='BUY / LONG'?'call-text':s.side==='SELL / SHORT'?'put-text':'signal-neutral')+'">'+(coin==='ZEC'?(s.side==='BUY / LONG'?'BUY CALL DIRECTION':s.side==='SELL / SHORT'?'BUY PUT DIRECTION':'WAIT'):s.side)+'</strong></div><div class="result"><small>RSI 14 / EMA 9 / EMA 21</small><strong>'+fmt(s.rv)+' / '+fmt(s.e9)+' / '+fmt(s.e21)+'</strong></div></div><p class="note">'+s.reason+' • '+s.changeReason+' • 15m candle: '+s.time+'. WATCH ONLY — कोई trade/order नहीं।'
+  box.innerHTML='<div class="grid"><div class="result"><small>15m Trade Signal — '+coin+'</small><strong class="'+(s.side==='BUY / LONG'?'call-text':s.side==='SELL / SHORT'?'put-text':'signal-neutral')+'">'+(coin==='ZEC'?(s.side==='BUY / LONG'?'BUY CALL DIRECTION':s.side==='SELL / SHORT'?'BUY PUT DIRECTION':'WAIT'):s.side)+'</strong></div><div class="result"><small>RSI 14 / EMA 9 / EMA 21</small><strong>'+fmt(s.rv)+' / '+fmt(s.e9)+' / '+fmt(s.e21)+'</strong></div></div><p class="note">'+s.reason+' • '+s.changeReason+' • 15m candle: '+s.time+'. केवल योग्य trade signal; कोई automatic order नहीं।'
  }catch(e){box.innerHTML='<p class="note">15m signal उपलब्ध नहीं: '+e.message+'. अभी WAIT रखें।</p>'}
 }
 function loadChart(){
