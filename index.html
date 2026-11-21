@@ -606,10 +606,12 @@ async function analyzeCryptoCoin(coin){
  const thisCandle=Number(candles.at(-1)[0]);
  const priorLock=readSignalLock(coin);
  let lockedSnapshot=null;
- if(side==='WAIT'&&priorLock&&Number(priorLock.candleTime)===thisCandle&&priorLock.signal&&priorLock.signal.side&&priorLock.signal.side!=='WAIT'){
+ // Once a valid BUY/SELL appears in a 15m candle, keep that first signal
+ // until the candle closes. Do not let a brief opposite tick flip or erase it.
+ if(priorLock&&Number(priorLock.candleTime)===thisCandle&&priorLock.signal&&priorLock.signal.side&&priorLock.signal.side!=='WAIT'){
   lockedSnapshot=priorLock.signal;
   side=lockedSnapshot.side;
-  reason='LOCKED: पहले बना '+side+' signal इसी 15m candle के close तक सुरक्षित';
+  reason='LOCKED: इस 15m candle का पहला '+side+' signal candle close तक सुरक्षित';
  }
  if(side==='WAIT'){
   const failed=[];
