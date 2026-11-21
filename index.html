@@ -575,7 +575,7 @@ function renderSignalHistory(){
 }
 function exportSignalHistory(){const rows=getSignalHistory();if(!rows.length){alert('Export करने के लिए records नहीं हैं।');return;}const headers=['date','time','type','asset','signal','entry','sl','tp1','tp2','latest','status','spread'];const csv=[headers.join(','),...rows.map(x=>headers.map(k=>JSON.stringify(x[k]??'')).join(','))].join('\n');const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='daily-signal-history.csv';a.click();URL.revokeObjectURL(url);}
 function clearSignalHistory(){if(!confirm('सभी Paper Trading records इस browser से हटाएँ?'))return;localStorage.removeItem(SIGNAL_HISTORY_KEY);renderSignalHistory();}
-async function analyzeCryptoCoin(coin){
+async async function analyzeCryptoCoin(coin){
  const symbol=coin+'USDT',urls=['https://api.binance.com/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60','https://api1.binance.com/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60','https://data-api.binance.vision/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60'];
  let raw=null,lastFeedError='';for(const url of urls){try{const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw new Error('HTTP '+res.status);const data=await res.json();if(!Array.isArray(data)||data.length<30)throw new Error('15m candles कम हैं');raw=data;break;}catch(e){lastFeedError=e.message||'feed error';}}
  if(!raw)throw new Error(coin+' 15m market feed unavailable: '+lastFeedError);
