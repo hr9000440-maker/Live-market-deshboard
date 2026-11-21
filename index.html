@@ -532,10 +532,22 @@ async function analyzeCryptoCoin(coin){
  const candleOk=bodyStrength>=0.50&&closeLocation>=0.65;
  const ranges=[];for(let i=Math.max(1,candles.length-14);i<candles.length;i++)ranges.push(Math.max(highs[i]-lows[i],Math.abs(highs[i]-closes[i-1]),Math.abs(lows[i]-closes[i-1])));
  const atr=ranges.reduce((a,b)=>a+b,0)/ranges.length;
- let side='WAIT',reason='EMA/RSI में साफ पुष्टि नहीं';
+ let side='WAIT',reason='EMA/RSI में साफ पुष्टि नहीं',diagnostic='';
  const prevHigh=highs.at(-2),prevLow=lows.at(-2),breakUp=close>prevHigh,breakDown=close<prevLow;
+ const buyChecks={priceAboveEMA9:close>e9,emaBullish:e9>e21,breakout:breakUp,rsiInRange:rv>=30&&rv<=90};
+ const sellChecks={priceBelowEMA9:close<e9,emaBearish:e9<e21,breakdown:breakDown,rsiInRange:rv>=10&&rv<=70};
  if(close>e9&&(e9>e21||breakUp)&&rv>=30&&rv<=90){side='BUY / LONG';reason=breakUp?'15m price momentum breakout + RSI':'15m EMA direction + RSI';}
  else if(close<e9&&(e9<e21||breakDown)&&rv>=10&&rv<=70){side='SELL / SHORT';reason=breakDown?'15m price momentum breakdown + RSI':'15m EMA direction + RSI';}
+ if(side==='WAIT'){
+  const failed=[];
+  if(!(close>e9))failed.push('BUY: Price EMA9 के ऊपर नहीं');
+  if(!(e9>e21)&&!breakUp)failed.push('BUY: EMA9>EMA21 या breakout नहीं');
+  if(!(rv>=30&&rv<=90))failed.push('BUY: RSI 30–90 सीमा से बाहर');
+  if(!(close<e9))failed.push('SELL: Price EMA9 के नीचे नहीं');
+  if(!(e9<e21)&&!breakDown)failed.push('SELL: EMA9<EMA21 या breakdown नहीं');
+  if(!(rv>=10&&rv<=70))failed.push('SELL: RSI 10–70 सीमा से बाहर');
+  diagnostic=failed.join(' | ')||'BUY/SELL की पूरी शर्त नहीं बनी';
+ }else diagnostic='Signal trigger confirmed: '+reason;
  // 15m EMA/RSI direction is the signal trigger. Higher-timeframe, volume and candle-body
  // filters are informational only, so they cannot silently suppress a valid directional signal.
  const h1Info='1h filter disabled';
@@ -545,7 +557,7 @@ async function analyzeCryptoCoin(coin){
  const risk=sl===null?null:Math.abs(entry-sl),t1=sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk),t2=sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk),t3=sl===null?null:(side==='BUY / LONG'?entry+3*risk:entry-3*risk);
  const previous=prevSide||'कोई पिछला सिग्नल नहीं',changeReason=previous===side?'सिग्नल वही रहा':('सिग्नल बदला: '+previous+' → '+side);
  const quality='DATA: '+usedFeed+' • TRADE SIGNAL • 15m momentum/EMA + RSI active • Volume informational: '+(volOk?'औसत से अधिक':'औसत से कम')+' • Candle body informational: '+(candleOk?'strong':'weak');
- const signal={coin,side,strong,baseSide:side,reason,quality,changeReason,previous,entry,sl,t1,t2,t3,rv,e9,e21,volume,avgVol,open,high,low,time:new Date(Number(candles.at(-1)[6])).toLocaleString('en-IN'),candleTime:lastClosed};
+ const signal={coin,side,strong,baseSide:side,reason,diagnostic,quality,changeReason,previous,entry,sl,t1,t2,t3,rv,e9,e21,volume,avgVol,open,high,low,time:new Date(Number(candles.at(-1)[6])).toLocaleString('en-IN'),candleTime:lastClosed};
  cryptoSignalLock[coin]={candleTime:lastClosed,signal};return signal;
 }
 const CRYPTO_MOVEMENT_KEY='cryptoMovementLog_v1';
@@ -579,7 +591,7 @@ function renderCryptoOrderRow(s){
 function showCoinSignal(s){
  const el=document.getElementById('sig-'+s.coin),info=document.getElementById('siginfo-'+s.coin);
  if(el){el.textContent=s.strong?'STRONG '+s.side:s.side;el.className=s.side==='BUY / LONG'?'call-text':s.side==='SELL / SHORT'?'put-text':'signal-neutral';}
- if(info)info.textContent=s.reason+' • Entry '+fmt(s.entry)+' | SL '+fmt(s.sl)+' | TP1 '+fmt(s.t1)+' | TP2 '+fmt(s.t2)+' | TP3 '+fmt(s.t3)+' • RSI '+fmt(s.rv)+' • EMA9 '+fmt(s.e9)+' / EMA21 '+fmt(s.e21)+' • '+s.quality+' • '+s.time;
+ if(info)info.textContent=(s.side==='WAIT'?'❌ Signal नहीं: '+(s.diagnostic||s.reason)+' • ':'✅ '+s.reason+' • ')+'Entry '+fmt(s.entry)+' | SL '+fmt(s.sl)+' | TP1 '+fmt(s.t1)+' | TP2 '+fmt(s.t2)+' | TP3 '+fmt(s.t3)+' • RSI '+fmt(s.rv)+' • EMA9 '+fmt(s.e9)+' / EMA21 '+fmt(s.e21)+' • '+s.quality+' • '+s.time;
 }
 function enableSignalNotifications(){
  if(!('Notification' in window)){document.getElementById('notificationStatus').textContent='इस browser में Notification supported नहीं';return;}
