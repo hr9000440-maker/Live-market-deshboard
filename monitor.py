@@ -127,11 +127,24 @@ for symbol in COINS:
         e9, e21, rv = ema(closes, 9), ema(closes, 21), rsi(closes)
         price, candle_ts = closes[-1], times[-1]
 
-        # Preserve the existing signal thresholds and direction rules.
+        # Early-movement signals: do not wait for EMA9/EMA21 full alignment.
+        # Use the last CLOSED 15m candle, price vs EMA9, RSI momentum,
+        # and either EMA trend alignment or a fresh EMA9/EMA21 breakout.
         direction = "WAIT"
-        if price > e9[-1] > e21[-1] and 40 <= rv <= 80:
+        prev_price = closes[-2]
+        prev_e9 = e9[-2]
+        prev_e21 = e21[-2]
+        bullish_early = (
+            price > e9[-1] and rv >= 45 and rv <= 78 and
+            (e9[-1] >= e21[-1] or (price > e21[-1] and prev_price <= prev_e9))
+        )
+        bearish_early = (
+            price < e9[-1] and rv >= 22 and rv <= 55 and
+            (e9[-1] <= e21[-1] or (price < e21[-1] and prev_price >= prev_e9))
+        )
+        if bullish_early:
             direction = "BUY / LONG"
-        elif price < e9[-1] < e21[-1] and 20 <= rv <= 60:
+        elif bearish_early:
             direction = "SELL / SHORT"
 
         true_ranges = []
