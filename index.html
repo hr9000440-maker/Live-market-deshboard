@@ -652,13 +652,20 @@ function enableSignalNotifications(){
  });
 }
 function notifyStrongSignal(s){
- if(!('Notification' in window)||Notification.permission!=='granted'||localStorage.getItem('signalNotificationsEnabled')!=='1'||!s.strong||s.side==='WAIT')return;
+ if(!s||!s.strong||s.side==='WAIT')return;
  const direction=(s.coin==='BTC'||s.coin==='ETH')?(s.side==='BUY / LONG'?'BUY CALL':'BUY PUT'):(s.side==='BUY / LONG'?'BUY / LONG':'SELL / SHORT');
  const key='lastStrongNotification_'+s.coin;
  const stamp=String(s.candleTime||s.time||'')+'_'+direction;
- if(localStorage.getItem(key)===stamp)return;
- localStorage.setItem(key,stamp);
- new Notification('🚨 STRONG '+s.coin+' SIGNAL',{body:direction+' | Entry '+fmt(s.entry)+' | SL '+fmt(s.sl)+' | T1 '+fmt(s.t1)+' | T2 '+fmt(s.t2),tag:'crypto-'+s.coin});
+ if('Notification' in window&&Notification.permission==='granted'&&localStorage.getItem('signalNotificationsEnabled')==='1'&&localStorage.getItem(key)!==stamp){
+  localStorage.setItem(key,stamp);
+  new Notification('🚨 STRONG '+s.coin+' SIGNAL',{body:direction+' | Entry '+fmt(s.entry)+' | SL '+fmt(s.sl)+' | T1 '+fmt(s.t1)+' | T2 '+fmt(s.t2),tag:'crypto-'+s.coin});
+ }
+ const cfg=tgConfig();
+ const tgKey='tgCryptoSent_'+s.coin;
+ if(cfg.token&&cfg.chatId&&localStorage.getItem(tgKey)!==stamp){
+  const message='🚨 STRONG '+s.coin+' SIGNAL\\n'+direction+'\\nEntry: '+fmt(s.entry)+'\\nSL: '+fmt(s.sl)+'\\nTP1: '+fmt(s.t1)+'\\nTP2: '+fmt(s.t2)+'\\nRSI: '+fmt(s.rv)+'\\nEMA9: '+fmt(s.e9)+' | EMA21: '+fmt(s.e21)+'\\n15m: '+s.time+'\\nPaper-trade alert — verify live price before entry.';
+  sendTelegramText(message).then(()=>localStorage.setItem(tgKey,stamp)).catch(e=>telegramStatus('Telegram signal error: '+e.message));
+ }
 }
 
 function tgConfig(){return {token:localStorage.getItem('telegramBotToken')||'',chatId:localStorage.getItem('telegramChatId')||''}}
@@ -667,7 +674,7 @@ function telegramStatus(s){const e=document.getElementById('telegramStatus');if(
 async function findTelegramChatId(){const token=document.getElementById('telegramToken').value.trim()||tgConfig().token;if(!token){telegramStatus('पहले BotFather token भरें।');return}telegramStatus('Bot और /start message जाँचा जा रहा है…');try{const m=await(await fetch('https://api.telegram.org/bot'+encodeURIComponent(token)+'/getMe')).json();if(!m.ok)throw Error(m.description);const u=await(await fetch('https://api.telegram.org/bot'+encodeURIComponent(token)+'/getUpdates')).json();if(!u.ok)throw Error(u.description);const chats=(u.result||[]).map(x=>x.message?.chat||x.edited_message?.chat).filter(x=>x&&x.type==='private');if(!chats.length){telegramStatus('Bot @'+m.result.username+' सही है। Telegram में bot खोलकर Start और /start भेजें, फिर दोबारा दबाएँ।');return}document.getElementById('telegramToken').value=token;document.getElementById('telegramChatId').value=String(chats[chats.length-1].id);saveTelegramSettings();telegramStatus('Bot @'+m.result.username+' जुड़ गया; Chat ID मिल गई। अब Test Message भेजें।')}catch(e){telegramStatus('Telegram connect error: '+e.message)}}
 async function sendTelegramText(message){const q=tgConfig();if(!q.token||!q.chatId)throw Error('पहले Bot token और Chat ID सेट करें।');const r=await fetch('https://api.telegram.org/bot'+encodeURIComponent(q.token)+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:q.chatId,text:message,disable_web_page_preview:true})});const j=await r.json();if(!j.ok)throw Error(j.description||'Send failed')}
 async function testTelegramAlert(){saveTelegramSettings();try{await sendTelegramText('✅ Telegram connected. BTC/ETH STRONG option alerts इस bot पर आएंगे।');telegramStatus('Test message भेज दिया गया।')}catch(e){telegramStatus('Test message नहीं गया: '+e.message)}}
-function notifyTelegramStrongOption(coin,contract,signal,markUsd,spread){if(coin!=='BTC'&&coin!=='ETH')return;const cfg=tgConfig(),lock=cryptoSignalLock[coin],candle=lock?.signal?.candleTime||'';if(!cfg.token||!cfg.chatId)return;const key='tgSent_'+coin+'_'+contract+'_'+signal,stamp=String(candle)+'_'+signal;if(localStorage.getItem(key)===stamp)return;sendTelegramText('🚨 STRONG '+coin+' OPTION SIGNAL\\n'+signal+'\\nContract: '+contract+'\\nMark premium: '+optionMoney(markUsd)+' USD\\nSpread: '+(spread*100).toFixed(2)+'%\\n15m candle confirmation: confirmed\\nUnderlying entry/SL/targets dashboard पर जाँचें।').then(()=>localStorage.setItem(key,stamp)).catch(e=>telegramStatus('Telegram alert error: '+e.message))}
+function notifyTelegramStrongOption(coin,contract,signal,markUsd,spread){if(!['BTC','ETH','ZEC'].includes(coin))return;const cfg=tgConfig(),lock=cryptoSignalLock[coin],candle=lock?.signal?.candleTime||'';if(!cfg.token||!cfg.chatId)return;const key='tgSent_'+coin+'_'+contract+'_'+signal,stamp=String(candle)+'_'+signal;if(localStorage.getItem(key)===stamp)return;sendTelegramText('🚨 STRONG '+coin+' OPTION SIGNAL\\n'+signal+'\\nContract: '+contract+'\\nMark premium: '+optionMoney(markUsd)+' USD\\nSpread: '+(spread*100).toFixed(2)+'%\\nUnderlying direction: '+(cryptoTrendSignal[coin]||'WAIT')+'\\nPaper-trade alert — dashboard पर live quote/SL/targets verify करें।').then(()=>localStorage.setItem(key,stamp)).catch(e=>telegramStatus('Telegram alert error: '+e.message))}
 async function loadAllCryptoSignals(){
  if(window.cryptoSignalRefreshBusy)return;window.cryptoSignalRefreshBusy=true;
  try{
