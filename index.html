@@ -220,14 +220,14 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 </section>
 <section class="panel" id="crypto-signals">
 <h2>🚦 CRYPTO 15 MIN SIGNALS — BTC / ETH OPTIONS + BNB / ZEC FUTURES</h2>
-<p class="note">BTC और ETH के लिए live 15m candle पर EMA9/EMA21 + RSI14 से BUY CALL / BUY PUT / WAIT संकेत; signal हर 10 सेकंड refresh होता है। Bullish RSI range 45–75 और bearish RSI range 25–55 है। Signal trigger 15m EMA9/EMA21 + RSI14 है। 1h trend, volume और candle-body strength signal को block नहीं करेंगे; लगातार दो candles की पुष्टि नहीं चाहिए। Underlying Entry/SL/TP1/TP2/TP3 ATR-based हैं; option premium पर अलग 25% SL और 25%/50%/75% TP levels हैं। BNB/ZEC futures signals भी नीचे जारी हैं। TRADE SIGNAL MODE: BUY/SELL संकेत, Entry, SL और TP1/TP2/TP3 दिखेंगे। यह signal-only dashboard है; अपने-आप order place नहीं होगा।</p>
+<p class="note">LIVE MARKET TRADE SIGNAL MODE — यह पेपर-वॉच नहीं है। BTC/ETH/BNB/ZEC के वास्तविक public market data पर BUY/SELL संकेत हर 10 सेकंड refresh होंगे। BTC और ETH के लिए 15m EMA9/EMA21 + RSI14 से BUY CALL / BUY PUT संकेत; BNB और ZEC के लिए BUY/LONG या SELL/SHORT संकेत। EARLY संकेत शुरुआती momentum पर और CONFIRMED संकेत मजबूत पुष्टि पर आएगा। Bullish RSI range 45–75 और bearish RSI range 25–55 है। Signal trigger 15m EMA9/EMA21 + RSI14 है। 1h trend, volume और candle-body strength signal को block नहीं करेंगे; लगातार दो candles की पुष्टि नहीं चाहिए। Underlying Entry/SL/TP1/TP2/TP3 ATR-based हैं; option premium पर अलग 25% SL और 25%/50%/75% TP levels हैं। BNB/ZEC futures signals भी नीचे जारी हैं। TRADE SIGNAL MODE: BUY/SELL संकेत, Entry, SL और TP1/TP2/TP3 दिखेंगे। यह signal-only dashboard है; अपने-आप order place नहीं होगा।</p>
 <div class="grid">
 <div class="result"><small>BTCUSDT • 15m OPTION SIGNAL</small><strong id="sig-BTC">लोड हो रहा है…</strong><p class="note" id="siginfo-BTC">कैंडल डेटा जाँचा जा रहा है</p></div>
 <div class="result"><small>ETHUSDT • 15m OPTION SIGNAL</small><strong id="sig-ETH">लोड हो रहा है…</strong><p class="note" id="siginfo-ETH">कैंडल डेटा जाँचा जा रहा है</p></div>
 <div class="result"><small>BNBUSDT • 15m FUTURES</small><strong id="sig-BNB">लोड हो रहा है…</strong><p class="note" id="siginfo-BNB">कैंडल डेटा जाँचा जा रहा है</p></div>
 <div class="result"><small>ZECUSDT • 15m FUTURES</small><strong id="sig-ZEC">लोड हो रहा है…</strong><p class="note" id="siginfo-ZEC">कैंडल डेटा जाँचा जा रहा है</p></div>
 </div>
-<section class="panel" id="crypto-order-signals"><h2>🚦 LIVE TRADE SIGNALS</h2><p class="note">BUY / SELL / WAIT दिशा के साथ underlying Entry, SL और TP1/TP2/TP3 दिखेंगे। यह वास्तविक order अपने-आप place नहीं करता।</p><div class="option-table-wrap"><table class="option-table" style="min-width:800px"><thead><tr><th>Coin</th><th>Trade Signal</th><th>Entry</th><th>SL</th><th>TP1</th><th>TP2</th><th>TP3</th><th>RSI</th><th>Updated</th></tr></thead><tbody id="cryptoOrderRows"><tr><td colspan="9">Live data लोड हो रहा है…</td></tr></tbody></table></div></section>
+<section class="panel" id="crypto-order-signals"><h2>🚦 LIVE TRADE SIGNALS</h2><p class="note">BUY / SELL / WAIT दिशा के साथ underlying Entry, SL और TP1/TP2/TP3 दिखेंगे। यह वास्तविक order अपने-आप place नहीं करता।</p><div class="option-table-wrap"><table class="option-table" style="min-width:800px"><thead><tr><th>Coin</th><th>Signal Type</th><th>Trade Signal</th><th>Entry</th><th>SL</th><th>TP1</th><th>TP2</th><th>TP3</th><th>RSI</th><th>Updated</th></tr></thead><tbody id="cryptoOrderRows"><tr><td colspan="9">Live data लोड हो रहा है…</td></tr></tbody></table></div></section>
 <button type="button" onclick="loadAllCryptoSignals()">सभी Crypto Signal Refresh करें</button>
 <button type="button" onclick="enableSignalNotifications()">🔔 Trade Signal Notification चालू करें</button>
 <p class="note" id="notificationStatus">Notification: बंद</p>
@@ -635,8 +635,8 @@ function renderCryptoOrderRow(s){
  const rows=window.cryptoOrderSnapshots||{};rows[s.coin]=s;window.cryptoOrderSnapshots=rows;
  const names=['BTC','ETH','BNB','ZEC'];
  const active=names.map(coin=>rows[coin]).filter(x=>x&&x.side!=='WAIT'&&x.strong);
- if(!active.length){tbody.innerHTML='<tr><td colspan="9">अभी कोई योग्य BUY/SELL trade signal नहीं है।</td></tr>';return;}
- tbody.innerHTML=active.map(x=>{const coin=x.coin;const direction=(coin==='BTC'||coin==='ETH')?(x.side==='BUY / LONG'?'BUY CALL':'BUY PUT'):(x.side==='BUY / LONG'?'BUY / LONG':'SELL / SHORT');const cls=direction.includes('BUY')?'call-text':'put-text';return '<tr><td>'+coin+'</td><td class="'+cls+'"><strong>'+direction+'</strong></td><td>'+fmt(x.entry)+'</td><td>'+fmt(x.sl)+'</td><td>'+fmt(x.t1)+'</td><td>'+fmt(x.t2)+'</td><td>'+fmt(x.t3)+'</td><td>'+fmt(x.rv)+'</td><td>'+x.time+'</td></tr>'}).join('');
+ if(!active.length){tbody.innerHTML='<tr><td colspan="10">अभी कोई योग्य LIVE BUY/SELL trade signal नहीं है।</td></tr>';return;}
+ tbody.innerHTML=active.map(x=>{const coin=x.coin;const direction=(coin==='BTC'||coin==='ETH')?(x.side==='BUY / LONG'?'BUY CALL':'BUY PUT'):(x.side==='BUY / LONG'?'BUY / LONG':'SELL / SHORT');const cls=direction.includes('BUY')?'call-text':'put-text';return '<tr><td>'+coin+'</td><td>'+(x.signalType==='EARLY'?'EARLY':'CONFIRMED')+'</td><td class="'+cls+'"><strong>'+direction+'</strong></td><td>'+fmt(x.entry)+'</td><td>'+fmt(x.sl)+'</td><td>'+fmt(x.t1)+'</td><td>'+fmt(x.t2)+'</td><td>'+fmt(x.t3)+'</td><td>'+fmt(x.rv)+'</td><td>'+x.time+'</td></tr>'}).join('');
 }
 function showCoinSignal(s){
  const el=document.getElementById('sig-'+s.coin),info=document.getElementById('siginfo-'+s.coin);
