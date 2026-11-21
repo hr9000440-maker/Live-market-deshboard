@@ -260,7 +260,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 
 <section class="panel" id="manual-option-movement-tracker">
 <h2>📝 OPTION MOVEMENT TRACKER — CHART UNAVAILABLE BACKUP</h2>
-<p class="note">Strong BUY CALL / BUY PUT option signal के matching contract का live Mark Premium अपने-आप track होगा। पहली qualifying quote Entry बनेगी; आगे premium बदलने पर snapshots, movement, SL और TP status अपडेट होंगे। Manual snapshot भी उपलब्ध है।</p>
+<p class="note">Normal BUY CALL / BUY PUT option signal के matching contract का live Mark Premium अपने-आप track होगा। पहली qualifying quote Entry बनेगी; आगे premium बदलने पर snapshots, movement, SL और TP status अपडेट होंगे। Manual snapshot भी उपलब्ध है।</p>
 <div class="option-controls">
 <div><label for="trackContract">Contract / Strike</label><input id="trackContract" value="BTC 50000 CALL" placeholder="BTC 50000 CALL"></div>
 <div><label for="trackEntry">Entry Premium</label><input id="trackEntry" type="number" value="8000" step="any"></div>
@@ -670,7 +670,7 @@ function renderCryptoOrderRow(s){
 }
 function showCoinSignal(s){
  const el=document.getElementById('sig-'+s.coin),info=document.getElementById('siginfo-'+s.coin);
- if(el){el.textContent=s.strong?'STRONG '+s.side:s.side;el.className=s.side==='BUY / LONG'?'call-text':s.side==='SELL / SHORT'?'put-text':'signal-neutral';}
+ if(el){el.textContent=s.side;el.className=s.side==='BUY / LONG'?'call-text':s.side==='SELL / SHORT'?'put-text':'signal-neutral';}
  if(info)info.textContent=(s.side==='WAIT'?'❌ Signal नहीं: '+(s.diagnostic||s.reason)+' • ':'✅ '+s.reason+' • ')+'Entry '+fmt(s.entry)+' | SL '+fmt(s.sl)+' | TP1 '+fmt(s.t1)+' | TP2 '+fmt(s.t2)+' | TP3 '+fmt(s.t3)+' • RSI '+fmt(s.rv)+' • EMA9 '+fmt(s.e9)+' / EMA21 '+fmt(s.e21)+' • '+s.quality+' • '+s.time;
 }
 function enableSignalNotifications(){
@@ -680,10 +680,10 @@ function enableSignalNotifications(){
   if(p==='granted') localStorage.setItem('signalNotificationsEnabled','1');
  });
 }
-function notifyStrongSignal(s){
+function notifyTradeSignal(s){
  if(!s||!s.strong||s.side==='WAIT')return;
  const direction=(s.coin==='BTC'||s.coin==='ETH')?(s.side==='BUY / LONG'?'BUY CALL':'BUY PUT'):(s.side==='BUY / LONG'?'BUY / LONG':'SELL / SHORT');
- const key='lastStrongNotification_'+s.coin;
+ const key='lastTradeNotification_'+s.coin;
  const stamp=String(s.candleTime||s.time||'')+'_'+direction;
  if('Notification' in window&&Notification.permission==='granted'&&localStorage.getItem('signalNotificationsEnabled')==='1'&&localStorage.getItem(key)!==stamp){
   localStorage.setItem(key,stamp);
