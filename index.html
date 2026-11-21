@@ -663,7 +663,7 @@ function notifyStrongSignal(s){
  const cfg=tgConfig();
  const tgKey='tgCryptoSent_'+s.coin;
  if(cfg.token&&cfg.chatId&&localStorage.getItem(tgKey)!==stamp){
-  const message='🚨 STRONG '+s.coin+' SIGNAL\\n'+direction+'\\nEntry: '+fmt(s.entry)+'\\nSL: '+fmt(s.sl)+'\\nTP1: '+fmt(s.t1)+'\\nTP2: '+fmt(s.t2)+'\\nRSI: '+fmt(s.rv)+'\\nEMA9: '+fmt(s.e9)+' | EMA21: '+fmt(s.e21)+'\\n15m: '+s.time+'\\nPaper-trade alert — verify live price before entry.';
+  const message='🚨 STRONG '+s.coin+' SIGNAL\\n'+direction+'\\nEntry: '+fmt(s.entry)+'\\nSL: '+fmt(s.sl)+'\\nTP1: '+fmt(s.t1)+'\\nTP2: '+fmt(s.t2)+'\\nTP3: '+fmt(s.side==='BUY / LONG'?s.entry+3*Math.abs(s.entry-s.sl):s.entry-3*Math.abs(s.entry-s.sl))+'\\nRSI: '+fmt(s.rv)+'\\nEMA9: '+fmt(s.e9)+' | EMA21: '+fmt(s.e21)+'\\n15m: '+s.time+'\\nPaper-trade alert — verify live price before entry.';
   sendTelegramText(message).then(()=>localStorage.setItem(tgKey,stamp)).catch(e=>telegramStatus('Telegram signal error: '+e.message));
  }
 }
