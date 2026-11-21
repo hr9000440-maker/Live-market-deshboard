@@ -770,7 +770,7 @@ async function loadAllCryptoSignals(){
    const s=await analyzeCryptoCoin(coin);
    window.cryptoLastGoodSignals=window.cryptoLastGoodSignals||{};window.cryptoLastGoodSignals[coin]=s;
    captureCryptoMovement(s);renderCryptoOrderRow(s);
-   notifyStrongSignal(s);
+   // Removed undefined notifyStrongSignal() call: it threw ReferenceError before Telegram alerts and UI updates.
    notifyTelegramCryptoSignal(s);
    if(coin==='BTC'||coin==='ETH'){
     const el=document.getElementById('sig-'+coin),info=document.getElementById('siginfo-'+coin);
