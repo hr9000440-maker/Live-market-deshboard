@@ -735,6 +735,18 @@ function notifyCryptoDataError(coin,message){
  if(localStorage.getItem(key)===stamp)return;
  sendTelegramText('⚠️ '+coin+' DATA ERROR\\n15m market data fetch failed: '+message+'\\nDashboard refresh/fallback will retry. No signal generated.').then(()=>localStorage.setItem(key,stamp)).catch(e=>telegramStatus('Telegram data-error alert failed: '+e.message));
 }
+
+function notifyTelegramCryptoSignal(s){
+ if(!s||!['BTC','ETH','BNB','ZEC'].includes(s.coin)||!s.side||s.side==='WAIT')return;
+ const cfg=tgConfig();if(!cfg.token||!cfg.chatId)return;
+ const candle=s.candleTime||s.time||Date.now();const stamp=String(candle)+'_'+s.side;
+ const key='tgCryptoSignal_'+s.coin;
+ if(localStorage.getItem(key)===stamp)return;
+ const dir=(s.coin==='BTC'||s.coin==='ETH')?(s.side==='BUY / LONG'?'🟢 BUY CALL':'🔴 BUY PUT'):(s.side==='BUY / LONG'?'🟢 BUY / LONG':'🔴 SELL / SHORT');
+ const msg='🚨 CRYPTO TRADE SIGNAL\\nCoin: '+s.coin+'\\nSignal: '+dir+'\\nType: '+(s.signalType||'NORMAL SIGNAL')+'\\nEntry: '+fmt(s.entry)+'\\n🛑 SL: '+fmt(s.sl)+'\\n🎯 TP1: '+fmt(s.t1)+'\\n🎯 TP2: '+fmt(s.t2)+'\\n🎯 TP3: '+fmt(s.t3)+'\\nRSI: '+fmt(s.rv)+'\\nEMA9: '+fmt(s.e9)+' | EMA21: '+fmt(s.e21)+'\\nTime: '+(s.time||new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}))+'\\nReason: '+(s.reason||'15m movement signal')+'\\n⚠️ Signal only — automatic order नहीं।';
+ sendTelegramText(msg).then(()=>localStorage.setItem(key,stamp)).catch(e=>telegramStatus('Signal alert भेजने में error: '+e.message));
+}
+
 async function loadAllCryptoSignals(){
  if(window.cryptoSignalRefreshBusy)return;window.cryptoSignalRefreshBusy=true;
  try{
@@ -745,6 +757,7 @@ async function loadAllCryptoSignals(){
    window.cryptoLastGoodSignals=window.cryptoLastGoodSignals||{};window.cryptoLastGoodSignals[coin]=s;
    captureCryptoMovement(s);renderCryptoOrderRow(s);
    notifyStrongSignal(s);
+   notifyTelegramCryptoSignal(s);
    if(coin==='BTC'||coin==='ETH'){
     const el=document.getElementById('sig-'+coin),info=document.getElementById('siginfo-'+coin);
     const direction=s.side==='BUY / LONG'?'BUY CALL':s.side==='SELL / SHORT'?'BUY PUT':'WAIT';
