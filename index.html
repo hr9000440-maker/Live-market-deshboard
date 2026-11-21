@@ -574,8 +574,15 @@ async function analyzeCryptoCoin(coin){
  const prevHigh=highs.at(-2),prevLow=lows.at(-2),breakUp=close>prevHigh,breakDown=close<prevLow;
  const buyChecks={priceAboveEMA9:close>e9,emaBullish:e9>e21,breakout:breakUp,rsiInRange:rv>=30&&rv<=90};
  const sellChecks={priceBelowEMA9:close<e9,emaBearish:e9<e21,breakdown:breakDown,rsiInRange:rv>=10&&rv<=70};
- if(close>e9&&(e9>e21||breakUp)&&rv>=30&&rv<=90){side='BUY / LONG';reason=breakUp?'15m price momentum breakout + RSI':'15m EMA direction + RSI';}
- else if(close<e9&&(e9<e21||breakDown)&&rv>=10&&rv<=70){side='SELL / SHORT';reason=breakDown?'15m price momentum breakdown + RSI':'15m EMA direction + RSI';}
+ // EARLY SIGNAL: live 15m candle can trigger on EMA9 reclaim/loss with momentum RSI,
+ // or on a break of the previous candle high/low. CONFIRMED SIGNAL uses the stricter
+ // original EMA alignment / breakout rules. This keeps early alerts visible without hiding confirmation.
+ let earlySide='WAIT',earlyReason='';
+ if((close>e9&&rv>=45&&rv<=90)||breakUp){earlySide='BUY / LONG';earlyReason=breakUp?'EARLY breakout above previous 15m high':'EARLY EMA9 reclaim + RSI momentum';}
+ else if((close<e9&&rv>=10&&rv<=55)||breakDown){earlySide='SELL / SHORT';earlyReason=breakDown?'EARLY breakdown below previous 15m low':'EARLY EMA9 loss + RSI momentum';}
+ if(close>e9&&(e9>e21||breakUp)&&rv>=30&&rv<=90){side='BUY / LONG';reason=breakUp?'CONFIRMED 15m momentum breakout + RSI':'CONFIRMED 15m EMA direction + RSI';}
+ else if(close<e9&&(e9<e21||breakDown)&&rv>=10&&rv<=70){side='SELL / SHORT';reason=breakDown?'CONFIRMED 15m momentum breakdown + RSI':'CONFIRMED 15m EMA direction + RSI';}
+ if(side==='WAIT'&&earlySide!=='WAIT'){side=earlySide;reason=earlyReason;}
  if(side==='WAIT'){
   const failed=[];
   if(!(close>e9))failed.push('BUY: Price EMA9 के ऊपर नहीं');
@@ -590,12 +597,12 @@ async function analyzeCryptoCoin(coin){
  // filters are informational only, so they cannot silently suppress a valid directional signal.
  const h1Info='1h filter disabled';
  const prevSide=null;
- const strong=side!=='WAIT';
+ const strong=side!=='WAIT',signalType=reason.startsWith('EARLY')?'EARLY':'CONFIRMED';
  const entry=close,sl=side==='BUY / LONG'?entry-1.2*atr:side==='SELL / SHORT'?entry+1.2*atr:null;
  const risk=sl===null?null:Math.abs(entry-sl),t1=sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk),t2=sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk),t3=sl===null?null:(side==='BUY / LONG'?entry+3*risk:entry-3*risk);
  const previous=prevSide||'कोई पिछला सिग्नल नहीं',changeReason=previous===side?'सिग्नल वही रहा':('सिग्नल बदला: '+previous+' → '+side);
  const quality='DATA: '+usedFeed+' • TRADE SIGNAL • 15m momentum/EMA + RSI active • Volume informational: '+(volOk?'औसत से अधिक':'औसत से कम')+' • Candle body informational: '+(candleOk?'strong':'weak');
- const signal={coin,side,strong,baseSide:side,reason,diagnostic,quality,changeReason,previous,entry,sl,t1,t2,t3,rv,e9,e21,volume,avgVol,open,high,low,time:new Date(Number(candles.at(-1)[0])).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),candleTime:lastClosed};
+ const signal={coin,side,strong,baseSide:side,signalType,reason,diagnostic,quality,changeReason,previous,entry,sl,t1,t2,t3,rv,e9,e21,volume,avgVol,open,high,low,time:new Date(Number(candles.at(-1)[0])).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),candleTime:lastClosed};
  cryptoSignalLock[coin]={candleTime:lastClosed,signal};return signal;
 }
 const CRYPTO_MOVEMENT_KEY='cryptoMovementLog_v1';
@@ -707,7 +714,7 @@ async function loadAllCryptoSignals(){
     const el=document.getElementById('sig-'+coin),info=document.getElementById('siginfo-'+coin);
     const direction=s.side==='BUY / LONG'?'BUY CALL':s.side==='SELL / SHORT'?'BUY PUT':'WAIT';
     if(el){el.textContent=direction;el.className=direction==='BUY CALL'?'call-text':direction==='BUY PUT'?'put-text':'signal-neutral';}
-    if(info)info.textContent=s.reason+' • Entry '+fmt(s.entry)+' | SL '+fmt(s.sl)+' | TP1 '+fmt(s.t1)+' | TP2 '+fmt(s.t2)+' • RSI '+fmt(s.rv)+' • EMA9 '+fmt(s.e9)+' / EMA21 '+fmt(s.e21)+' • TRADE SIGNAL • '+s.time;
+    if(info)info.textContent=s.reason+' • Entry '+fmt(s.entry)+' | SL '+fmt(s.sl)+' | TP1 '+fmt(s.t1)+' | TP2 '+fmt(s.t2)+' • RSI '+fmt(s.rv)+' • EMA9 '+fmt(s.e9)+' / EMA21 '+fmt(s.e21)+' • '+(s.signalType||'TRADE SIGNAL')+' SIGNAL • '+s.time;
     cryptoTrendSignal[coin]=direction;cryptoSignalStrength[coin]=!!s.strong;
    }else{
     showCoinSignal(s);cryptoTrendSignal[coin]=s.side==='BUY / LONG'?'BUY CALL':s.side==='SELL / SHORT'?'BUY PUT':'WAIT';cryptoSignalStrength[coin]=!!s.strong;
