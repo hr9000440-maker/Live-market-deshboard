@@ -1,0 +1,25 @@
+name: Server Option Movement Capture
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: auto-option-premium-tracker
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Capture public option quotes
+        run: node scripts/capture-option-movements.mjs
+      - name: Commit snapshots
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/option-movement-snapshots.json
+          git diff --cached --quiet || (git commit -m "Capture scheduled option premium movement" && git push)
