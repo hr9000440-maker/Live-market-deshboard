@@ -40,7 +40,8 @@ def send(msg):
     token=os.environ.get("TELEGRAM_BOT_TOKEN","")
     chat=os.environ.get("TELEGRAM_CHAT_ID","")
     if not token or not chat:
-        print("Telegram secrets not configured; alert not sent.")
+        print("Telegram secret status: TELEGRAM_BOT_TOKEN=" + ("present" if token else "MISSING") + ", TELEGRAM_CHAT_ID=" + ("present" if chat else "MISSING"))
+        print("Telegram alert not sent because a required secret is missing.")
         return
     data=urllib.parse.urlencode({"chat_id":chat,"text":msg}).encode()
     req=urllib.request.Request(f"https://api.telegram.org/bot{token}/sendMessage",data=data)
