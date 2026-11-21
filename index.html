@@ -241,7 +241,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 <div class="result" id="cryptoSignal" style="margin:12px 0"><p class="note">15m signal लोड हो रहा है…</p></div>
 <div class="option-controls">
 <div><label for="optCurrency">Coin</label><select id="optCurrency" onchange="loadCryptoOptions();loadCryptoSignal()"><option value="BTC">BTC — Bitcoin</option><option value="ETH">ETH — Ethereum</option><option value="ZEC">ZEC — Zcash</option></select></div>
-<div><label for="optExpiry">Expiry</label><select id="optExpiry" onchange="renderCryptoOptions()"><option value="">Loading…</option></select></div>
+<div><label for="optExpiry">Expiry</label><select id="optExpiry" onchange="renderCryptoOptions()"><option value="">Loading…</option></select><div id="optExpiryStatus" class="note" style="margin-top:6px">Expiry API data जाँच रहा है…</div></div>
 <div><label for="optType">Option Type</label><select id="optType" onchange="renderCryptoOptions()"><option value="ALL">CALL + PUT</option><option value="C">CALL (CE)</option><option value="P">PUT (PE)</option></select></div>
 <div><label for="optSearch">Strike खोजें</label><input id="optSearch" type="number" placeholder="जैसे 90000" oninput="renderCryptoOptions()"></div>
 </div>
@@ -408,6 +408,7 @@ async function loadCryptoOptions(){
   cryptoOptionData[coin]=rows;cryptoOptionUnderlying[coin]=underlying;
   const expiries=[...new Set(rows.map(x=>x.expiry||optionDate(x.instrument_name)).filter(Boolean))].sort((a,b)=>expiryDateValue(a)-expiryDateValue(b));
   const expiry=document.getElementById('optExpiry');const previous=expiry.value;const today=todayISTExpiryValue();const todayExpiry=expiries.find(x=>expiryDateValue(x)===today);const nearestFuture=expiries.find(x=>expiryDateValue(x)>=today);const defaultExpiry=todayExpiry||nearestFuture||expiries[0]||'';const chosen=expiries.includes(previous)?previous:defaultExpiry;expiry.innerHTML=expiries.map(x=>'<option value="'+x+'">'+expiryLabel(x)+'</option>').join('')||'<option value="">No active '+coin+' expiry</option>';if(chosen)expiry.value=chosen;
+  const expiryStatus=document.getElementById('optExpiryStatus');if(expiryStatus){const chosenDate=expiryDateValue(chosen),todayDate=todayISTExpiryValue();expiryStatus.textContent=chosen?(chosenDate===todayDate?'आज की Expiry उपलब्ध है: '+expiryLabel(chosen):chosenDate>todayDate?'आज की Expiry API में उपलब्ध नहीं है। अगली उपलब्ध Expiry: '+expiryLabel(chosen):'API Expiry: '+expiryLabel(chosen)):'API से कोई active Expiry उपलब्ध नहीं है।';}
   document.getElementById('optUnderlying').textContent=underlying?fmt(underlying)+' '+coin+' spot/underlying':'—';
   document.getElementById('optCount').textContent=rows.length.toLocaleString('en-US');document.getElementById('optUpdated').textContent=new Date().toLocaleTimeString('en-IN');
   status.textContent=rows.length?rows.length+' active '+coin+' option contracts मिले।'+(coin==='ZEC'?' स्रोत: Paradex public API.':''):'API से active '+coin+' option contracts नहीं मिले।';
