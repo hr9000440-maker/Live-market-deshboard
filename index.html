@@ -601,6 +601,16 @@ async function analyzeCryptoCoin(coin){
  if(close>e9&&rv>=40&&rv<=85){side='BUY / LONG';reason=breakUp?'CONFIRMED 15m momentum breakout + RSI':'CONFIRMED 15m EMA direction + RSI';}
  else if(close<e9&&rv>=15&&rv<=60){side='SELL / SHORT';reason=breakDown?'CONFIRMED 15m momentum breakdown + RSI':'CONFIRMED 15m EMA direction + RSI';}
  if(side==='WAIT'&&earlySide!=='WAIT'){side=earlySide;reason=earlyReason;}
+ // Keep a valid signal visible for the rest of the same live 15m candle.
+ // A brief intra-candle pullback must not erase an already-issued BUY/SELL.
+ const thisCandle=Number(candles.at(-1)[0]);
+ const priorLock=readSignalLock(coin);
+ let lockedSnapshot=null;
+ if(side==='WAIT'&&priorLock&&Number(priorLock.candleTime)===thisCandle&&priorLock.signal&&priorLock.signal.side&&priorLock.signal.side!=='WAIT'){
+  lockedSnapshot=priorLock.signal;
+  side=lockedSnapshot.side;
+  reason='LOCKED: पहले बना '+side+' signal इसी 15m candle के close तक सुरक्षित';
+ }
  if(side==='WAIT'){
   const failed=[];
   if(!(close>e9))failed.push('BUY: Price EMA9 के ऊपर नहीं');
@@ -615,13 +625,17 @@ async function analyzeCryptoCoin(coin){
  // filters are informational only, so they cannot silently suppress a valid directional signal.
  const h1Info='1h filter disabled';
  const prevSide=null;
- const strong=side!=='WAIT',signalType=reason.startsWith('EARLY')?'EARLY':'CONFIRMED';
- const entry=close,sl=side==='BUY / LONG'?entry-1.2*atr:side==='SELL / SHORT'?entry+1.2*atr:null;
- const risk=sl===null?null:Math.abs(entry-sl),t1=sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk),t2=sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk),t3=sl===null?null:(side==='BUY / LONG'?entry+3*risk:entry-3*risk);
+ const strong=side!=='WAIT',signalType=lockedSnapshot?(lockedSnapshot.signalType||'EARLY'):(reason.startsWith('EARLY')?'EARLY':'CONFIRMED');
+ const entry=lockedSnapshot?Number(lockedSnapshot.entry):close;
+ const sl=lockedSnapshot?lockedSnapshot.sl:(side==='BUY / LONG'?entry-1.2*atr:side==='SELL / SHORT'?entry+1.2*atr:null);
+ const risk=sl===null?null:Math.abs(entry-sl),t1=lockedSnapshot?lockedSnapshot.t1:(sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk)),t2=lockedSnapshot?lockedSnapshot.t2:(sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk)),t3=lockedSnapshot?lockedSnapshot.t3:(sl===null?null:(side==='BUY / LONG'?entry+3*risk:entry-3*risk));
  const previous=prevSide||'कोई पिछला सिग्नल नहीं',changeReason=previous===side?'सिग्नल वही रहा':('सिग्नल बदला: '+previous+' → '+side);
  const quality='DATA: '+usedFeed+' • TRADE SIGNAL • 15m momentum/EMA + RSI active • Volume informational: '+(volOk?'औसत से अधिक':'औसत से कम')+' • Candle body informational: '+(candleOk?'strong':'weak');
  const signal={coin,side,strong,baseSide:side,signalType,reason,diagnostic,quality,changeReason,previous,entry,sl,t1,t2,t3,rv,e9,e21,volume,avgVol,open,high,low,confirmedSide,confirmedClose,confirmedE9,confirmedE21,confirmedRsi,confirmationReason,time:new Date(Number(candles.at(-1)[0])).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),candleTime:lastClosed};
- cryptoSignalLock[coin]={candleTime:lastClosed,signal};return signal;
+ cryptoSignalLock[coin]={candleTime:lastClosed,signal};
+ // Persist the first valid signal and its original Entry/SL/TP for this candle.
+ if(!lockedSnapshot||!priorLock||Number(priorLock.candleTime)!==thisCandle)saveSignalLock(coin,{candleTime:thisCandle,signal});
+ return signal;
 }
 const CRYPTO_MOVEMENT_KEY='cryptoMovementLog_v1';
 function getCryptoMovementLog(){try{return JSON.parse(localStorage.getItem(CRYPTO_MOVEMENT_KEY)||'[]')}catch{return []}}
