@@ -4,20 +4,24 @@ COINS = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "ZECUSDT"]
 STATE_PATH = ".signal-state/state.json"
 
 def get_json(url):
-    # Binance's primary API may return HTTP 451 from hosted runners.
-    # Retry the same public market-data endpoint on Binance's data-only host.
-    urls=[url]
+    # Try Binance's public market-data mirrors. Hosted runners can be routed
+    # differently by Binance; one mirror may reject a request while another works.
+    urls = [url]
     if "https://api.binance.com/" in url:
-        urls.append(url.replace("https://api.binance.com/","https://data-api.binance.vision/"))
-    last_error=None
+        for host in ("api1.binance.com", "api2.binance.com", "api3.binance.com", "data-api.binance.vision"):
+            urls.append(url.replace("https://api.binance.com/", f"https://{host}/"))
+    last_error = None
     for candidate in urls:
         try:
-            req=urllib.request.Request(candidate,headers={"User-Agent":"market-signal-monitor"})
-            with urllib.request.urlopen(req,timeout=20) as r:
-                return json.loads(r.read())
+            req = urllib.request.Request(candidate, headers={"User-Agent": "Mozilla/5.0 market-signal-monitor"})
+            with urllib.request.urlopen(req, timeout=20) as r:
+                payload = json.loads(r.read())
+            if isinstance(payload, dict) and payload.get("code") is not None:
+                raise RuntimeError(f"Binance API {payload.get('code')}: {payload.get('msg')}")
+            return payload
         except Exception as e:
-            last_error=e
-    raise last_error
+            last_error = e
+    raise RuntimeError(f"All Binance public endpoints failed; last error: {last_error}")
 
 def ema(values, period):
     k=2/(period+1)
@@ -42,10 +46,20 @@ def send(msg):
     if not token or not chat:
         print("Telegram secret status: TELEGRAM_BOT_TOKEN=" + ("present" if token else "MISSING") + ", TELEGRAM_CHAT_ID=" + ("present" if chat else "MISSING"))
         print("Telegram alert not sent because a required secret is missing.")
-        return
+        return False
     data=urllib.parse.urlencode({"chat_id":chat,"text":msg}).encode()
     req=urllib.request.Request(f"https://api.telegram.org/bot{token}/sendMessage",data=data)
-    with urllib.request.urlopen(req,timeout=20) as r: print("Telegram:",r.status)
+    try:
+        with urllib.request.urlopen(req,timeout=20) as r:
+            result=json.loads(r.read())
+        if result.get("ok"):
+            print("Telegram delivery: SUCCESS")
+            return True
+        print("Telegram delivery: FAILED - " + str(result.get("description","unknown Telegram API error")))
+        return False
+    except Exception as e:
+        print("Telegram delivery: FAILED - " + str(e))
+        return False
 
 state={}
 try:
@@ -56,6 +70,8 @@ now=datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 for symbol in COINS:
     try:
         klines=get_json(f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=15m&limit=100")
+        if not isinstance(klines, list) or len(klines) < 30:
+            raise RuntimeError("Unexpected or insufficient candle data")
         closes=[float(k[4]) for k in klines]
         highs=[float(k[2]) for k in klines]
         lows=[float(k[3]) for k in klines]
@@ -80,11 +96,11 @@ for symbol in COINS:
         prev=state.get(symbol,{})
         # Send once per new closed 15m candle for each active direction.
         if direction!="WAIT" and (prev.get("direction")!=direction or prev.get("candle")!=candle_ts):
-            msg=(f"🚦 TRADE SIGNAL — {symbol}\n{direction}\n"
-                 f"Closed 15m candle: {datetime.datetime.fromtimestamp(candle_ts/1000,datetime.timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\n"
-                 f"Entry: {price:.8g}\nStop Loss: {sl:.8g}\nTP1: {tp1:.8g}\nTP2: {tp2:.8g}\nTP3: {tp3:.8g}\n"
-                 f"EMA9: {e9[-1]:.8g} | EMA21: {e21[-1]:.8g} | RSI14: {rv:.1f}\n"
-                 f"Signal only; no automatic order placement.\nChecked: {now}")
+            msg=(f"🚦 TRADE SIGNAL — {symbol}\\n{direction}\\n"
+                 f"Closed 15m candle: {datetime.datetime.fromtimestamp(candle_ts/1000,datetime.timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\\n"
+                 f"Entry: {price:.8g}\\nStop Loss: {sl:.8g}\\nTP1: {tp1:.8g}\\nTP2: {tp2:.8g}\\nTP3: {tp3:.8g}\\n"
+                 f"EMA9: {e9[-1]:.8g} | EMA21: {e21[-1]:.8g} | RSI14: {rv:.1f}\\n"
+                 f"Signal only; no automatic order placement.\\nChecked: {now}")
             send(msg)
         state[symbol]={"direction":direction,"candle":candle_ts,"price":price,"ema9":e9[-1],"ema21":e21[-1],"rsi":rv,"entry":price,"sl":sl,"tp1":tp1,"tp2":tp2,"tp3":tp3,"checked":now}
         print(f"{symbol}: {direction} price={price} RSI={rv:.1f}")
