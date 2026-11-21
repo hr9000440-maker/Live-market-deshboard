@@ -238,7 +238,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 </section>
 <section class="panel" id="crypto-signals">
 <h2>🚦 CRYPTO 15 MIN SIGNALS — BTC / ETH OPTIONS + BNB / ZEC FUTURES</h2>
-<p class="note">BTC और ETH के लिए live 15m candle पर EMA9/EMA21 + RSI14 से BUY CALL / BUY PUT / WAIT संकेत; signal हर 15 सेकंड refresh होता है। Bullish RSI range 45–75 और bearish RSI range 25–55 है। Signal trigger 15m EMA9/EMA21 + RSI14 है। 1h trend, volume और candle-body strength signal को block नहीं करेंगे; लगातार दो candles की पुष्टि नहीं चाहिए। Entry, SL और targets underlying price पर हैं; option premium targets अलग हैं। BNB/ZEC futures signals भी नीचे जारी हैं। 15 दिन केवल PAPER TRADE करें—कोई वास्तविक order नहीं।</p>
+<p class="note">BTC और ETH के लिए live 15m candle पर EMA9/EMA21 + RSI14 से BUY CALL / BUY PUT / WAIT संकेत; signal हर 5 सेकंड refresh होता है। Bullish RSI range 45–75 और bearish RSI range 25–55 है। Signal trigger 15m EMA9/EMA21 + RSI14 है। 1h trend, volume और candle-body strength signal को block नहीं करेंगे; लगातार दो candles की पुष्टि नहीं चाहिए। Entry, SL और targets underlying price पर हैं; option premium targets अलग हैं। BNB/ZEC futures signals भी नीचे जारी हैं। 15 दिन केवल PAPER TRADE करें—कोई वास्तविक order नहीं।</p>
 <div class="grid">
 <div class="result"><small>BTCUSDT • 15m OPTION SIGNAL</small><strong id="sig-BTC">लोड हो रहा है…</strong><p class="note" id="siginfo-BTC">कैंडल डेटा जाँचा जा रहा है</p></div>
 <div class="result"><small>ETHUSDT • 15m OPTION SIGNAL</small><strong id="sig-ETH">लोड हो रहा है…</strong><p class="note" id="siginfo-ETH">कैंडल डेटा जाँचा जा रहा है</p></div>
@@ -620,9 +620,9 @@ function captureCryptoMovement(s){
  if(!s||!s.coin||!(Number(s.entry)>0))return;
  const rows=getCryptoMovementLog(),ts=Date.now(),price=Number(s.entry),candleTime=Number(s.candleTime||0);
  const item={ts,time:historyTime(ts),date:indiaDate(ts),coin:s.coin,price,open:Number(s.open),high:Number(s.high),low:Number(s.low),rsi:Number(s.rv),ema9:Number(s.e9),ema21:Number(s.e21),side:s.side,candleTime};
- const last=rows[0];
- // Capture whenever price or indicator/signal changes, while retaining periodic snapshots.
- if(last&&last.coin===item.coin&&last.candleTime===item.candleTime&&last.price===item.price&&last.rsi===item.rsi&&last.side===item.side)return;
+ const last=rows.find(x=>x.coin===item.coin);
+ // Per-coin dedupe: record each changed price/indicator/signal snapshot; refresh polling is 5 seconds.
+ if(last&&last.candleTime===item.candleTime&&last.price===item.price&&last.rsi===item.rsi&&last.side===item.side&&last.ema9===item.ema9&&last.ema21===item.ema21)return;
  rows.unshift(item);if(rows.length>10000)rows.length=10000;saveCryptoMovementLog(rows);renderCryptoMovementLog();
 }
 function renderCryptoMovementLog(){
@@ -722,7 +722,7 @@ function calculate(){
  document.getElementById('rr').textContent=valid&&riskPer>0&&rewardPer>0?(rewardPer/riskPer).toFixed(2)+' : 1':'—';
  document.getElementById('warning').textContent=!valid?'Entry, SL, Target और Quantity भरें।':(riskPer<=0||rewardPer<=0?'जाँचें: खरीद में SL एंट्री से नीचे और टारगेट ऊपर होना चाहिए। बिक्री में SL एंट्री से ऊपर और टारगेट नीचे होना चाहिए।':'यह अनुमानित गणना है। ब्रोकरेज, टैक्स, स्लिपेज, लॉट साइज़ और फंडिंग शामिल नहीं हैं।');
 }
-document.addEventListener('DOMContentLoaded',()=>{renderCryptoMovementLog();renderSignalHistory();loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals();if(localStorage.getItem('signalNotificationsEnabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){document.getElementById('notificationStatus').textContent='Notification: चालू';}setInterval(loadAllCryptoSignals,15000)});
+document.addEventListener('DOMContentLoaded',()=>{renderCryptoMovementLog();renderSignalHistory();loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals();if(localStorage.getItem('signalNotificationsEnabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){document.getElementById('notificationStatus').textContent='Notification: चालू';}setInterval(loadAllCryptoSignals,5000)});
 </script>
 </body>
 </html>
