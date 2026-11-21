@@ -675,6 +675,12 @@ async function findTelegramChatId(){const token=document.getElementById('telegra
 async function sendTelegramText(message){const q=tgConfig();if(!q.token||!q.chatId)throw Error('पहले Bot token और Chat ID सेट करें।');const r=await fetch('https://api.telegram.org/bot'+encodeURIComponent(q.token)+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:q.chatId,text:message,disable_web_page_preview:true})});const j=await r.json();if(!j.ok)throw Error(j.description||'Send failed')}
 async function testTelegramAlert(){saveTelegramSettings();try{await sendTelegramText('✅ Telegram connected. BTC/ETH option और BTC/ETH/BNB/ZEC futures के signal alerts इस bot पर आएंगे।');telegramStatus('Test message भेज दिया गया।')}catch(e){telegramStatus('Test message नहीं गया: '+e.message)}}
 function notifyTelegramStrongOption(coin,contract,signal,markUsd,spread){if(!['BTC','ETH','ZEC'].includes(coin))return;const cfg=tgConfig(),lock=cryptoSignalLock[coin],candle=lock?.signal?.candleTime||'';if(!cfg.token||!cfg.chatId)return;const key='tgSent_'+coin+'_'+contract+'_'+signal,stamp=String(candle)+'_'+signal;if(localStorage.getItem(key)===stamp)return;sendTelegramText('🚨 STRONG '+coin+' OPTION SIGNAL\\n'+signal+'\\nContract: '+contract+'\\nMark premium: '+optionMoney(markUsd)+' USD\\nSpread: '+(spread*100).toFixed(2)+'%\\nUnderlying direction: '+(cryptoTrendSignal[coin]||'WAIT')+'\\nSL: '+optionMoney(markUsd*0.80)+' USD\\nTP1: '+optionMoney(markUsd*1.30)+' USD\\nTP2: '+optionMoney(markUsd*1.50)+' USD\\nPaper-trade alert — dashboard पर live quote/SL/targets verify करें।').then(()=>localStorage.setItem(key,stamp)).catch(e=>telegramStatus('Telegram alert error: '+e.message))}
+function notifyCryptoDataError(coin,message){
+ const cfg=tgConfig();if(!cfg.token||!cfg.chatId)return;
+ const key='tgCryptoDataError_'+coin,stamp=String(Math.floor(Date.now()/900000));
+ if(localStorage.getItem(key)===stamp)return;
+ sendTelegramText('⚠️ '+coin+' DATA ERROR\\n15m market data fetch failed: '+message+'\\nDashboard refresh/fallback will retry. No signal generated.').then(()=>localStorage.setItem(key,stamp)).catch(e=>telegramStatus('Telegram data-error alert failed: '+e.message));
+}
 async function loadAllCryptoSignals(){
  if(window.cryptoSignalRefreshBusy)return;window.cryptoSignalRefreshBusy=true;
  try{
@@ -697,6 +703,7 @@ async function loadAllCryptoSignals(){
    const el=document.getElementById('sig-'+coin),info=document.getElementById('siginfo-'+coin);
    if(el){el.textContent='DATA ERROR';el.className='signal-neutral';}
    if(info)info.textContent=e.message+' • अभी trade signal उपलब्ध नहीं';
+   notifyCryptoDataError(coin,e.message||'Market data unavailable');
    cryptoTrendSignal[coin]='WAIT';cryptoSignalStrength[coin]=false;
   }
  }));
@@ -729,7 +736,7 @@ function calculate(){
  document.getElementById('rr').textContent=valid&&riskPer>0&&rewardPer>0?(rewardPer/riskPer).toFixed(2)+' : 1':'—';
  document.getElementById('warning').textContent=!valid?'Entry, SL, Target और Quantity भरें।':(riskPer<=0||rewardPer<=0?'जाँचें: खरीद में SL एंट्री से नीचे और टारगेट ऊपर होना चाहिए। बिक्री में SL एंट्री से ऊपर और टारगेट नीचे होना चाहिए।':'यह अनुमानित गणना है। ब्रोकरेज, टैक्स, स्लिपेज, लॉट साइज़ और फंडिंग शामिल नहीं हैं।');
 }
-document.addEventListener('DOMContentLoaded',()=>{renderCryptoMovementLog();renderSignalHistory();loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals();if(localStorage.getItem('signalNotificationsEnabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){document.getElementById('notificationStatus').textContent='Notification: चालू';}setInterval(loadAllCryptoSignals,5000)});
+document.addEventListener('DOMContentLoaded',()=>{renderCryptoMovementLog();renderSignalHistory();loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals();if(localStorage.getItem('signalNotificationsEnabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){document.getElementById('notificationStatus').textContent='Notification: चालू';}setInterval(loadAllCryptoSignals,5000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadAllCryptoSignals();});window.addEventListener('online',()=>loadAllCryptoSignals());});
 </script>
 </body>
 </html>
