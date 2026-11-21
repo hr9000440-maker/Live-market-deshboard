@@ -55,7 +55,7 @@ for symbol in COINS:
         elif price<e9[-1]<e21[-1] and 20<=rv<=60: direction="SELL / SHORT"
         prev=state.get(symbol,{})
         # Notify only when the closed 15m candle's direction changes to a trade signal.
-        if direction!="WAIT" and (prev.get("direction")!=direction or prev.get("candle")!=candle_ts):
+        if direction!="WAIT" and prev.get("direction")!=direction:
             msg=(f"📡 SERVER SIGNAL — {symbol}\n{direction}\n"
                  f"Closed 15m candle: {datetime.datetime.fromtimestamp(candle_ts/1000,datetime.timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\n"
                  f"Entry reference: {price:.8g}\nEMA9: {e9[-1]:.8g} | EMA21: {e21[-1]:.8g}\nRSI14: {rv:.1f}\n"
