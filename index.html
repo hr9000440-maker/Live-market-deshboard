@@ -252,6 +252,24 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 </section>
 
 
+<section class="panel" id="manual-option-movement-tracker">
+<h2>📝 OPTION MOVEMENT TRACKER — CHART UNAVAILABLE BACKUP</h2>
+<p class="note">जब Delta/TradingView पर exact strike chart उपलब्ध न हो, contract, अनुमानित entry और target भरें; premium को manually दर्ज कर snapshots track करें। यह chart feed नहीं है और कीमत स्वतः fetch नहीं होती।</p>
+<div class="option-controls">
+<div><label for="trackContract">Contract / Strike</label><input id="trackContract" value="BTC 50000 CALL" placeholder="BTC 50000 CALL"></div>
+<div><label for="trackEntry">Entry Premium</label><input id="trackEntry" type="number" value="8000" step="any"></div>
+<div><label for="trackSL">Stop Loss Premium</label><input id="trackSL" type="number" value="6000" step="any"></div>
+<div><label for="trackTP1">TP1 Premium</label><input id="trackTP1" type="number" value="10000" step="any"></div>
+<div><label for="trackTP2">TP2 Premium</label><input id="trackTP2" type="number" value="12000" step="any"></div>
+<div><label for="trackTP3">TP3 Premium</label><input id="trackTP3" type="number" value="14000" step="any"></div>
+<div><label for="trackCurrent">Current Premium (manual)</label><input id="trackCurrent" type="number" step="any" placeholder="अभी का premium"></div>
+</div>
+<button type="button" onclick="saveOptionMovementSnapshot()">📌 Premium Snapshot Save करें</button>
+<button type="button" onclick="exportOptionMovementTracker()">⬇️ Tracker CSV Export</button>
+<div class="grid" style="margin-top:12px"><div class="result"><small>Latest Premium</small><strong id="trackLatest">—</strong></div><div class="result"><small>Movement vs Entry</small><strong id="trackMovement">—</strong></div><div class="result"><small>Target / SL Status</small><strong id="trackStatus">—</strong></div><div class="result"><small>Snapshots</small><strong id="trackCount">0</strong></div></div>
+<div class="option-table-wrap"><table class="option-table" style="min-width:700px"><thead><tr><th>Time (IST)</th><th>Contract</th><th>Premium</th><th>Change vs Entry</th><th>Status</th></tr></thead><tbody id="trackRows"><tr><td colspan="5">कोई snapshot नहीं</td></tr></tbody></table></div>
+<p class="note">Records browser Local Storage में रहेंगे; dashboard/website खुला और यह browser उपलब्ध होना ज़रूरी है। CSV export करके backup रखें।</p>
+</section>
 <section class="panel" id="option-premium-chart">
 <h2>📉 CRYPTO OPTION PREMIUM CHART — 15 MIN</h2>
 <p class="note">Selected Deribit BTC/ETH option contract का 15-minute OHLC premium chart. यह CoinSwitch का exact contract/chart नहीं है; exchange और contract अलग हो सकते हैं।</p>
@@ -709,6 +727,30 @@ async function loadCryptoSignal(){
   box.innerHTML='<div class="grid"><div class="result"><small>15m Trade Signal — '+coin+'</small><strong class="'+(s.side==='BUY / LONG'?'call-text':s.side==='SELL / SHORT'?'put-text':'signal-neutral')+'">'+(coin==='ZEC'?(s.side==='BUY / LONG'?'BUY CALL DIRECTION':s.side==='SELL / SHORT'?'BUY PUT DIRECTION':'WAIT'):s.side)+'</strong></div><div class="result"><small>RSI 14 / EMA 9 / EMA 21</small><strong>'+fmt(s.rv)+' / '+fmt(s.e9)+' / '+fmt(s.e21)+'</strong></div></div><p class="note">'+s.reason+' • '+s.changeReason+' • 15m candle: '+s.time+'. केवल योग्य trade signal; कोई automatic order नहीं।'
  }catch(e){box.innerHTML='<p class="note">15m signal उपलब्ध नहीं: '+e.message+'. अभी WAIT रखें।</p>'}
 }
+const OPTION_TRACK_KEY='manualOptionMovementTracker_v1';
+function getOptionTrackerRows(){try{return JSON.parse(localStorage.getItem(OPTION_TRACK_KEY)||'[]')}catch{return []}}
+function saveOptionMovementSnapshot(){
+ const contract=document.getElementById('trackContract').value.trim(),entry=Number(document.getElementById('trackEntry').value),current=Number(document.getElementById('trackCurrent').value),sl=Number(document.getElementById('trackSL').value),t1=Number(document.getElementById('trackTP1').value),t2=Number(document.getElementById('trackTP2').value),t3=Number(document.getElementById('trackTP3').value);
+ if(!contract||!(entry>0)||!(current>0)){alert('Contract, Entry और Current Premium भरें।');return}
+ const status=current<=sl?'🛑 SL स्तर छुआ/नीचे':current>=t3?'🎯 TP3 स्तर छुआ/ऊपर':current>=t2?'🎯 TP2 स्तर छुआ/ऊपर':current>=t1?'🎯 TP1 स्तर छुआ/ऊपर':'चल रहा';
+ const row={ts:Date.now(),time:new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),contract,entry,current,change:current-entry,changePct:(current-entry)/entry*100,sl,t1,t2,t3,status};
+ const rows=getOptionTrackerRows();rows.unshift(row);if(rows.length>5000)rows.length=5000;localStorage.setItem(OPTION_TRACK_KEY,JSON.stringify(rows));renderOptionMovementTracker();
+}
+function renderOptionMovementTracker(){
+ const rows=getOptionTrackerRows(),latest=rows[0],tbody=document.getElementById('trackRows');
+ if(!tbody)return;
+ document.getElementById('trackCount').textContent=rows.length;
+ document.getElementById('trackLatest').textContent=latest?fmt(latest.current):'—';
+ document.getElementById('trackMovement').textContent=latest?fmt(latest.change)+' ('+latest.changePct.toFixed(2)+'%)':'—';
+ document.getElementById('trackStatus').textContent=latest?latest.status:'—';
+ tbody.innerHTML=rows.slice(0,100).map(x=>'<tr><td>'+x.time+'</td><td>'+x.contract+'</td><td>'+fmt(x.current)+'</td><td>'+fmt(x.change)+' ('+Number(x.changePct).toFixed(2)+'%)</td><td>'+x.status+'</td></tr>').join('')||'<tr><td colspan="5">कोई snapshot नहीं</td></tr>';
+}
+function exportOptionMovementTracker(){
+ const rows=getOptionTrackerRows();if(!rows.length){alert('Export के लिए records नहीं हैं।');return}
+ const headers=['time','contract','entry','current','change','changePct','sl','t1','t2','t3','status'];
+ const csv=[headers.join(','),...rows.map(x=>headers.map(k=>JSON.stringify(x[k]??'')).join(','))].join('\n');
+ const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='option-movement-tracker.csv';a.click();URL.revokeObjectURL(url);
+}
 function loadChart(){
  const symbol=document.getElementById('symbol').value.trim();if(!symbol)return;
  const params=new URLSearchParams({tvwidgetsymbol:symbol,interval:'15',hidesidetoolbar:'0',symboledit:'1',saveimage:'0',toolbarbg:'08111f',theme:'dark',style:'1',timezone:'Asia/Kolkata',withdateranges:'1',hideideas:'1'});
@@ -722,7 +764,7 @@ function calculate(){
  document.getElementById('rr').textContent=valid&&riskPer>0&&rewardPer>0?(rewardPer/riskPer).toFixed(2)+' : 1':'—';
  document.getElementById('warning').textContent=!valid?'Entry, SL, Target और Quantity भरें।':(riskPer<=0||rewardPer<=0?'जाँचें: खरीद में SL एंट्री से नीचे और टारगेट ऊपर होना चाहिए। बिक्री में SL एंट्री से ऊपर और टारगेट नीचे होना चाहिए।':'यह अनुमानित गणना है। ब्रोकरेज, टैक्स, स्लिपेज, लॉट साइज़ और फंडिंग शामिल नहीं हैं।');
 }
-document.addEventListener('DOMContentLoaded',()=>{renderCryptoMovementLog();loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals();if(localStorage.getItem('signalNotificationsEnabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){document.getElementById('notificationStatus').textContent='Notification: चालू';}setInterval(loadAllCryptoSignals,10000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadAllCryptoSignals();});window.addEventListener('online',()=>loadAllCryptoSignals());});
+document.addEventListener('DOMContentLoaded',()=>{renderCryptoMovementLog();renderOptionMovementTracker();loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals();if(localStorage.getItem('signalNotificationsEnabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){document.getElementById('notificationStatus').textContent='Notification: चालू';}setInterval(loadAllCryptoSignals,10000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadAllCryptoSignals();});window.addEventListener('online',()=>loadAllCryptoSignals());});
 </script>
 </body>
 </html>
