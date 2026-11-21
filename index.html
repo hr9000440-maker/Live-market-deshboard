@@ -567,7 +567,14 @@ async function analyzeCryptoCoin(coin){
  catch(e){lastFeedError=e.errors?.map(x=>x.name==='AbortError'?'timeout':x.message||'feed error').join(' | ')||'all feeds failed'}
  if(!raw)throw new Error(coin+' 15m market feed unavailable. सभी स्रोत असफल: '+lastFeedError);
  const candles=raw,lastClosed=Number(candles[candles.length-1][0]),saved=null;
- // Live mode: include the currently-forming 15m candle so the signal can update between candle closes.
+ // Binance returns the latest 15m candle as still-forming. Keep it for EARLY signals only.
+ // Closed-candle confirmation must use candles.slice(0,-1).
+ const closedCandles=candles.slice(0,-1);
+ const closedCloses=closedCandles.map(x=>Number(x[4]));
+ const confirmedClose=closedCloses.at(-1),confirmedE9=ema(closedCloses.slice(-30),9),confirmedE21=ema(closedCloses.slice(-50),21),confirmedRsi=rsi(closedCloses,14);
+ let confirmedSide='WAIT',confirmationReason='पिछली 15m candle बंद होने पर दिशा की पुष्टि नहीं';
+ if(confirmedClose>confirmedE9&&confirmedRsi>=40&&confirmedRsi<=85){confirmedSide='BUY / LONG';confirmationReason='CONFIRMED: पिछली पूरी बंद 15m candle EMA9 के ऊपर और RSI अनुकूल';}
+ else if(confirmedClose<confirmedE9&&confirmedRsi>=15&&confirmedRsi<=60){confirmedSide='SELL / SHORT';confirmationReason='CONFIRMED: पिछली पूरी बंद 15m candle EMA9 के नीचे और RSI अनुकूल';}
  const closes=candles.map(x=>Number(x[4])),highs=candles.map(x=>Number(x[2])),lows=candles.map(x=>Number(x[3])),volumes=candles.map(x=>Number(x[5]));
  const close=closes.at(-1),open=Number(candles.at(-1)[1]),high=highs.at(-1),low=lows.at(-1),volume=volumes.at(-1);
  const e9=ema(closes.slice(-30),9),e21=ema(closes.slice(-50),21),rv=rsi(closes,14);
@@ -613,7 +620,7 @@ async function analyzeCryptoCoin(coin){
  const risk=sl===null?null:Math.abs(entry-sl),t1=sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk),t2=sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk),t3=sl===null?null:(side==='BUY / LONG'?entry+3*risk:entry-3*risk);
  const previous=prevSide||'कोई पिछला सिग्नल नहीं',changeReason=previous===side?'सिग्नल वही रहा':('सिग्नल बदला: '+previous+' → '+side);
  const quality='DATA: '+usedFeed+' • TRADE SIGNAL • 15m momentum/EMA + RSI active • Volume informational: '+(volOk?'औसत से अधिक':'औसत से कम')+' • Candle body informational: '+(candleOk?'strong':'weak');
- const signal={coin,side,strong,baseSide:side,signalType,reason,diagnostic,quality,changeReason,previous,entry,sl,t1,t2,t3,rv,e9,e21,volume,avgVol,open,high,low,time:new Date(Number(candles.at(-1)[0])).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),candleTime:lastClosed};
+ const signal={coin,side,strong,baseSide:side,signalType,reason,diagnostic,quality,changeReason,previous,entry,sl,t1,t2,t3,rv,e9,e21,volume,avgVol,open,high,low,confirmedSide,confirmedClose,confirmedE9,confirmedE21,confirmedRsi,confirmationReason,time:new Date(Number(candles.at(-1)[0])).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),candleTime:lastClosed};
  cryptoSignalLock[coin]={candleTime:lastClosed,signal};return signal;
 }
 const CRYPTO_MOVEMENT_KEY='cryptoMovementLog_v1';
@@ -671,7 +678,7 @@ function renderCryptoOrderRow(s){
 function showCoinSignal(s){
  const el=document.getElementById('sig-'+s.coin),info=document.getElementById('siginfo-'+s.coin);
  if(el){el.textContent=s.side;el.className=s.side==='BUY / LONG'?'call-text':s.side==='SELL / SHORT'?'put-text':'signal-neutral';}
- if(info)info.textContent=(s.side==='WAIT'?'❌ Signal नहीं: '+(s.diagnostic||s.reason)+' • ':'✅ '+s.reason+' • ')+'Entry '+fmt(s.entry)+' | SL '+fmt(s.sl)+' | TP1 '+fmt(s.t1)+' | TP2 '+fmt(s.t2)+' | TP3 '+fmt(s.t3)+' • RSI '+fmt(s.rv)+' • EMA9 '+fmt(s.e9)+' / EMA21 '+fmt(s.e21)+' • '+s.quality+' • '+s.time;
+ if(info)info.textContent=(s.side==='WAIT'?'❌ Signal नहीं: '+(s.diagnostic||s.reason)+' • ':'✅ '+s.reason+' • ')+'Entry '+fmt(s.entry)+' | SL '+fmt(s.sl)+' | TP1 '+fmt(s.t1)+' | TP2 '+fmt(s.t2)+' | TP3 '+fmt(s.t3)+' • Live RSI '+fmt(s.rv)+' • EMA9 '+fmt(s.e9)+' / EMA21 '+fmt(s.e21)+' • 15m बंद कैंडल: '+(s.confirmedSide==='WAIT'?'अभी पुष्टि नहीं':s.confirmedSide)+' • '+(s.confirmationReason||'')+' • '+s.quality+' • '+s.time;
 }
 function enableSignalNotifications(){
  if(!('Notification' in window)){document.getElementById('notificationStatus').textContent='इस browser में Notification supported नहीं';return;}
@@ -762,7 +769,7 @@ async function loadAllCryptoSignals(){
     const el=document.getElementById('sig-'+coin),info=document.getElementById('siginfo-'+coin);
     const direction=s.side==='BUY / LONG'?'BUY CALL':s.side==='SELL / SHORT'?'BUY PUT':'WAIT';
     if(el){el.textContent=direction;el.className=direction==='BUY CALL'?'call-text':direction==='BUY PUT'?'put-text':'signal-neutral';}
-    if(info)info.textContent=s.reason+' • Entry '+fmt(s.entry)+' | SL '+fmt(s.sl)+' | TP1 '+fmt(s.t1)+' | TP2 '+fmt(s.t2)+' • RSI '+fmt(s.rv)+' • EMA9 '+fmt(s.e9)+' / EMA21 '+fmt(s.e21)+' • '+(s.signalType||'TRADE SIGNAL')+' SIGNAL • '+s.time;
+    if(info)info.textContent=s.reason+' • Entry '+fmt(s.entry)+' | SL '+fmt(s.sl)+' | TP1 '+fmt(s.t1)+' | TP2 '+fmt(s.t2)+' • Live RSI '+fmt(s.rv)+' • EMA9 '+fmt(s.e9)+' / EMA21 '+fmt(s.e21)+' • 15m बंद कैंडल पुष्टि: '+(s.confirmedSide==='WAIT'?'WAIT':s.confirmedSide)+' • '+(s.confirmationReason||'')+' • '+(s.signalType||'TRADE SIGNAL')+' SIGNAL • '+s.time;
     cryptoTrendSignal[coin]=direction;cryptoSignalStrength[coin]=!!s.strong;
    }else{
     showCoinSignal(s);cryptoTrendSignal[coin]=s.side==='BUY / LONG'?'BUY CALL':s.side==='SELL / SHORT'?'BUY PUT':'WAIT';cryptoSignalStrength[coin]=!!s.strong;
