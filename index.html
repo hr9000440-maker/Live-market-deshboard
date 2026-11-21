@@ -746,12 +746,19 @@ function notifyCryptoDataError(coin,message){
 function notifyTelegramCryptoSignal(s){
  if(!s||!['BTC','ETH','BNB','ZEC'].includes(s.coin)||!s.side||s.side==='WAIT')return;
  const cfg=tgConfig();if(!cfg.token||!cfg.chatId)return;
- const candle=s.candleTime||s.time||Date.now();const stamp=String(candle)+'_'+s.side;
- const key='tgCryptoSignal_'+s.coin;
- if(localStorage.getItem(key)===stamp)return;
- const dir=(s.coin==='BTC'||s.coin==='ETH')?(s.side==='BUY / LONG'?'🟢 BUY CALL':'🔴 BUY PUT'):(s.side==='BUY / LONG'?'🟢 BUY / LONG':'🔴 SELL / SHORT');
- const msg='🚨 CRYPTO TRADE SIGNAL\\nCoin: '+s.coin+'\\nSignal: '+dir+'\\nType: '+(s.signalType||'NORMAL SIGNAL')+'\\nEntry: '+fmt(s.entry)+'\\n🛑 SL: '+fmt(s.sl)+'\\n🎯 TP1: '+fmt(s.t1)+'\\n🎯 TP2: '+fmt(s.t2)+'\\n🎯 TP3: '+fmt(s.t3)+'\\nRSI: '+fmt(s.rv)+'\\nEMA9: '+fmt(s.e9)+' | EMA21: '+fmt(s.e21)+'\\nTime: '+(s.time||new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}))+'\\nReason: '+(s.reason||'15m movement signal')+'\\n⚠️ Signal only — automatic order नहीं।';
- sendTelegramText(msg).then(()=>localStorage.setItem(key,stamp)).catch(e=>telegramStatus('Signal alert भेजने में error: '+e.message));
+ const alerts=[];
+ // EARLY alerts use the live candle; CONFIRMED alerts are sent only when the last
+ // fully-closed 15m candle confirms the same direction, keeping Entry/SL/TP aligned.
+ if(s.signalType==='EARLY')alerts.push({type:'EARLY',side:s.side,entry:s.entry,sl:s.sl,t1:s.t1,t2:s.t2,t3:s.t3,reason:s.reason,rv:s.rv,e9:s.e9,e21:s.e21,time:s.time,candle:s.candleTime});
+ if(s.confirmedSide&&s.confirmedSide!=='WAIT'&&s.confirmedSide===s.side)alerts.push({type:'CONFIRMED 15m',side:s.confirmedSide,entry:s.entry,sl:s.sl,t1:s.t1,t2:s.t2,t3:s.t3,reason:s.confirmationReason,rv:s.confirmedRsi,e9:s.confirmedE9,e21:s.confirmedE21,time:s.time,candle:s.candleTime});
+ alerts.forEach(a=>{
+  const stamp=String(a.candle)+'_'+a.side+'_'+a.type;
+  const key='tgCryptoSignal_'+s.coin+'_'+a.type.replace(/[^A-Z0-9]/gi,'');
+  if(localStorage.getItem(key)===stamp)return;
+  const dir=(s.coin==='BTC'||s.coin==='ETH')?(a.side==='BUY / LONG'?'🟢 BUY CALL':'🔴 BUY PUT'):(a.side==='BUY / LONG'?'🟢 BUY / LONG':'🔴 SELL / SHORT');
+  const msg='🚨 CRYPTO '+a.type+' SIGNAL\\nCoin: '+s.coin+'\\nSignal: '+dir+'\\nEntry: '+fmt(a.entry)+'\\n🛑 SL: '+fmt(a.sl)+'\\n🎯 TP1: '+fmt(a.t1)+'\\n🎯 TP2: '+fmt(a.t2)+'\\n🎯 TP3: '+fmt(a.t3)+'\\nRSI: '+fmt(a.rv)+'\\nEMA9: '+fmt(a.e9)+' | EMA21: '+fmt(a.e21)+'\\nTime: '+(a.time||new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}))+'\\nReason: '+(a.reason||'15m movement signal')+'\\n⚠️ Signal only — automatic order नहीं।';
+  sendTelegramText(msg).then(()=>localStorage.setItem(key,stamp)).catch(e=>telegramStatus('Signal alert भेजने में error: '+e.message));
+ });
 }
 
 async function loadAllCryptoSignals(){
