@@ -561,21 +561,20 @@ async function analyzeCryptoCoin(coin){
   {name:'Binance Spot Backup',url:'https://data-api.binance.vision/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60',parse:j=>j},
   {name:'Binance Futures',url:'https://fapi.binance.com/fapi/v1/klines?symbol='+symbol+'&interval=15m&limit=60',parse:j=>j},
   {name:'Bybit Futures',url:'https://api.bybit.com/v5/market/kline?category=linear&symbol='+symbol+'&interval=15&limit=60',parse:j=>(j.result?.list||[]).slice().reverse().map(x=>[Number(x[0]),x[1],x[2],x[3],x[4],x[5],Number(x[0])+900000-1])},
-  // Independent public spot fallback for all four coins when Binance/Bybit are blocked or unavailable.
   {name:'Gate.io Spot Backup',url:'https://api.gateio.ws/api/v4/spot/candlesticks?currency_pair='+coin+'_USDT&interval=15m&limit=60',parse:j=>(Array.isArray(j)?j:[]).map(x=>[Number(x[0])*1000,String(x[5]),String(x[3]),String(x[4]),String(x[2]),String(x[1]),Number(x[0])*1000+900000-1]).sort((a,b)=>a[0]-b[0])}
  ];
  let raw=null,lastFeedError='',usedFeed='';
- // Run independent public feeds in parallel so one slow endpoint cannot delay the whole dashboard.
  const feedAttempts=feeds.map(async feed=>{
   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),12000);
   try{
    const res=await fetch(feed.url,{cache:'no-store',signal:controller.signal});
    if(!res.ok)throw new Error('HTTP '+res.status);
-   const json=await res.json();if(json.code&&json.code!==0)throw new Error(json.retMsg||json.msg||'API error');
+   const json=await res.json();
+   if(json.code&&json.code!==0)throw new Error(json.retMsg||json.msg||'API error');
    const data=feed.parse(json);
-   if(!Array.isArray(data)||data.length<30)throw new Error('15m candles कम हैं');
-   const valid=data.filter(x=>Array.isArray(x)&&x.length>=6&&[0,1,2,3,4,5].every(i=>Number.isFinite(Number(x[i])))&&Number(x[1])>0&&Number(x[2])>0&&Number(x[3])>0&&Number(x[4])>0);
-   if(valid.length<30)throw new Error('15m candles में valid OHLCV डेटा कम है');
+   if(!Array.isArray(data)||data.length<35)throw new Error('15m candles कम हैं');
+   const valid=data.filter(x=>Array.isArray(x)&&x.length>=6&&[0,1,2,3,4,5].every(i=>Number.isFinite(Number(x[i])))&&Number(x[1])>0&&Number(x[2])>0&&Number(x[3])>0&&Number(x[4])>0&&Number(x[5])>=0);
+   if(valid.length<35)throw new Error('15m candles में valid OHLCV डेटा कम है');
    valid.sort((a,b)=>Number(a[0])-Number(b[0]));
    return {data:valid,feed:feed.name};
   }finally{clearTimeout(timeout)}
@@ -583,77 +582,94 @@ async function analyzeCryptoCoin(coin){
  try{const winner=await Promise.any(feedAttempts);raw=winner.data;usedFeed=winner.feed}
  catch(e){lastFeedError=e.errors?.map(x=>x.name==='AbortError'?'timeout':x.message||'feed error').join(' | ')||'all feeds failed'}
  if(!raw)throw new Error(coin+' 15m market feed unavailable. सभी स्रोत असफल: '+lastFeedError);
- const candles=raw,lastClosed=Number(candles[candles.length-1][0]),saved=null;
- // Binance returns the latest 15m candle as still-forming. Keep it for EARLY signals only.
- // Closed-candle confirmation must use candles.slice(0,-1).
- const closedCandles=candles.slice(0,-1);
- const closedCloses=closedCandles.map(x=>Number(x[4]));
- const confirmedClose=closedCloses.at(-1),confirmedE9=ema(closedCloses.slice(-30),9),confirmedE21=ema(closedCloses.slice(-50),21),confirmedRsi=rsi(closedCloses,14);
- let confirmedSide='WAIT',confirmationReason='पिछली 15m candle बंद होने पर दिशा की पुष्टि नहीं';
- if(confirmedClose>confirmedE9&&confirmedRsi>=40&&confirmedRsi<=85){confirmedSide='BUY / LONG';confirmationReason='CONFIRMED: पिछली पूरी बंद 15m candle EMA9 के ऊपर और RSI अनुकूल';}
- else if(confirmedClose<confirmedE9&&confirmedRsi>=15&&confirmedRsi<=60){confirmedSide='SELL / SHORT';confirmationReason='CONFIRMED: पिछली पूरी बंद 15m candle EMA9 के नीचे और RSI अनुकूल';}
- const closes=candles.map(x=>Number(x[4])),highs=candles.map(x=>Number(x[2])),lows=candles.map(x=>Number(x[3])),volumes=candles.map(x=>Number(x[5]));
- const close=closes.at(-1),open=Number(candles.at(-1)[1]),high=highs.at(-1),low=lows.at(-1),volume=volumes.at(-1);
+
+ // Exchange kline endpoints include the currently-forming candle as the last row.
+ // Never generate a trade signal from that unfinished candle.
+ const closedCandles=raw.slice(0,-1);
+ if(closedCandles.length<30)throw new Error(coin+' की बंद 15m candles पर्याप्त नहीं हैं');
+ const candle=closedCandles.at(-1);
+ const candleTime=Number(candle[0]);
+ const closes=closedCandles.map(x=>Number(x[4]));
+ const highs=closedCandles.map(x=>Number(x[2]));
+ const lows=closedCandles.map(x=>Number(x[3]));
+ const volumes=closedCandles.map(x=>Number(x[5]));
+ const opens=closedCandles.map(x=>Number(x[1]));
+ const close=closes.at(-1),open=opens.at(-1),high=highs.at(-1),low=lows.at(-1),volume=volumes.at(-1);
  const e9=ema(closes.slice(-30),9),e21=ema(closes.slice(-50),21),rv=rsi(closes,14);
- const avgVol=volumes.slice(-21,-1).reduce((a,b)=>a+b,0)/20,volOk=volume>avgVol;
- const candleRange=Math.max(high-low,1e-12),bodyStrength=Math.abs(close-open)/candleRange,closeLocation=close>open?(close-low)/candleRange:(high-close)/candleRange;
- const candleOk=bodyStrength>=0.50&&closeLocation>=0.65;
- const ranges=[];for(let i=Math.max(1,candles.length-14);i<candles.length;i++)ranges.push(Math.max(highs[i]-lows[i],Math.abs(highs[i]-closes[i-1]),Math.abs(lows[i]-closes[i-1])));
- const atr=ranges.reduce((a,b)=>a+b,0)/ranges.length;
- let side='WAIT',reason='EMA/RSI में साफ पुष्टि नहीं',diagnostic='';
- const prevHigh=highs.at(-2),prevLow=lows.at(-2),breakUp=close>prevHigh,breakDown=close<prevLow;
- const buyChecks={priceAboveEMA9:close>e9,emaBullish:e9>e21,breakout:breakUp,rsiInRange:rv>=30&&rv<=90};
- const sellChecks={priceBelowEMA9:close<e9,emaBearish:e9<e21,breakdown:breakDown,rsiInRange:rv>=10&&rv<=70};
- // EARLY SIGNAL: live 15m candle can trigger on EMA9 reclaim/loss with momentum RSI,
- // or on a break of the previous candle high/low. CONFIRMED SIGNAL uses the stricter
- // original EMA alignment / breakout rules. This keeps early alerts visible without hiding confirmation.
- let earlySide='WAIT',earlyReason='';
- // EARLY alerts use the live 15m candle before full EMA9/EMA21 alignment.
- // Require a modest move from the candle open plus RSI direction, or a prior-candle break.
- const candleMovePct=open>0?((close-open)/open)*100:0;
- const earlyBuyMomentum=close>open&&candleMovePct>=0.03&&rv>=35&&rv<=90;
- const earlySellMomentum=close<open&&candleMovePct<=-0.03&&rv>=10&&rv<=65;
- if(breakUp||earlyBuyMomentum){earlySide='BUY / LONG';earlyReason=breakUp?'EARLY breakout above previous 15m high':'EARLY bullish 15m candle + 0.03% momentum + RSI';}
- else if(breakDown||earlySellMomentum){earlySide='SELL / SHORT';earlyReason=breakDown?'EARLY breakdown below previous 15m low':'EARLY bearish 15m candle + 0.03% momentum + RSI';}
- if(close>e9&&rv>=40&&rv<=85){side='BUY / LONG';reason=breakUp?'CONFIRMED 15m momentum breakout + RSI':'CONFIRMED 15m EMA direction + RSI';}
- else if(close<e9&&rv>=15&&rv<=60){side='SELL / SHORT';reason=breakDown?'CONFIRMED 15m momentum breakdown + RSI':'CONFIRMED 15m EMA direction + RSI';}
- if(side==='WAIT'&&earlySide!=='WAIT'){side=earlySide;reason=earlyReason;}
- // Keep a valid signal visible for the rest of the same live 15m candle.
- // A brief intra-candle pullback must not erase an already-issued BUY/SELL.
- const thisCandle=Number(candles.at(-1)[0]);
+ const avgVol=volumes.slice(-21,-1).reduce((a,b)=>a+b,0)/20;
+ const volOk=avgVol>0&&volume>=avgVol*0.8;
+ const candleRange=Math.max(high-low,1e-12);
+ const bodyStrength=Math.abs(close-open)/candleRange;
+ const closeLocation=close>open?(close-low)/candleRange:(high-close)/candleRange;
+ const candleOk=bodyStrength>=0.50&&closeLocation>=0.70;
+ const ranges=[];
+ for(let i=Math.max(1,closedCandles.length-14);i<closedCandles.length;i++){
+  ranges.push(Math.max(highs[i]-lows[i],Math.abs(highs[i]-closes[i-1]),Math.abs(lows[i]-closes[i-1])));
+ }
+ const atr=ranges.reduce((a,b)=>a+b,0)/Math.max(1,ranges.length);
+
+ // Strong signals require ALL conditions on the same fully closed 15m candle.
+ // No early/intrabar signal, no signal based only on price crossing EMA9.
+ const buyChecks={
+  priceAboveEMA9:close>e9,
+  emaBullish:e9>e21,
+  rsiInRange:rv>=45&&rv<=75,
+  bullishBody:close>open,
+  strongClose:candleOk,
+  volumeConfirmed:volOk
+ };
+ const sellChecks={
+  priceBelowEMA9:close<e9,
+  emaBearish:e9<e21,
+  rsiInRange:rv>=25&&rv<=55,
+  bearishBody:close<open,
+  strongClose:candleOk,
+  volumeConfirmed:volOk
+ };
+ const buyOk=Object.values(buyChecks).every(Boolean);
+ const sellOk=Object.values(sellChecks).every(Boolean);
+ let side=buyOk?'BUY / LONG':sellOk?'SELL / SHORT':'WAIT';
+ let reason=buyOk?'CONFIRMED: बंद 15m candle + EMA9/EMA21 + RSI + मजबूत bullish body + volume':
+  sellOk?'CONFIRMED: बंद 15m candle + EMA9/EMA21 + RSI + मजबूत bearish body + volume':
+  'WAIT: बंद 15m candle पर Strong Signal की सभी शर्तें पूरी नहीं हुईं';
+ const failed=[];
+ if(side==='WAIT'){
+  const checks=close>=open?buyChecks:sellChecks;
+  for(const [key,ok] of Object.entries(checks))if(!ok)failed.push(key);
+ }
+ const diagnostic=side==='WAIT'?'पुष्टि बाकी: '+failed.join(', '):'सभी 15m confirmation checks पास';
  const priorLock=readSignalLock(coin);
  let lockedSnapshot=null;
- // Once a valid BUY/SELL appears in a 15m candle, keep that first signal
- // until the candle closes. Do not let a brief opposite tick flip or erase it.
- if(priorLock&&Number(priorLock.candleTime)===thisCandle&&priorLock.signal&&priorLock.signal.side&&priorLock.signal.side!=='WAIT'){
+ if(priorLock&&Number(priorLock.candleTime)===candleTime&&priorLock.signal&&priorLock.signal.side&&priorLock.signal.side!=='WAIT'){
   lockedSnapshot=priorLock.signal;
   side=lockedSnapshot.side;
-  reason='LOCKED: इस 15m candle का पहला '+side+' signal candle close तक सुरक्षित';
+  reason='LOCKED: बंद 15m candle का पहला confirmed signal सुरक्षित';
  }
- if(side==='WAIT'){
-  const failed=[];
-  if(!(close>e9))failed.push('BUY: Price EMA9 के ऊपर नहीं');
-  if(!(e9>e21)&&!breakUp)failed.push('BUY: EMA9>EMA21 या breakout नहीं');
-  if(!(rv>=30&&rv<=90))failed.push('BUY: RSI 30–90 सीमा से बाहर');
-  if(!(close<e9))failed.push('SELL: Price EMA9 के नीचे नहीं');
-  if(!(e9<e21)&&!breakDown)failed.push('SELL: EMA9<EMA21 या breakdown नहीं');
-  if(!(rv>=10&&rv<=70))failed.push('SELL: RSI 10–70 सीमा से बाहर');
-  diagnostic=failed.join(' | ')||'BUY/SELL की पूरी शर्त नहीं बनी';
- }else diagnostic='Signal trigger confirmed: '+reason;
- // 15m EMA/RSI direction is the signal trigger. Higher-timeframe, volume and candle-body
- // filters are informational only, so they cannot silently suppress a valid directional signal.
- const h1Info='1h filter disabled';
- const prevSide=null;
- const strong=side!=='WAIT',signalType=lockedSnapshot?(lockedSnapshot.signalType||'EARLY'):(reason.startsWith('EARLY')?'EARLY':'CONFIRMED');
+ const strong=side!=='WAIT';
+ const signalType='CONFIRMED';
  const entry=lockedSnapshot?Number(lockedSnapshot.entry):close;
  const sl=lockedSnapshot?lockedSnapshot.sl:(side==='BUY / LONG'?entry-1.2*atr:side==='SELL / SHORT'?entry+1.2*atr:null);
- const risk=sl===null?null:Math.abs(entry-sl),t1=lockedSnapshot?lockedSnapshot.t1:(sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk)),t2=lockedSnapshot?lockedSnapshot.t2:(sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk)),t3=lockedSnapshot?lockedSnapshot.t3:(sl===null?null:(side==='BUY / LONG'?entry+3*risk:entry-3*risk));
- const previous=prevSide||'कोई पिछला सिग्नल नहीं',changeReason=previous===side?'सिग्नल वही रहा':('सिग्नल बदला: '+previous+' → '+side);
- const quality='DATA: '+usedFeed+' • TRADE SIGNAL • 15m momentum/EMA + RSI active • Volume informational: '+(volOk?'औसत से अधिक':'औसत से कम')+' • Candle body informational: '+(candleOk?'strong':'weak');
- const signal={coin,side,strong,baseSide:side,signalType,reason,diagnostic,quality,changeReason,previous,entry,sl,t1,t2,t3,rv,e9,e21,volume,avgVol,open,high,low,confirmedSide,confirmedClose,confirmedE9,confirmedE21,confirmedRsi,confirmationReason,time:new Date(Number(candles.at(-1)[0])).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),candleTime:lastClosed};
- cryptoSignalLock[coin]={candleTime:lastClosed,signal};
- // Persist the first valid signal and its original Entry/SL/TP for this candle.
- if(!lockedSnapshot||!priorLock||Number(priorLock.candleTime)!==thisCandle)saveSignalLock(coin,{candleTime:thisCandle,signal});
+ const risk=sl===null?null:Math.abs(entry-sl);
+ const t1=lockedSnapshot?lockedSnapshot.t1:(sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk));
+ const t2=lockedSnapshot?lockedSnapshot.t2:(sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk));
+ const t3=lockedSnapshot?lockedSnapshot.t3:(sl===null?null:(side==='BUY / LONG'?entry+3*risk:entry-3*risk));
+ const confirmationReason=strong?'पूरी तरह बंद 15m candle पर पुष्टि':'अधूरी/कमजोर पुष्टि; ट्रेड सिग्नल नहीं';
+ const confirmedSide=side;
+ const signal={
+  coin,side,strong,baseSide:side,signalType,reason,diagnostic,
+  quality:'DATA: '+usedFeed+' • केवल CLOSED 15m candle • EMA9/EMA21 + RSI14 + Candle body + Volume confirmed',
+  changeReason:reason,previous:'केवल बंद candle के आधार पर',
+  entry,sl,t1,t2,t3,rv,e9,e21,volume,avgVol,open,high,low,
+  confirmedSide,confirmedClose:close,confirmedE9:e9,confirmedE21:e21,confirmedRsi:rv,
+  confirmationReason,
+  time:new Date(candleTime+900000).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),
+  candleTime
+ };
+ cryptoSignalLock[coin]={candleTime,signal};
+ // Persist a confirmed signal for this closed candle; WAIT is never stored as a lock.
+ if(strong&&(!lockedSnapshot||!priorLock||Number(priorLock.candleTime)!==candleTime)){
+  saveSignalLock(coin,{candleTime,signal});
+ }
  return signal;
 }
 const CRYPTO_MOVEMENT_KEY='cryptoMovementLog_v1';
