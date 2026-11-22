@@ -350,7 +350,12 @@ async function loadCryptoOptions(){
  document.getElementById('optUnderlying').textContent='—';document.getElementById('optCount').textContent='—';
  try{
   let rows=[],underlying=null,lastError=null;
-  if(coin==='XRP'){\n   // XRP CoinSwitch No-Expiry option is not exposed by this public options API.\n   // Keep the underlying signal card active and do not invent expiry/premium data.\n   rows=[];\n   underlying=null;\n  }else if(coin==='ZEC'){
+  if(coin==='XRP'){
+   // XRP CoinSwitch No-Expiry option is not exposed by this public options API.
+   // Keep the underlying signal card active and do not invent expiry/premium data.
+   rows=[];
+   underlying=null;
+  }else if(coin==='ZEC'){
    // ZEC options are listed on Paradex, not Deribit. Fetch its public option markets and summaries.
    const marketUrl='https://api.prod.paradex.trade/v1/markets?asset_kind=OPTION&base_asset=ZEC';
    const summaryUrl='https://api.prod.paradex.trade/v1/markets/summary?market=ALL&asset_kind=OPTION&base_asset=ZEC';
