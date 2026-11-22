@@ -39,6 +39,32 @@ def rsi(values,period=14):
     ag=sum(gains)/period; al=sum(losses)/period
     return 100 if al==0 else 100-100/(1+ag/al)
 
+BUDGET_INR = 500
+USD_INR_BUFFER = 95
+EXCHANGE_RULES = None
+
+def minimum_order_cost_inr(coin, entry):
+    global EXCHANGE_RULES
+    if EXCHANGE_RULES is None:
+        req=urllib.request.Request("https://fapi.binance.com/fapi/v1/exchangeInfo",
+                                  headers={"User-Agent":"market-alerts/1.0"})
+        with urllib.request.urlopen(req,timeout=15) as r:
+            payload=json.loads(r.read())
+        EXCHANGE_RULES={x["symbol"]:x for x in payload.get("symbols",[])}
+    info=EXCHANGE_RULES.get(coin+"USDT")
+    if not info:
+        raise RuntimeError(coin+"USDT futures rules unavailable; alert blocked")
+    filters=info.get("filters",[])
+    lot=next((x for x in filters if x.get("filterType")=="LOT_SIZE"),None)
+    if not lot or float(lot.get("minQty",0))<=0:
+        raise RuntimeError(coin+"USDT minimum quantity unavailable; alert blocked")
+    min_notional=0.0
+    for f in filters:
+        if f.get("filterType") in ("MIN_NOTIONAL","NOTIONAL"):
+            min_notional=max(min_notional,float(f.get("notional",f.get("minNotional",0)) or 0))
+    minimum_usd=max(float(lot["minQty"])*float(entry),min_notional)
+    return minimum_usd*USD_INR_BUFFER
+
 def analyze(coin,interval):
     rows=candles(coin,interval); c=[float(x[4]) for x in rows]
     o=[float(x[1]) for x in rows]; h=[float(x[2]) for x in rows]; l=[float(x[3]) for x in rows]
@@ -67,6 +93,15 @@ def main():
       chosen=s15 if s15["side"]!="WAIT" else (s5 if s5["side"]!="WAIT" else None)
       if not chosen:
         print(f"{coin}: WAIT | 5m={s5['side']} 15m={s15['side']}"); continue
+      # ₹500 cap is checked against exchange minimum futures order notional.
+      # If exchange lot rules cannot be fetched, fail closed and send no trade alert.
+      try:
+        min_cost=minimum_order_cost_inr(coin,chosen["entry"])
+      except Exception as budget_error:
+        print(f"{coin}: budget check failed; alert blocked: {budget_error}"); continue
+      if min_cost > BUDGET_INR:
+        print(f"{coin}: alert blocked; exchange minimum order ≈ ₹{min_cost:.0f} exceeds ₹{BUDGET_INR}")
+        continue
       typ="CONFIRMED 15m" if chosen is s15 else "EARLY 5m"
       stamp=f"{typ}|{chosen['side']}|{chosen['candle']}"
       key=f"signal_{coin}"
