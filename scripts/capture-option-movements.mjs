@@ -28,6 +28,29 @@ async function captureDeribit(coin){
  for(const q of (j.result||[]))if(add('Deribit',coin,q.instrument_name,q.mark_price,q.bid_price,q.ask_price,q.underlying_price,q.open_interest,q.volume))n++;
  return n;
 }
+async function captureParadex(coin){
+ const base='https://api.prod.paradex.trade/v1/';
+ const [markets,summary]=await Promise.all([
+  json(base+'markets?asset_kind=OPTION&base_asset='+coin),
+  json(base+'markets/summary?market=ALL&asset_kind=OPTION&base_asset='+coin)
+ ]);
+ const marketRows=markets.results||markets.data||[];
+ const summaryRows=summary.results||summary.data||[];
+ if(!Array.isArray(marketRows)||!Array.isArray(summaryRows))throw new Error('Paradex response format बदल गया');
+ const bySymbol=new Map(summaryRows.map(x=>[x.symbol||x.market||x.instrument_name,x]));
+ let n=0;
+ for(const m of marketRows){
+  const name=m.symbol||m.market||m.instrument_name;
+  if(!name||!String(name).toUpperCase().includes(coin))continue;
+  const q=bySymbol.get(name)||{};
+  const mark=q.mark_price??q.mark??m.mark_price;
+  const bid=q.bid??q.bid_price??m.bid_price??0;
+  const ask=q.ask??q.ask_price??m.ask_price??0;
+  if(add('Paradex',coin,name,mark,bid,ask,q.underlying_price??m.underlying_price,q.open_interest??m.open_interest,q.volume_24h??q.total_volume??m.volume_24h))n++;
+ }
+ if(!n)throw new Error('Paradex पर '+coin+' के live option quotes नहीं मिले');
+ return n;
+}
 async function captureDelta(coin){
  const url='https://api.india.delta.exchange/v2/tickers?contract_types=call_options%2Cput_options&underlying_asset_symbols='+coin;
  const j=await json(url);
@@ -74,6 +97,9 @@ async function captureDeriveZec(){
 for(const coin of coins){
  let captured=0;
  try{captured=await captureDeribit(coin)}catch(e){console.error(coin+' Deribit failed:',e.message)}
+ if(captured===0&&(coin==='BNB'||coin==='ZEC')){
+  try{captured=await captureParadex(coin)}catch(e){console.error(coin+' Paradex failed:',e.message)}
+ }
  if(captured===0&&coin==='BNB'){
   try{captured=await captureBinanceBnb()}catch(e){console.error('BNB Binance Options failed:',e.message)}
  }
