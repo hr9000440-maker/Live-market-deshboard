@@ -147,6 +147,10 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
     {
       "proName": "BINANCE:BNBUSDT",
       "title": "BNB"
+    },
+    {
+      "proName": "BINANCE:XRPUSDT",
+      "title": "XRP"
     }
   ],
   "showSymbolLogo": true,
@@ -205,6 +209,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 <div class="card"><h3>ETHEREUM</h3><div class="value">BINANCE:ETHUSDT</div><div class="note">Spot / perpetual symbol chart</div></div>
 <div class="card"><h3>ZCASH</h3><div class="value">BINANCE:ZECUSDT</div><div class="note">Spot / perpetual symbol chart</div></div>
 <div class="card"><h3>BNB</h3><div class="value">BINANCE:BNBUSDT</div><div class="note">Spot / perpetual symbol chart</div></div>
+<div class="card"><h3>XRP</h3><div class="value">BINANCE:XRPUSDT</div><div class="note">Spot / perpetual symbol chart</div></div>
 </div>
 </section>
 
@@ -318,7 +323,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 </main>
 
 <script>
-let cryptoOptionData={BTC:[],ETH:[],ZEC:[]},cryptoOptionUnderlying={BTC:null,ETH:null,ZEC:null},cryptoTrendSignal={BTC:'WAIT',ETH:'WAIT',BNB:'WAIT',ZEC:'WAIT'},cryptoSignalStrength={BTC:false,ETH:false,BNB:false,ZEC:false};let optionLoadToken=0;
+let cryptoOptionData={BTC:[],ETH:[],ZEC:[]},cryptoOptionUnderlying={BTC:null,ETH:null,ZEC:null},cryptoTrendSignal={BTC:'WAIT',ETH:'WAIT',BNB:'WAIT',ZEC:'WAIT',XRP:'WAIT'},cryptoSignalStrength={BTC:false,ETH:false,BNB:false,ZEC:false,XRP:false};let optionLoadToken=0;
 function optionUsd(v,u){return Number.isFinite(Number(v))&&u?Number(v)*u:null}
 function optionMoney(v){return v==null?'—':Number(v).toLocaleString('en-US',{maximumFractionDigits:2})}
 function optionDate(n){const p=n.split('-');if(p[0]==='ZEC'&&p[1]==='USD'&&p.length>2)return p[2];return p.length>1?p[1]:''}
@@ -538,7 +543,7 @@ function renderCryptoOptions(){
 }
 function ema(values,period){let k=2/(period+1),v=values[0];for(let i=1;i<values.length;i++)v=values[i]*k+v*(1-k);return v}
 function rsi(values,period=14){let gains=0,losses=0;for(let i=values.length-period;i<values.length;i++){let d=values[i]-values[i-1];if(d>0)gains+=d;else losses-=d}let ag=gains/period,al=losses/period;return al===0?100:100-100/(1+ag/al)}
-let cryptoSignalLock={BTC:null,ETH:null,BNB:null,ZEC:null};
+let cryptoSignalLock={BTC:null,ETH:null,BNB:null,ZEC:null,XRP:null};
 // Cache the slower 1h confirmation so rapid dashboard refreshes do not overload the public market API.
 const cryptoH1Cache={};
 function readSignalLock(coin){try{return JSON.parse(localStorage.getItem('signalLock_'+coin)||'null')}catch{return null}}
@@ -692,7 +697,7 @@ function renderCryptoOrderRow(s){
  logDashboardTradeSignal(s);
  const tbody=document.getElementById('cryptoOrderRows');if(!tbody||!s)return;
  const rows=window.cryptoOrderSnapshots||{};rows[s.coin]=s;window.cryptoOrderSnapshots=rows;
- const names=['BTC','ETH','BNB','ZEC'];
+ const names=['BTC','ETH','BNB','ZEC','XRP'];
  const active=names.map(coin=>rows[coin]).filter(x=>x&&x.side!=='WAIT'&&x.strong);
  if(!active.length){tbody.innerHTML='<tr><td colspan="10">अभी कोई योग्य LIVE BUY/SELL trade signal नहीं है।</td></tr>';return;}
  tbody.innerHTML=active.map(x=>{const coin=x.coin;const direction=(coin==='BTC'||coin==='ETH')?(x.side==='BUY / LONG'?'BUY CALL':'BUY PUT'):(x.side==='BUY / LONG'?'BUY / LONG':'SELL / SHORT');const cls=direction.includes('BUY')?'call-text':'put-text';return '<tr><td>'+coin+'</td><td>'+(x.signalType==='EARLY'?'EARLY':'CONFIRMED')+'</td><td class="'+cls+'"><strong>'+direction+'</strong></td><td>'+fmt(x.entry)+'</td><td>'+fmt(x.sl)+'</td><td>'+fmt(x.t1)+'</td><td>'+fmt(x.t2)+'</td><td>'+fmt(x.t3)+'</td><td>'+fmt(x.rv)+'</td><td>'+x.time+'</td></tr>'}).join('');
@@ -731,9 +736,9 @@ function saveTelegramSettings(){const token=document.getElementById('telegramTok
 function telegramStatus(s){const e=document.getElementById('telegramStatus');if(e)e.textContent=s}
 async function findTelegramChatId(){const token=document.getElementById('telegramToken').value.trim()||tgConfig().token;if(!token){telegramStatus('पहले BotFather token भरें।');return}telegramStatus('Bot और /start message जाँचा जा रहा है…');try{const m=await(await fetch('https://api.telegram.org/bot'+encodeURIComponent(token)+'/getMe')).json();if(!m.ok)throw Error(m.description);const u=await(await fetch('https://api.telegram.org/bot'+encodeURIComponent(token)+'/getUpdates')).json();if(!u.ok)throw Error(u.description);const chats=(u.result||[]).map(x=>x.message?.chat||x.edited_message?.chat).filter(x=>x&&x.type==='private');if(!chats.length){telegramStatus('Bot @'+m.result.username+' सही है। Telegram में bot खोलकर Start और /start भेजें, फिर दोबारा दबाएँ।');return}document.getElementById('telegramToken').value=token;document.getElementById('telegramChatId').value=String(chats[chats.length-1].id);saveTelegramSettings();telegramStatus('Bot @'+m.result.username+' जुड़ गया; Chat ID मिल गई। अब Test Message भेजें।')}catch(e){telegramStatus('Telegram connect error: '+e.message)}}
 async function sendTelegramText(message){const q=tgConfig();if(!q.token||!q.chatId)throw Error('पहले Bot token और Chat ID सेट करें।');const r=await fetch('https://api.telegram.org/bot'+encodeURIComponent(q.token)+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:q.chatId,text:message,disable_web_page_preview:true})});const j=await r.json();if(!j.ok)throw Error(j.description||'Send failed')}
-async function testTelegramAlert(){saveTelegramSettings();try{await sendTelegramText('✅ Telegram connected. BTC/ETH option और BTC/ETH/BNB/ZEC futures के signal alerts इस bot पर आएंगे।');telegramStatus('Test message भेज दिया गया।')}catch(e){telegramStatus('Test message नहीं गया: '+e.message)}}
+async function testTelegramAlert(){saveTelegramSettings();try{await sendTelegramText('✅ Telegram connected. BTC/ETH option और BTC/ETH/BNB/ZEC/XRP futures के signal alerts इस bot पर आएंगे।');telegramStatus('Test message भेज दिया गया।')}catch(e){telegramStatus('Test message नहीं गया: '+e.message)}}
 function notifyTelegramStrongOption(coin,contract,signal,markUsd,spread,slUsd,tp1Usd,tp2Usd,tp3Usd,bidUsd,askUsd,side,strike,expiry,underlying,reason){
- if(!['BTC','ETH','BNB','ZEC'].includes(coin))return;
+ if(!['BTC','ETH','BNB','ZEC','XRP'].includes(coin))return;
  const cfg=tgConfig(),lock=cryptoSignalLock[coin],candle=lock?.signal?.candleTime||'';
  if(!cfg.token||!cfg.chatId)return;
  const key='tgSent_'+coin+'_'+contract+'_'+signal,stamp=String(candle)+'_'+signal;
@@ -766,7 +771,7 @@ function notifyCryptoDataError(coin,message){
 }
 
 function notifyTelegramCryptoSignal(s){
- if(!s||!['BTC','ETH','BNB','ZEC'].includes(s.coin)||!s.side||s.side==='WAIT')return;
+ if(!s||!['BTC','ETH','BNB','ZEC','XRP'].includes(s.coin)||!s.side||s.side==='WAIT')return;
  const cfg=tgConfig();if(!cfg.token||!cfg.chatId)return;
  const alerts=[];
  // EARLY alerts use the live candle; CONFIRMED alerts are sent only when the last
@@ -786,7 +791,7 @@ function notifyTelegramCryptoSignal(s){
 async function loadAllCryptoSignals(){
  if(window.cryptoSignalRefreshBusy)return;window.cryptoSignalRefreshBusy=true;
  try{
- const coins=['BTC','ETH','BNB','ZEC'];
+ const coins=['BTC','ETH','BNB','ZEC','XRP'];
  await Promise.all(coins.map(async coin=>{
   try{
    const s=await analyzeCryptoCoin(coin);
