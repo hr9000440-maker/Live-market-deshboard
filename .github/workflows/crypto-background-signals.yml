@@ -1,5 +1,9 @@
 name: Crypto Telegram Background Signals
 on:
+  push:
+    paths:
+      - 'background_crypto_signals.py'
+      - '.github/workflows/crypto-background-signals.yml'
   schedule:
     - cron: "*/5 * * * *"
   workflow_dispatch:
