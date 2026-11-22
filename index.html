@@ -258,6 +258,13 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 </section>
 
 
+<section class="panel" id="server-option-snapshots">
+<h2>🛰️ SERVER OPTION PREMIUM RECORDS — BTC / ETH / BNB / ZEC</h2>
+<p class="note">GitHub Actions द्वारा लगभग हर 5 मिनट में सेव किए गए सार्वजनिक option quotes। यह रिकॉर्ड तभी अपडेट होगा जब server capture उपलब्ध हो।</p>
+<div class="grid"><div class="result"><small>कुल रिकॉर्ड</small><strong id="serverSnapCount">—</strong></div><div class="result"><small>अंतिम अपडेट (IST)</small><strong id="serverSnapUpdated">—</strong></div><div class="result"><small>BTC / ETH / BNB / ZEC</small><strong id="serverSnapCoins">—</strong></div></div>
+<p id="serverSnapStatus" class="note" aria-live="polite">Server records लोड हो रहे हैं…</p>
+<div class="option-table-wrap"><table class="option-table" style="min-width:850px"><thead><tr><th>Time (IST)</th><th>Coin</th><th>Contract</th><th>Mark</th><th>Bid</th><th>Ask</th><th>Spread %</th><th>Source</th></tr></thead><tbody id="serverSnapRows"><tr><td colspan="8">लोड हो रहा है…</td></tr></tbody></table></div>
+</section>
 <section class="panel" id="manual-option-movement-tracker">
 <h2>📝 OPTION MOVEMENT TRACKER — CHART UNAVAILABLE BACKUP</h2>
 <p class="note">Normal BUY CALL / BUY PUT option signal के matching contract का live Mark Premium अपने-आप track होगा। पहली qualifying quote Entry बनेगी; आगे premium बदलने पर snapshots, movement, SL और TP status अपडेट होंगे। Manual snapshot भी उपलब्ध है।</p>
@@ -336,6 +343,31 @@ function expiryDateValue(v){
 function todayISTExpiryValue(){const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const y=parts.find(p=>p.type==='year').value,m=parts.find(p=>p.type==='month').value,d=parts.find(p=>p.type==='day').value;return Date.UTC(Number(y),Number(m)-1,Number(d));}
 function expiryLabel(v){const t=expiryDateValue(v);if(!Number.isFinite(t))return String(v);const today=todayISTExpiryValue();const d=new Date(t);const base=new Date(today);const delta=Math.round((t-today)/86400000);const date=d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'});return date+(delta===0?' • TODAY':delta===1?' • NEXT DAY':delta>1?' • NEXT AVAILABLE':' • EXPIRED');}
 function fmt(n){return Number.isFinite(n)?n.toLocaleString('en-US',{maximumFractionDigits:2}):'—'}
+async function loadServerOptionSnapshots(){
+ const status=document.getElementById('serverSnapStatus'),body=document.getElementById('serverSnapRows');
+ if(!status||!body)return;
+ try{
+  const url=new URL('./data/option-movement-snapshots.json',document.baseURI);
+  url.searchParams.set('t',String(Date.now()));
+  const response=await fetch(url.toString(),{cache:'no-store'});
+  if(!response.ok)throw new Error('HTTP '+response.status);
+  const records=await response.json();
+  if(!Array.isArray(records))throw new Error('Snapshot JSON format गलत है');
+  const counts={BTC:0,ETH:0,BNB:0,ZEC:0};
+  for(const r of records)if(counts[r.coin]!==undefined)counts[r.coin]++;
+  const latest=records.filter(r=>r&&r.coin&&r.time).sort((a,b)=>Date.parse(b.time)-Date.parse(a.time));
+  const newest=latest[0];
+  const esc=v=>String(v??'—').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  document.getElementById('serverSnapCount').textContent=records.length.toLocaleString('en-IN');
+  document.getElementById('serverSnapUpdated').textContent=newest?new Date(newest.time).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}):'—';
+  document.getElementById('serverSnapCoins').textContent=['BTC','ETH','BNB','ZEC'].map(k=>k+': '+counts[k].toLocaleString('en-IN')).join(' • ');
+  body.innerHTML=latest.length?latest.slice(0,100).map(r=>'<tr><td>'+esc(new Date(r.time).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}))+'</td><td>'+esc(r.coin)+'</td><td>'+esc(r.contract)+'</td><td>'+esc(fmt(Number(r.mark)))+'</td><td>'+esc(fmt(Number(r.bid)))+'</td><td>'+esc(fmt(Number(r.ask)))+'</td><td>'+esc(r.spreadPct==null?'—':fmt(Number(r.spreadPct))+'%')+'</td><td>'+esc(r.source)+'</td></tr>').join(''):'<tr><td colspan="8">अभी कोई server quote record नहीं है।</td></tr>';
+  status.textContent='Server से रिकॉर्ड सफलतापूर्वक लोड हुए। यह historical snapshot data है, live order book नहीं।';
+ }catch(e){
+  status.textContent='Server records नहीं लोड हुए: '+e.message+'। कुछ देर बाद Refresh करें।';
+  body.innerHTML='<tr><td colspan="8">डेटा उपलब्ध नहीं</td></tr>';
+ }
+}
 async function loadCryptoOptions(){
  const coin=document.getElementById('optCurrency').value,status=document.getElementById('optStatus');const token=++optionLoadToken;
  status.textContent=coin+' options का live data लिया जा रहा है…';
@@ -930,7 +962,7 @@ function calculate(){
  document.getElementById('rr').textContent=valid&&riskPer>0&&rewardPer>0?(rewardPer/riskPer).toFixed(2)+' : 1':'—';
  document.getElementById('warning').textContent=!valid?'Entry, SL, Target और Quantity भरें।':(riskPer<=0||rewardPer<=0?'जाँचें: खरीद में SL एंट्री से नीचे और टारगेट ऊपर होना चाहिए। बिक्री में SL एंट्री से ऊपर और टारगेट नीचे होना चाहिए।':'यह अनुमानित गणना है। ब्रोकरेज, टैक्स, स्लिपेज, लॉट साइज़ और फंडिंग शामिल नहीं हैं।');
 }
-document.addEventListener('DOMContentLoaded',()=>{const tgToken=document.getElementById('telegramToken'),tgChat=document.getElementById('telegramChatId');if(tgToken)tgToken.value=localStorage.getItem('telegramBotToken')||'';if(tgChat)tgChat.value=localStorage.getItem('telegramChatId')||'';renderCryptoMovementLog();renderOptionMovementTracker();renderDashboardSignalHistory();loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals();if(localStorage.getItem('signalNotificationsEnabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){document.getElementById('notificationStatus').textContent='Notification: चालू';}setInterval(loadAllCryptoSignals,10000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadAllCryptoSignals();});window.addEventListener('online',()=>loadAllCryptoSignals());});
+document.addEventListener('DOMContentLoaded',()=>{const tgToken=document.getElementById('telegramToken'),tgChat=document.getElementById('telegramChatId');if(tgToken)tgToken.value=localStorage.getItem('telegramBotToken')||'';if(tgChat)tgChat.value=localStorage.getItem('telegramChatId')||'';renderCryptoMovementLog();renderOptionMovementTracker();renderDashboardSignalHistory();loadServerOptionSnapshots();setInterval(loadServerOptionSnapshots,300000);loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals();if(localStorage.getItem('signalNotificationsEnabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){document.getElementById('notificationStatus').textContent='Notification: चालू';}setInterval(loadAllCryptoSignals,10000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadAllCryptoSignals();});window.addEventListener('online',()=>loadAllCryptoSignals());});
 </script>
 </body>
 </html>
