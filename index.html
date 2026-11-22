@@ -359,7 +359,7 @@ async function loadCryptoOptions(){
    // ZEC options are listed on Paradex, not Deribit. Fetch its public option markets and summaries.
    const marketUrl='https://api.prod.paradex.trade/v1/markets?asset_kind=OPTION&base_asset=ZEC';
    const summaryUrl='https://api.prod.paradex.trade/v1/markets/summary?market=ALL&asset_kind=OPTION&base_asset=ZEC';
-   const [mr,sr]=await Promise.all([fetch(marketUrl,{cache:'no-store'}),fetch(summaryUrl,{cache:'no-store'})]);
+   const [mr,sr]=await Promise.all([fetchWithTimeout(marketUrl,{cache:'no-store'}),fetchWithTimeout(summaryUrl,{cache:'no-store'})]);
    if(!mr.ok)throw new Error('Paradex markets HTTP '+mr.status);
    const mj=await mr.json();if(mj.error)throw new Error(mj.error.message||'Paradex markets API error');
    const marketList=mj.results||mj.data||[];
@@ -386,7 +386,7 @@ async function loadCryptoOptions(){
    let instruments=null, summaries=null;
    for(const host of hosts){
     try{
-     const response=await fetch(host+'get_instruments?currency='+encodeURIComponent(coin)+'&kind=option&expired=false',{cache:'no-store'});
+     const response=await fetchWithTimeout(host+'get_instruments?currency='+encodeURIComponent(coin)+'&kind=option&expired=false',{cache:'no-store'});
      if(!response.ok)throw new Error('instruments HTTP '+response.status);
      const data=await response.json();if(data.error)throw new Error(data.error.message||'instruments API error');
      if(Array.isArray(data.result)){instruments=data.result;break;}
@@ -394,7 +394,7 @@ async function loadCryptoOptions(){
    }
    for(const host of hosts){
     try{
-     const response=await fetch(host+'get_book_summary_by_currency?currency='+encodeURIComponent(coin)+'&kind=option',{cache:'no-store'});
+     const response=await fetchWithTimeout(host+'get_book_summary_by_currency?currency='+encodeURIComponent(coin)+'&kind=option',{cache:'no-store'});
      if(!response.ok)throw new Error('summary HTTP '+response.status);
      const data=await response.json();if(data.error)throw new Error(data.error.message||'summary API error');
      if(Array.isArray(data.result)){summaries=data.result;break;}
@@ -414,14 +414,14 @@ async function loadCryptoOptions(){
    }else{
     const endpoints=['https://api.deribit.com/api/v2/public/get_book_summary_by_currency?currency='+encodeURIComponent(coin)+'&kind=option','https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency='+encodeURIComponent(coin)+'&kind=option','https://deribit.com/api/v2/public/get_book_summary_by_currency?currency='+encodeURIComponent(coin)+'&kind=option'];
     let json=null;
-    for(const url of endpoints){try{const response=await fetch(url,{cache:'no-store'});if(!response.ok)throw new Error('HTTP '+response.status);const data=await response.json();if(data.error)throw new Error(data.error.message||'API error');json=data;break;}catch(e){lastError=e;}}
+    for(const url of endpoints){try{const response=await fetchWithTimeout(url,{cache:'no-store'});if(!response.ok)throw new Error('HTTP '+response.status);const data=await response.json();if(data.error)throw new Error(data.error.message||'API error');json=data;break;}catch(e){lastError=e;}}
     if(!json)throw lastError||new Error('Fetch failed');
     rows=(json.result||[]).filter(x=>typeof x.instrument_name==='string'&&x.instrument_name.startsWith(coin+'-'));
     underlying=rows.map(x=>Number(x.underlying_price)).find(x=>x>0)||null;
    }
   }
   if(token!==optionLoadToken)return;
-  if(!underlying){try{const ticker=await fetch('https://api.binance.com/api/v3/ticker/price?symbol='+coin+'USDT',{cache:'no-store'});if(ticker.ok){const t=await ticker.json(),p=Number(t.price);if(p>0)underlying=p;}}catch{}}
+  if(!underlying){try{const ticker=await fetchWithTimeout('https://api.binance.com/api/v3/ticker/price?symbol='+coin+'USDT',{cache:'no-store'});if(ticker.ok){const t=await ticker.json(),p=Number(t.price);if(p>0)underlying=p;}}catch{}}
   if(token!==optionLoadToken)return;
   cryptoOptionData[coin]=rows;cryptoOptionUnderlying[coin]=underlying;
   const expiries=[...new Set(rows.map(x=>x.expiry||optionDate(x.instrument_name)).filter(Boolean))].sort((a,b)=>expiryDateValue(a)-expiryDateValue(b));
