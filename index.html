@@ -696,6 +696,8 @@ async function analyzeCryptoCoin(coin){
 const CRYPTO_MOVEMENT_KEY='cryptoMovementLog_v1';
 function getCryptoMovementLog(){try{return JSON.parse(localStorage.getItem(CRYPTO_MOVEMENT_KEY)||'[]')}catch{return []}}
 function saveCryptoMovementLog(rows){try{localStorage.setItem(CRYPTO_MOVEMENT_KEY,JSON.stringify(rows))}catch(e){console.warn('Movement log storage full/unavailable',e)}}
+function historyTime(ts){return new Date(Number(ts)||Date.now()).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});}
+function indiaDate(ts){return new Date(Number(ts)||Date.now()).toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'});}
 function captureCryptoMovement(s){
  if(!s||!s.coin||!(Number(s.entry)>0))return;
  const rows=getCryptoMovementLog(),ts=Date.now(),price=Number(s.entry),candleTime=Number(s.candleTime||0);
