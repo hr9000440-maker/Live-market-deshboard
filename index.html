@@ -610,8 +610,8 @@ async function analyzeCryptoCoin(coin){
  const closedCloses=closedCandles.map(x=>Number(x[4]));
  const confirmedClose=closedCloses.at(-1),confirmedE9=ema(closedCloses.slice(-30),9),confirmedE21=ema(closedCloses.slice(-50),21),confirmedRsi=rsi(closedCloses,14);
  let confirmedSide='WAIT',confirmationReason='पिछली 15m candle बंद होने पर दिशा की पुष्टि नहीं';
- if(confirmedClose>confirmedE9&&confirmedRsi>=40&&confirmedRsi<=85){confirmedSide='BUY / LONG';confirmationReason='CONFIRMED: पिछली पूरी बंद 15m candle EMA9 के ऊपर और RSI अनुकूल';}
- else if(confirmedClose<confirmedE9&&confirmedRsi>=15&&confirmedRsi<=60){confirmedSide='SELL / SHORT';confirmationReason='CONFIRMED: पिछली पूरी बंद 15m candle EMA9 के नीचे और RSI अनुकूल';}
+ if(confirmedClose>confirmedE9&&confirmedE9>confirmedE21&&confirmedRsi>=45&&confirmedRsi<=75){confirmedSide='BUY / LONG';confirmationReason='CONFIRMED: पिछली पूरी बंद 15m candle में Price > EMA9 > EMA21 और RSI 45–75';}
+ else if(confirmedClose<confirmedE9&&confirmedE9<confirmedE21&&confirmedRsi>=25&&confirmedRsi<=55){confirmedSide='SELL / SHORT';confirmationReason='CONFIRMED: पिछली पूरी बंद 15m candle में Price < EMA9 < EMA21 और RSI 25–55';}
  const closes=candles.map(x=>Number(x[4])),highs=candles.map(x=>Number(x[2])),lows=candles.map(x=>Number(x[3])),volumes=candles.map(x=>Number(x[5]));
  const close=closes.at(-1),open=Number(candles.at(-1)[1]),high=highs.at(-1),low=lows.at(-1),volume=volumes.at(-1);
  const e9=ema(closes.slice(-30),9),e21=ema(closes.slice(-50),21),rv=rsi(closes,14);
@@ -631,12 +631,12 @@ async function analyzeCryptoCoin(coin){
  // EARLY alerts use the live 15m candle before full EMA9/EMA21 alignment.
  // Require a modest move from the candle open plus RSI direction, or a prior-candle break.
  const candleMovePct=open>0?((close-open)/open)*100:0;
- const earlyBuyMomentum=close>open&&candleMovePct>=0.03&&rv>=35&&rv<=90;
- const earlySellMomentum=close<open&&candleMovePct<=-0.03&&rv>=10&&rv<=65;
- if(breakUp||earlyBuyMomentum){earlySide='BUY / LONG';earlyReason=breakUp?'EARLY breakout above previous 15m high':'EARLY bullish 15m candle + 0.03% momentum + RSI';}
- else if(breakDown||earlySellMomentum){earlySide='SELL / SHORT';earlyReason=breakDown?'EARLY breakdown below previous 15m low':'EARLY bearish 15m candle + 0.03% momentum + RSI';}
- if(close>e9&&rv>=40&&rv<=85){side='BUY / LONG';reason=breakUp?'CONFIRMED 15m momentum breakout + RSI':'CONFIRMED 15m EMA direction + RSI';}
- else if(close<e9&&rv>=15&&rv<=60){side='SELL / SHORT';reason=breakDown?'CONFIRMED 15m momentum breakdown + RSI':'CONFIRMED 15m EMA direction + RSI';}
+ const earlyBuyMomentum=close>open&&close>e9&&candleMovePct>=0.03&&rv>=45&&rv<=75;
+ const earlySellMomentum=close<open&&close<e9&&candleMovePct<=-0.03&&rv>=25&&rv<=55;
+ if(earlyBuyMomentum){earlySide='BUY / LONG';earlyReason='EARLY bullish 15m candle above EMA9 + 0.03% momentum + RSI 45–75';}
+ else if(earlySellMomentum){earlySide='SELL / SHORT';earlyReason='EARLY bearish 15m candle below EMA9 + 0.03% momentum + RSI 25–55';}
+ if(close>e9&&e9>e21&&rv>=45&&rv<=75){side='BUY / LONG';reason=breakUp?'CONFIRMED 15m EMA9>EMA21 breakout + RSI':'CONFIRMED 15m Price>EMA9>EMA21 + RSI';}
+ else if(close<e9&&e9<e21&&rv>=25&&rv<=55){side='SELL / SHORT';reason=breakDown?'CONFIRMED 15m EMA9<EMA21 breakdown + RSI':'CONFIRMED 15m Price<EMA9<EMA21 + RSI';}
  if(side==='WAIT'&&earlySide!=='WAIT'){side=earlySide;reason=earlyReason;}
  // Keep a valid signal visible for the rest of the same live 15m candle.
  // A brief intra-candle pullback must not erase an already-issued BUY/SELL.
