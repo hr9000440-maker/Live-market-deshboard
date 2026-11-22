@@ -350,7 +350,7 @@ async function loadCryptoOptions(){
  document.getElementById('optUnderlying').textContent='—';document.getElementById('optCount').textContent='—';
  try{
   let rows=[],underlying=null,lastError=null;
-  if(coin==='ZEC'){
+  if(coin==='XRP'){\n   // XRP CoinSwitch No-Expiry option is not exposed by this public options API.\n   // Keep the underlying signal card active and do not invent expiry/premium data.\n   rows=[];\n   underlying=null;\n  }else if(coin==='ZEC'){
    // ZEC options are listed on Paradex, not Deribit. Fetch its public option markets and summaries.
    const marketUrl='https://api.prod.paradex.trade/v1/markets?asset_kind=OPTION&base_asset=ZEC';
    const summaryUrl='https://api.prod.paradex.trade/v1/markets/summary?market=ALL&asset_kind=OPTION&base_asset=ZEC';
@@ -421,10 +421,10 @@ async function loadCryptoOptions(){
   cryptoOptionData[coin]=rows;cryptoOptionUnderlying[coin]=underlying;
   const expiries=[...new Set(rows.map(x=>x.expiry||optionDate(x.instrument_name)).filter(Boolean))].sort((a,b)=>expiryDateValue(a)-expiryDateValue(b));
   const expiry=document.getElementById('optExpiry');const previous=expiry.value;const today=todayISTExpiryValue();const todayExpiry=expiries.find(x=>expiryDateValue(x)===today);const nearestFuture=expiries.find(x=>expiryDateValue(x)>=today);const defaultExpiry=todayExpiry||nearestFuture||expiries[0]||'';const chosen=expiries.includes(previous)?previous:defaultExpiry;expiry.innerHTML=expiries.map(x=>'<option value="'+x+'">'+expiryLabel(x)+'</option>').join('')||'<option value="">No active '+coin+' expiry</option>';if(chosen)expiry.value=chosen;
-  const expiryStatus=document.getElementById('optExpiryStatus');if(expiryStatus){const chosenDate=expiryDateValue(chosen),todayDate=todayISTExpiryValue();expiryStatus.textContent=chosen?(chosenDate===todayDate?'आज की Expiry उपलब्ध है: '+expiryLabel(chosen):chosenDate>todayDate?'आज की expiry के contracts API में active नहीं हैं (संभवतः expiry time बीत चुका है)। अगली active expiry: '+expiryLabel(chosen):'API Expiry: '+expiryLabel(chosen)):'API से कोई active Expiry उपलब्ध नहीं है।';}
+  const expiryStatus=document.getElementById('optExpiryStatus');if(expiryStatus){const chosenDate=expiryDateValue(chosen),todayDate=todayISTExpiryValue();expiryStatus.textContent=coin==='XRP'?'XRP के लिए इस API में active expiry नहीं है। CoinSwitch No Expiry contract का premium अलग से ऐप में देखें।':chosen?(chosenDate===todayDate?'आज की Expiry उपलब्ध है: '+expiryLabel(chosen):chosenDate>todayDate?'आज की expiry के contracts API में active नहीं हैं (संभवतः expiry time बीत चुका है)। अगली active expiry: '+expiryLabel(chosen):'API Expiry: '+expiryLabel(chosen)):'API से कोई active Expiry उपलब्ध नहीं है।';}
   document.getElementById('optUnderlying').textContent=underlying?fmt(underlying)+' '+coin+' spot/underlying':'—';
   document.getElementById('optCount').textContent=rows.length.toLocaleString('en-US');document.getElementById('optUpdated').textContent=new Date().toLocaleTimeString('en-IN');
-  status.textContent=rows.length?rows.length+' active '+coin+' option contracts मिले।'+(coin==='ZEC'?' स्रोत: Paradex public API.':''):'API से active '+coin+' option contracts नहीं मिले।';
+  status.textContent=coin==='XRP'?'XRP underlying signal सक्रिय है। इस API में XRP expiry/premium उपलब्ध नहीं; CoinSwitch No Expiry premium ऐप में जाँचें।':rows.length?rows.length+' active '+coin+' option contracts मिले।'+(coin==='ZEC'?' स्रोत: Paradex public API.':''):'API से active '+coin+' option contracts नहीं मिले।';
   renderCryptoOptions();populateOptionChartContracts();
  }catch(e){
   if(token!==optionLoadToken)return;
