@@ -1,11 +1,5 @@
 name: Crypto Telegram Background Signals
 on:
-  push:
-    paths:
-      - 'background_crypto_signals.py'
-      - '.github/workflows/crypto-background-signals.yml'
-  schedule:
-    - cron: "*/5 * * * *"
   workflow_dispatch:
 permissions:
   contents: read
@@ -14,20 +8,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Restore signal deduplication state
         uses: actions/cache/restore@v4
         with:
           path: signal_state.json
           key: crypto-signal-state-${{ github.run_id }}
           restore-keys: crypto-signal-state-
-      - name: Run background crypto signals
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           curl -fsSL https://raw.githubusercontent.com/hr9000440-maker/Live-market-deshboard/main/background_crypto_signals.py -o background_crypto_signals.py
           python3 background_crypto_signals.py
-      - name: Save signal deduplication state
         uses: actions/cache/save@v4
         if: always()
         with:
