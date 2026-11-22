@@ -249,8 +249,8 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 
 <section class="panel" id="crypto-options">
 <h2>₿ CRYPTO OPTIONS CHAIN — BTC + ETH + ZEC + XRP</h2>
-<p class="note">Deribit public market data • BTC, ETH, ZEC और XRP के listed options • XRP भी Deribit public options API से लोड होगा। यहां से order place नहीं होगा। Premium USD में अनुमानित है (mark price × underlying price); OI/Volume exchange की मूल इकाई में हैं।</p>
-<div class="result" style="margin:12px 0"><small>XRP OPTIONS</small><strong class="signal-neutral">OPTION CHAIN SELECT करें</strong><p class="note">ऊपर Coin में XRP चुनें। Live CALL / PUT contracts, strike, expiry, premium, Entry/SL/TP अन्य supported coins की तरह option table में दिखेंगे, यदि Deribit API data उपलब्ध हो।</p></div>
+<p class="note">BTC/ETH/ZEC listed option-chain data. XRP के CoinSwitch No Expiry contract के लिए नीचे अलग signal card है; XRP direction signal underlying 15m data से बनेगा। CoinSwitch option premium की live quote इस dashboard API में उपलब्ध नहीं है, इसलिए premium Entry/SL/TP अनुमान बनाकर नहीं दिखाए जाएंगे। यहां से order place नहीं होगा।</p>
+<div class="result" id="xrpNoExpirySignal" style="margin:12px 0"><small>XRP • COINSWITCH NO EXPIRY OPTION</small><strong class="signal-neutral">डेटा लोड हो रहा है…</strong><p class="note">XRP 15m signal, underlying entry, SL और targets load होंगे। CoinSwitch पर option premium स्वयं जाँचें।</p></div>
 <div class="result" id="cryptoSignal" style="margin:12px 0"><p class="note">15m signal लोड हो रहा है…</p></div>
 <div class="option-controls">
 <div><label for="optCurrency">Coin</label><select id="optCurrency" onchange="loadCryptoOptions();loadCryptoSignal()"><option value="BTC">BTC — Bitcoin</option><option value="ETH">ETH — Ethereum</option><option value="ZEC">ZEC — Zcash</option><option value="XRP">XRP — Ripple</option></select></div>
@@ -808,6 +808,7 @@ async function loadAllCryptoSignals(){
     cryptoTrendSignal[coin]=direction;cryptoSignalStrength[coin]=!!s.strong;
    }else{
     showCoinSignal(s);cryptoTrendSignal[coin]=s.side==='BUY / LONG'?'BUY CALL':s.side==='SELL / SHORT'?'BUY PUT':'WAIT';cryptoSignalStrength[coin]=!!s.strong;
+    if(coin==='XRP'){const xb=document.getElementById('xrpNoExpirySignal');if(xb){const dir=s.side==='BUY / LONG'?'BUY CALL':s.side==='SELL / SHORT'?'BUY PUT':'WAIT';xb.innerHTML='<small>XRP • COINSWITCH NO EXPIRY OPTION</small><strong class="'+(dir==='BUY CALL'?'call-text':dir==='BUY PUT'?'put-text':'signal-neutral')+'">'+dir+'</strong><p class="note">Underlying Entry: '+fmt(s.entry)+' | SL: '+fmt(s.sl)+' | TP1: '+fmt(s.t1)+' | TP2: '+fmt(s.t2)+' | TP3: '+fmt(s.t3)+' • RSI '+fmt(s.rv)+' • EMA9 '+fmt(s.e9)+' / EMA21 '+fmt(s.e21)+' • '+s.time+'<br>CoinSwitch XRP No Expiry option का premium, Entry और premium-based SL/TP ऐप में देखें; यह card underlying दिशा बताता है।</p>';}}
    }
   }catch(e){
    const el=document.getElementById('sig-'+coin),info=document.getElementById('siginfo-'+coin);
