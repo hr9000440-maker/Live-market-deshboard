@@ -248,8 +248,9 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 </section>
 
 <section class="panel" id="crypto-options">
-<h2>₿ CRYPTO OPTIONS CHAIN — BTC + ETH + ZEC</h2>
-<p class="note">Deribit public market data • BTC, ETH और ZEC के listed options • यहां से order place नहीं होगा। Premium USD में अनुमानित है (mark price × underlying price); OI/Volume exchange की मूल इकाई में हैं।</p>
+<h2>₿ CRYPTO OPTIONS CHAIN — BTC + ETH + ZEC + XRP</h2>
+<p class="note">Deribit public market data • BTC, ETH और ZEC के listed options • XRP Options का live premium CoinSwitch API approval मिलने तक उपलब्ध नहीं है। यहां से order place नहीं होगा। Premium USD में अनुमानित है (mark price × underlying price); OI/Volume exchange की मूल इकाई में हैं।</p>
+<div class="result" style="margin:12px 0"><small>XRP OPTIONS</small><strong class="signal-neutral">API ACCESS PENDING</strong><p class="note">XRP CALL / PUT premium, strike, expiry और Entry/SL/TP का live module API access मिलते ही जोड़ेंगे। XRP का 15m direction signal पहले से dashboard में मौजूद है।</p></div>
 <div class="result" id="cryptoSignal" style="margin:12px 0"><p class="note">15m signal लोड हो रहा है…</p></div>
 <div class="option-controls">
 <div><label for="optCurrency">Coin</label><select id="optCurrency" onchange="loadCryptoOptions();loadCryptoSignal()"><option value="BTC">BTC — Bitcoin</option><option value="ETH">ETH — Ethereum</option><option value="ZEC">ZEC — Zcash</option></select></div>
