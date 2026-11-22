@@ -667,21 +667,42 @@ async function analyzeCryptoCoin(coin){
   side=lockedSnapshot.side;
   reason='LOCKED: बंद 15m candle का पहला confirmed signal सुरक्षित';
  }
- const strong=side!=='WAIT';
- const signalType='CONFIRMED';
- const entry=lockedSnapshot?Number(lockedSnapshot.entry):close;
- const sl=lockedSnapshot?lockedSnapshot.sl:(side==='BUY / LONG'?entry-1.2*atr:side==='SELL / SHORT'?entry+1.2*atr:null);
+ // 5m तेज मूवमेंट जाँच: केवल बंद 5m candle पर, 15m WAIT होने पर EARLY alert.
+ let early5=null;
+ if(side==='WAIT'){
+  const f5=[
+   {url:'https://api.binance.com/api/v3/klines?symbol='+symbol+'&interval=5m&limit=60',parse:j=>j},
+   {url:'https://data-api.binance.vision/api/v3/klines?symbol='+symbol+'&interval=5m&limit=60',parse:j=>j},
+   {url:'https://fapi.binance.com/fapi/v1/klines?symbol='+symbol+'&interval=5m&limit=60',parse:j=>j}
+  ];
+  try{
+   const attempts=f5.map(async f=>{const res=await fetch(f.url,{cache:'no-store'});if(!res.ok)throw Error('5m HTTP '+res.status);const j=await res.json();const d=f.parse(j);if(!Array.isArray(d)||d.length<35)throw Error('5m candles कम');return d.filter(x=>Array.isArray(x)&&x.length>=6&&[0,1,2,3,4,5].every(k=>Number.isFinite(Number(x[k])))).sort((a,b)=>Number(a[0])-Number(b[0]));});
+   const d=(await Promise.any(attempts)).slice(0,-1);
+   if(d.length>=30){
+    const c=d.map(x=>Number(x[4])),o=d.map(x=>Number(x[1])),h=d.map(x=>Number(x[2])),l=d.map(x=>Number(x[3])),v=d.map(x=>Number(x[5]));
+    const c5=c.at(-1),o5=o.at(-1),h5=h.at(-1),l5=l.at(-1),r5=rsi(c,14),e95=ema(c.slice(-30),9),e215=ema(c.slice(-50),21),avg5=v.slice(-21,-1).reduce((a,b)=>a+b,0)/20;
+    const range5=Math.max(h5-l5,1e-12),body5=Math.abs(c5-o5)/range5,vol5=avg5>0&&v.at(-1)>=avg5*1.5;
+    const buy5=c5>e95&&e95>e215&&r5>=55&&r5<=80&&c5>o5&&body5>=0.55&&vol5;
+    const sell5=c5<e95&&e95<e215&&r5>=20&&r5<=45&&c5<o5&&body5>=0.55&&vol5;
+    if(buy5||sell5){const atr5=d.slice(-14).reduce((sum,x)=>sum+Math.max(Number(x[2])-Number(x[3]),Math.abs(Number(x[2])-Number(x[4])),Math.abs(Number(x[3])-Number(x[4]))),0)/14;early5={side:buy5?'BUY / LONG':'SELL / SHORT',entry:c5,sl:buy5?c5-1.2*atr5:c5+1.2*atr5,rv:r5,e9:e95,e21:e215,t1:buy5?c5+1.2*atr5:c5-1.2*atr5,t2:buy5?c5+2.4*atr5:c5-2.4*atr5,t3:buy5?c5+3.6*atr5:c5-3.6*atr5,time:new Date(Number(d.at(-1)[0])+300000).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),candleTime:Number(d.at(-1)[0]),atr:atr5};}
+   }
+  }catch(e){/* 15m signal remains valid if 5m feed unavailable */}
+ }
+ const strong=side!=='WAIT'||!!early5;
+ const signalType=side==='WAIT'&&early5?'EARLY':'CONFIRMED';
+ const entry=lockedSnapshot?Number(lockedSnapshot.entry):early5?early5.entry:close;
+ const sl=lockedSnapshot?lockedSnapshot.sl:early5?early5.sl:(side==='BUY / LONG'?entry-1.2*atr:side==='SELL / SHORT'?entry+1.2*atr:null);
  const risk=sl===null?null:Math.abs(entry-sl);
- const t1=lockedSnapshot?lockedSnapshot.t1:(sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk));
- const t2=lockedSnapshot?lockedSnapshot.t2:(sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk));
- const t3=lockedSnapshot?lockedSnapshot.t3:(sl===null?null:(side==='BUY / LONG'?entry+3*risk:entry-3*risk));
+ const t1=lockedSnapshot?lockedSnapshot.t1:early5?early5.t1:(sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk));
+ const t2=lockedSnapshot?lockedSnapshot.t2:early5?early5.t2:(sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk));
+ const t3=lockedSnapshot?lockedSnapshot.t3:early5?early5.t3:(sl===null?null:(side==='BUY / LONG'?entry+3*risk:entry-3*risk));
  const confirmationReason=strong?'पूरी तरह बंद 15m candle पर पुष्टि':'अधूरी/कमजोर पुष्टि; ट्रेड सिग्नल नहीं';
- const confirmedSide=side;
+ const confirmedSide=side;\n if(early5&&side==='WAIT')side=early5.side;
  const signal={
-  coin,side,strong,baseSide:side,signalType,reason,diagnostic,
+  coin,side,strong,baseSide:side,signalType,reason:early5&&confirmedSide==='WAIT'?'EARLY 5m तेज मूव: EMA9/21 + RSI + strong candle + volume':reason,diagnostic,
   quality:'DATA: '+usedFeed+' • केवल CLOSED 15m candle • EMA9/EMA21 + RSI14 + Candle body + Volume confirmed',
   changeReason:reason,previous:'केवल बंद candle के आधार पर',
-  entry,sl,t1,t2,t3,rv,e9,e21,volume,avgVol,open,high,low,
+  entry,sl,t1,t2,t3,rv:early5?early5.rv:rv,e9:early5?early5.e9:e9,e21:early5?early5.e21:e21,volume,avgVol,open,high,low,
   confirmedSide,confirmedClose:close,confirmedE9:e9,confirmedE21:e21,confirmedRsi:rv,
   confirmationReason,
   time:new Date(candleTime+900000).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),
