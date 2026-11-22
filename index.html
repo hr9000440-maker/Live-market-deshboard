@@ -544,26 +544,30 @@ function openBackupOptionChart(){
 }
 function renderCryptoOptions(){
  const coin=document.getElementById('optCurrency').value,expiry=document.getElementById('optExpiry').value,type=document.getElementById('optType').value,search=document.getElementById('optSearch').value.trim(),underlying=Number(cryptoOptionUnderlying[coin]),trend=cryptoTrendSignal[coin];
- const desiredSide=type==='C'?'CALL':type==='P'?'PUT':trend==='BUY CALL'?'CALL':trend==='BUY PUT'?'PUT':null;
- const allRows=cryptoOptionData[coin].filter(x=>{const n=x.instrument_name||'',side=n.endsWith('-C')?'CALL':n.endsWith('-P')?'PUT':'',strike=Number(n.split('-')[2]);return optionDate(n)===expiry&&(!desiredSide||side===desiredSide)&&(!search||String(strike).includes(search))});
+ const allRows=cryptoOptionData[coin].filter(x=>{const n=x.instrument_name||'',side=n.endsWith('-C')?'CALL':n.endsWith('-P')?'PUT':'',strike=Number(n.split('-')[2]);return optionDate(n)===expiry&&(!search||String(strike).includes(search))&&(type==='ALL'||side===(type==='C'?'CALL':'PUT'))});
  const quoteInfo=x=>{const p=x.instrument_name.split('-'),side=p[3]==='C'?'CALL':'PUT',strike=Number(p[2]),bid=Number(x.bid_price),ask=Number(x.ask_price),mark=Number(x.mark_price),mid=bid>0&&ask>=bid?(ask+bid)/2:0,spread=mid>0?(ask-bid)/mid:null;return {p,side,strike,bid,ask,mark,spread,oi:Number(x.open_interest||0),vol:Number(x.volume||0),distance:Number.isFinite(underlying)?Math.abs(strike-underlying):0}};
  const candidates=allRows.map(x=>({x,...quoteInfo(x)})).sort((a,b)=>a.distance-b.distance);
  const valid=candidates.filter(c=>c.bid>0&&c.ask>=c.bid&&c.mark>0&&c.spread!==null&&c.spread<=0.10);
- const chosen=valid[0]||candidates.find(c=>c.bid>0&&c.ask>=c.bid&&c.mark>0)||candidates[0];
- if(!chosen){document.getElementById('optRows').innerHTML='<tr><td colspan="14">इस expiry में matching option contract उपलब्ध नहीं है।</td></tr>';return}
- const {x,p,side,strike,bid,ask,mark,spread,oi,vol}=chosen;
- const markUsd=optionUsd(mark,underlying),entryUsd=optionUsd(ask,underlying);
- let signal='WAIT',why='';
- if(trend!==(side==='CALL'?'BUY CALL':'BUY PUT'))why='15m दिशा की पुष्टि नहीं';
- else if(!(bid>0&&ask>=bid&&mark>0))why='quote अधूरा';
- else if(spread===null)why='spread उपलब्ध नहीं';
- else if(spread>0.10)why='spread 10% से अधिक';
- else signal=cryptoSignalStrength[coin]?(trend==='BUY CALL'?'STRONG BUY CALL':'STRONG BUY PUT'):(trend==='BUY CALL'?'EARLY BUY CALL':'EARLY BUY PUT');
- const slUsd=entryUsd>0?entryUsd*0.75:null,tp1Usd=entryUsd>0?entryUsd*1.25:null,tp2Usd=entryUsd>0?entryUsd*1.50:null,tp3Usd=entryUsd>0?entryUsd*1.75:null;
- if(signal!=='WAIT'&&entryUsd>0)autoTrackOptionPremium(coin,x.instrument_name,entryUsd,signal,side,strike,optionDate(x.instrument_name));
- if(signal==='STRONG BUY CALL'||signal==='STRONG BUY PUT'||signal==='EARLY BUY CALL'||signal==='EARLY BUY PUT')notifyTelegramStrongOption(coin,x.instrument_name,signal,entryUsd,spread,slUsd,tp1Usd,tp2Usd,tp3Usd,optionUsd(bid,underlying),optionUsd(ask,underlying),side,strike,optionDate(x.instrument_name),underlying,why);
- const label=signal==='WAIT'?'WAIT':signal;
- document.getElementById('optRows').innerHTML='<tr><td>'+x.instrument_name+'</td><td>'+strike.toLocaleString('en-US')+'</td><td class="'+(side==='CALL'?'call-text':'put-text')+'">'+side+'</td><td>'+optionMoney(optionUsd(bid,underlying))+'</td><td>'+optionMoney(optionUsd(ask,underlying))+'</td><td>'+optionMoney(markUsd)+'</td><td>'+(spread===null?'—':(spread*100).toFixed(2)+'%')+'</td><td>'+optionMoney(slUsd)+'</td><td>'+optionMoney(tp1Usd)+'</td><td>'+optionMoney(tp2Usd)+'</td><td>'+optionMoney(tp3Usd)+'</td><td>'+oi.toLocaleString('en-US',{maximumFractionDigits:3})+'</td><td>'+vol.toLocaleString('en-US',{maximumFractionDigits:3})+'</td><td class="'+(signal==='WAIT'?'signal-neutral':side==='CALL'?'call-text':'put-text')+'">'+label+(why?' ('+why+')':'')+'</td></tr>';
+ const chosen=valid.find(c=>trend===(c.side==='CALL'?'BUY CALL':'BUY PUT'))||valid[0]||candidates.find(c=>c.bid>0&&c.ask>=c.bid&&c.mark>0)||candidates[0];
+ if(!candidates.length){document.getElementById('optRows').innerHTML='<tr><td colspan="14">इस expiry में matching option contracts उपलब्ध नहीं हैं।</td></tr>';return}
+ const rowsHtml=candidates.map(c=>{
+  const {x,side,strike,bid,ask,mark,spread,oi,vol}=c,entryUsd=optionUsd(ask,underlying),markUsd=optionUsd(mark,underlying),isChosen=chosen&&x.instrument_name===chosen.x.instrument_name;
+  let signal='—',why='';
+  if(isChosen){
+   if(trend!==(side==='CALL'?'BUY CALL':'BUY PUT'))why='15m दिशा की पुष्टि नहीं';
+   else if(!(bid>0&&ask>=bid&&mark>0))why='quote अधूरा';
+   else if(spread===null)why='spread उपलब्ध नहीं';
+   else if(spread>0.10)why='spread 10% से अधिक';
+   else signal=cryptoSignalStrength[coin]?(trend==='BUY CALL'?'STRONG BUY CALL':'STRONG BUY PUT'):(trend==='BUY CALL'?'EARLY BUY CALL':'EARLY BUY PUT');
+   const sl=entryUsd>0?entryUsd*0.75:null,tp1=entryUsd>0?entryUsd*1.25:null,tp2=entryUsd>0?entryUsd*1.5:null,tp3=entryUsd>0?entryUsd*1.75:null;
+   if(signal!=='—'&&signal!=='WAIT'&&entryUsd>0)autoTrackOptionPremium(coin,x.instrument_name,entryUsd,signal,side,strike,optionDate(x.instrument_name));
+   if(signal==='STRONG BUY CALL'||signal==='STRONG BUY PUT'||signal==='EARLY BUY CALL'||signal==='EARLY BUY PUT')notifyTelegramStrongOption(coin,x.instrument_name,signal,entryUsd,spread,sl,tp1,tp2,tp3,optionUsd(bid,underlying),optionUsd(ask,underlying),side,strike,optionDate(x.instrument_name),underlying,why);
+   return '<tr style="background:rgba(66,230,164,.07)"><td>'+x.instrument_name+'</td><td>'+strike.toLocaleString('en-US')+'</td><td class="'+(side==='CALL'?'call-text':'put-text')+'">'+side+'</td><td>'+optionMoney(optionUsd(bid,underlying))+'</td><td>'+optionMoney(entryUsd)+'</td><td>'+optionMoney(markUsd)+'</td><td>'+(spread===null?'—':(spread*100).toFixed(2)+'%')+'</td><td>'+optionMoney(sl)+'</td><td>'+optionMoney(tp1)+'</td><td>'+optionMoney(tp2)+'</td><td>'+optionMoney(tp3)+'</td><td>'+oi.toLocaleString('en-US',{maximumFractionDigits:3})+'</td><td>'+vol.toLocaleString('en-US',{maximumFractionDigits:3})+'</td><td class="'+(signal==='WAIT'?'signal-neutral':side==='CALL'?'call-text':'put-text')+'">'+(signal==='—'?'WAIT':signal)+(why?' ('+why+')':'')+'</td></tr>';
+  }
+  const entry=entryUsd,sl=entry>0?entry*.75:null,tp1=entry>0?entry*1.25:null,tp2=entry>0?entry*1.5:null,tp3=entry>0?entry*1.75:null;
+  return '<tr><td>'+x.instrument_name+'</td><td>'+strike.toLocaleString('en-US')+'</td><td class="'+(side==='CALL'?'call-text':'put-text')+'">'+side+'</td><td>'+optionMoney(optionUsd(bid,underlying))+'</td><td>'+optionMoney(entry)+'</td><td>'+optionMoney(markUsd)+'</td><td>'+(spread===null?'—':(spread*100).toFixed(2)+'%')+'</td><td>'+optionMoney(sl)+'</td><td>'+optionMoney(tp1)+'</td><td>'+optionMoney(tp2)+'</td><td>'+optionMoney(tp3)+'</td><td>'+oi.toLocaleString('en-US',{maximumFractionDigits:3})+'</td><td>'+vol.toLocaleString('en-US',{maximumFractionDigits:3})+'</td><td>—</td></tr>';
+ }).join('');
+ document.getElementById('optRows').innerHTML=rowsHtml;
 }
 function ema(values,period){let k=2/(period+1),v=values[0];for(let i=1;i<values.length;i++)v=values[i]*k+v*(1-k);return v}
 function rsi(values,period=14){let gains=0,losses=0;for(let i=values.length-period;i<values.length;i++){let d=values[i]-values[i-1];if(d>0)gains+=d;else losses-=d}let ag=gains/period,al=losses/period;return al===0?100:100-100/(1+ag/al)}
