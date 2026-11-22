@@ -1,7 +1,7 @@
 name: Server Crypto Signal Monitor
-
 on:
   workflow_dispatch:
+
 permissions:
   contents: read
 
@@ -9,17 +9,21 @@ jobs:
   monitor:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache/restore@v4
         with:
           path: .signal-state
           key: signal-state-${{ github.run_id }}
           restore-keys: |
             signal-state-
+      - name: Run monitor
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           mkdir -p .signal-state
           python monitor.py
+      - uses: actions/cache/save@v4
         if: always()
         with:
           path: .signal-state
