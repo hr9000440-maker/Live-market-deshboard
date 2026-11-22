@@ -116,5 +116,5 @@ if(snap.length===0){
  process.exit(1);
 }
 const combined=[...snap,...previous].slice(0,25000);
-fs.mkdirSync('data',{recursive:true});fs.writeFileSync(OUT,JSON.stringify(combined,null,2)+'\\n');
+fs.mkdirSync('data',{recursive:true});fs.writeFileSync(OUT,JSON.stringify(combined,null,2)+'\n');
 console.log('CAPTURE SUCCESS: '+snap.length+' fresh quote rows; total stored '+combined.length);
