@@ -676,7 +676,7 @@ async function analyzeCryptoCoin(coin){
    {url:'https://fapi.binance.com/fapi/v1/klines?symbol='+symbol+'&interval=5m&limit=60',parse:j=>j}
   ];
   try{
-   const attempts=f5.map(async f=>{const res=await fetch(f.url,{cache:'no-store'});if(!res.ok)throw Error('5m HTTP '+res.status);const j=await res.json();const d=f.parse(j);if(!Array.isArray(d)||d.length<35)throw Error('5m candles कम');return d.filter(x=>Array.isArray(x)&&x.length>=6&&[0,1,2,3,4,5].every(k=>Number.isFinite(Number(x[k])))).sort((a,b)=>Number(a[0])-Number(b[0]));});
+   const attempts=f5.map(async f=>{const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),8000);try{const res=await fetch(f.url,{cache:'no-store',signal:controller.signal});if(!res.ok)throw Error('5m HTTP '+res.status);const j=await res.json();const d=f.parse(j);if(!Array.isArray(d)||d.length<35)throw Error('5m candles कम');return d.filter(x=>Array.isArray(x)&&x.length>=6&&[0,1,2,3,4,5].every(k=>Number.isFinite(Number(x[k])))).sort((a,b)=>Number(a[0])-Number(b[0]));}finally{clearTimeout(timeout)}});
    const d=(await Promise.any(attempts)).slice(0,-1);
    if(d.length>=30){
     const c=d.map(x=>Number(x[4])),o=d.map(x=>Number(x[1])),h=d.map(x=>Number(x[2])),l=d.map(x=>Number(x[3])),v=d.map(x=>Number(x[5]));
