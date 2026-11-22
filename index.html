@@ -546,9 +546,10 @@ function renderCryptoOptions(){
  const coin=document.getElementById('optCurrency').value,expiry=document.getElementById('optExpiry').value,type=document.getElementById('optType').value,search=document.getElementById('optSearch').value.trim(),underlying=Number(cryptoOptionUnderlying[coin]),trend=cryptoTrendSignal[coin];
  const allRows=cryptoOptionData[coin].filter(x=>{const n=x.instrument_name||'',side=n.endsWith('-C')?'CALL':n.endsWith('-P')?'PUT':'',strike=Number(n.split('-')[2]);return optionDate(n)===expiry&&(!search||String(strike).includes(search))&&(type==='ALL'||side===(type==='C'?'CALL':'PUT'))});
  const quoteInfo=x=>{const p=x.instrument_name.split('-'),side=p[3]==='C'?'CALL':'PUT',strike=Number(p[2]),bid=Number(x.bid_price),ask=Number(x.ask_price),mark=Number(x.mark_price),mid=bid>0&&ask>=bid?(ask+bid)/2:0,spread=mid>0?(ask-bid)/mid:null;return {p,side,strike,bid,ask,mark,spread,oi:Number(x.open_interest||0),vol:Number(x.volume||0),distance:Number.isFinite(underlying)?Math.abs(strike-underlying):0}};
- const candidates=allRows.map(x=>({x,...quoteInfo(x)})).sort((a,b)=>a.distance-b.distance);
- const valid=candidates.filter(c=>c.bid>0&&c.ask>=c.bid&&c.mark>0&&c.spread!==null&&c.spread<=0.10);
- const chosen=valid.find(c=>trend===(c.side==='CALL'?'BUY CALL':'BUY PUT'))||valid[0]||candidates.find(c=>c.bid>0&&c.ask>=c.bid&&c.mark>0)||candidates[0];
+ const candidates=allRows.map(x=>({x,...quoteInfo(x)})).sort((a,b)=>a.strike-b.strike||(a.side===b.side?0:a.side==='CALL'?-1:1)||a.x.instrument_name.localeCompare(b.x.instrument_name));
+ const nearest=[...candidates].sort((a,b)=>a.distance-b.distance||a.strike-b.strike);
+ const valid=nearest.filter(c=>c.bid>0&&c.ask>=c.bid&&c.mark>0&&c.spread!==null&&c.spread<=0.10);
+ const chosen=valid.find(c=>trend===(c.side==='CALL'?'BUY CALL':'BUY PUT'))||valid[0]||nearest.find(c=>c.bid>0&&c.ask>=c.bid&&c.mark>0)||nearest[0];
  if(!candidates.length){document.getElementById('optRows').innerHTML='<tr><td colspan="14">इस expiry में matching option contracts उपलब्ध नहीं हैं।</td></tr>';return}
  const rowsHtml=candidates.map(c=>{
   const {x,side,strike,bid,ask,mark,spread,oi,vol}=c,entryUsd=optionUsd(ask,underlying),markUsd=optionUsd(mark,underlying),isChosen=chosen&&x.instrument_name===chosen.x.instrument_name;
