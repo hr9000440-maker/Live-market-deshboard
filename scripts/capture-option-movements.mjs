@@ -2,7 +2,13 @@ import fs from 'node:fs';
 const OUT='data/option-movement-snapshots.json';
 const coins=['BTC','ETH','BNB','ZEC'];
 const now=new Date().toISOString();
-const previous=fs.existsSync(OUT)?JSON.parse(fs.readFileSync(OUT,'utf8')):[];
+let previous=[];
+if(fs.existsSync(OUT)){
+ try{
+  const raw=fs.readFileSync(OUT,'utf8').trim();
+  if(raw) { const parsed=JSON.parse(raw); if(Array.isArray(parsed)) previous=parsed; else console.warn('Existing snapshot file is not an array; starting a fresh history.'); }
+ }catch(e){ console.warn('Existing snapshot file is empty or invalid; starting a fresh history:',e.message); }
+}
 const snap=[];
 const add=(source,coin,contract,mark,bid,ask,underlying=0,oi=0,volume24h=0,extra={})=>{
  mark=Number(mark||0);bid=Number(bid||0);ask=Number(ask||0);
@@ -79,6 +85,10 @@ for(const coin of coins){
  }
  console.log(coin+': '+captured+' option quote rows');
 }
+if(snap.length===0){
+ console.error('CAPTURE FAILED: zero option quotes captured for BTC, ETH, BNB, and ZEC. Snapshot file was not overwritten.');
+ process.exit(1);
+}
 const combined=[...snap,...previous].slice(0,25000);
-fs.mkdirSync('data',{recursive:true});fs.writeFileSync(OUT,JSON.stringify(combined,null,2));
-console.log('Captured '+snap.length+' quote rows; total stored '+combined.length);
+fs.mkdirSync('data',{recursive:true});fs.writeFileSync(OUT,JSON.stringify(combined,null,2)+'\\n');
+console.log('CAPTURE SUCCESS: '+snap.length+' fresh quote rows; total stored '+combined.length);
