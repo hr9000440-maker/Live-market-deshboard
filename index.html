@@ -632,34 +632,33 @@ async function analyzeCryptoCoin(coin){
 
  // Strong signals require ALL conditions on the same fully closed 15m candle.
  // No early/intrabar signal, no signal based only on price crossing EMA9.
+ // Keep the original closed-candle, EMA and RSI safeguards. Volume and candle
+ // strength are shown as quality context, not hard blockers, so valid moves
+ // are not hidden just because volume/body thresholds are narrowly missed.
  const buyChecks={
   priceAboveEMA9:close>e9,
   emaBullish:e9>e21,
   rsiInRange:rv>=45&&rv<=75,
-  bullishBody:close>open,
-  strongClose:candleOk,
-  volumeConfirmed:volOk
+  bullishBody:close>open
  };
  const sellChecks={
   priceBelowEMA9:close<e9,
   emaBearish:e9<e21,
   rsiInRange:rv>=25&&rv<=55,
-  bearishBody:close<open,
-  strongClose:candleOk,
-  volumeConfirmed:volOk
+  bearishBody:close<open
  };
  const buyOk=Object.values(buyChecks).every(Boolean);
  const sellOk=Object.values(sellChecks).every(Boolean);
  let side=buyOk?'BUY / LONG':sellOk?'SELL / SHORT':'WAIT';
- let reason=buyOk?'CONFIRMED: बंद 15m candle + EMA9/EMA21 + RSI + मजबूत bullish body + volume':
-  sellOk?'CONFIRMED: बंद 15m candle + EMA9/EMA21 + RSI + मजबूत bearish body + volume':
-  'WAIT: बंद 15m candle पर Strong Signal की सभी शर्तें पूरी नहीं हुईं';
+ let reason=buyOk?'CONFIRMED: बंद 15m candle + EMA9/EMA21 + RSI + bullish candle':
+  sellOk?'CONFIRMED: बंद 15m candle + EMA9/EMA21 + RSI + bearish candle':
+  'WAIT: बंद 15m candle पर EMA/RSI/दिशा की सभी मुख्य शर्तें पूरी नहीं हुईं';
  const failed=[];
  if(side==='WAIT'){
   const checks=close>=open?buyChecks:sellChecks;
   for(const [key,ok] of Object.entries(checks))if(!ok)failed.push(key);
  }
- const diagnostic=side==='WAIT'?'पुष्टि बाकी: '+failed.join(', '):'सभी 15m confirmation checks पास';
+ const diagnostic=side==='WAIT'?'पुष्टि बाकी: '+failed.join(', '):'मुख्य 15m checks पास; Volume '+(volOk?'confirmed':'कम')+' • Candle '+(candleOk?'strong':'कमजोर');
  const priorLock=readSignalLock(coin);
  let lockedSnapshot=null;
  if(priorLock&&Number(priorLock.candleTime)===candleTime&&priorLock.signal&&priorLock.signal.side&&priorLock.signal.side!=='WAIT'){
