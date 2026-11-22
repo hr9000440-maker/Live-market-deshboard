@@ -90,9 +90,12 @@ def main():
   for coin in COINS:
     try:
       s15=analyze(coin,"15m"); s5=analyze(coin,"5m")
-      chosen=s15 if s15["side"]!="WAIT" else (s5 if s5["side"]!="WAIT" else None)
-      if not chosen:
-        print(f"{coin}: WAIT | 5m={s5['side']} 15m={s15['side']}"); continue
+      # Strict confirmation: both CLOSED 5m and CLOSED 15m candles must agree.
+      # Never send an early 5m-only signal when the 15m trend is WAIT or opposite.
+      if s5["side"] == "WAIT" or s15["side"] == "WAIT" or s5["side"] != s15["side"]:
+        print(f"{coin}: NO CONFIRMED SIGNAL | 5m={s5['side']} 15m={s15['side']}")
+        continue
+      chosen=s15
       # ₹500 cap is checked against exchange minimum futures order notional.
       # If exchange lot rules cannot be fetched, fail closed and send no trade alert.
       try:
@@ -102,7 +105,7 @@ def main():
       if min_cost > BUDGET_INR:
         print(f"{coin}: alert blocked; exchange minimum order ≈ ₹{min_cost:.0f} exceeds ₹{BUDGET_INR}")
         continue
-      typ="CONFIRMED 15m" if chosen is s15 else "EARLY 5m"
+      typ="CONFIRMED 5m + 15m"
       stamp=f"{typ}|{chosen['side']}|{chosen['candle']}"
       key=f"signal_{coin}"
       if STATE.get(key)==stamp:
