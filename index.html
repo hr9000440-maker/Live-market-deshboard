@@ -742,9 +742,16 @@ function renderCryptoOrderRow(s){
  const tbody=document.getElementById('cryptoOrderRows');if(!tbody||!s)return;
  const rows=window.cryptoOrderSnapshots||{};rows[s.coin]=s;window.cryptoOrderSnapshots=rows;
  const names=['BTC','ETH','BNB','ZEC','XRP'];
- const active=names.map(coin=>rows[coin]).filter(x=>x&&x.side!=='WAIT'&&x.strong);
- if(!active.length){tbody.innerHTML='<tr><td colspan="10">अभी कोई योग्य LIVE BUY/SELL trade signal नहीं है।</td></tr>';return;}
- tbody.innerHTML=active.map(x=>{const coin=x.coin;const direction=(coin==='BTC'||coin==='ETH')?(x.side==='BUY / LONG'?'BUY CALL':'BUY PUT'):(x.side==='BUY / LONG'?'BUY / LONG':'SELL / SHORT');const cls=direction.includes('BUY')?'call-text':'put-text';return '<tr><td>'+coin+'</td><td>'+(x.signalType==='EARLY'?'EARLY':'CONFIRMED')+'</td><td class="'+cls+'"><strong>'+direction+'</strong></td><td>'+fmt(x.entry)+'</td><td>'+fmt(x.sl)+'</td><td>'+fmt(x.t1)+'</td><td>'+fmt(x.t2)+'</td><td>'+fmt(x.t3)+'</td><td>'+fmt(x.rv)+'</td><td>'+x.time+'</td></tr>'}).join('');
+ // Keep one visible row per coin. WAIT is shown as a status/diagnostic, never as a trade instruction.
+ const visible=names.map(coin=>rows[coin]).filter(Boolean);
+ if(!visible.length){tbody.innerHTML='<tr><td colspan="10">15m market data आने का इंतज़ार…</td></tr>';return;}
+ tbody.innerHTML=visible.map(x=>{
+  const coin=x.coin,waiting=x.side==='WAIT'||!x.strong;
+  const direction=waiting?'WAIT':(coin==='BTC'||coin==='ETH')?(x.side==='BUY / LONG'?'BUY CALL':'BUY PUT'):(x.side==='BUY / LONG'?'BUY / LONG':'SELL / SHORT');
+  const cls=waiting?'signal-neutral':direction.includes('BUY')?'call-text':'put-text';
+  const detail=waiting?(x.diagnostic||x.reason||'15m confirmation बाकी'):'';
+  return '<tr><td>'+coin+'</td><td>'+(waiting?'CHECKING':(x.signalType==='EARLY'?'EARLY':'CONFIRMED'))+'</td><td class="'+cls+'"><strong>'+direction+'</strong>'+(detail?'<br><small>'+detail+'</small>':'')+'</td><td>'+fmt(x.entry)+'</td><td>'+fmt(x.sl)+'</td><td>'+fmt(x.t1)+'</td><td>'+fmt(x.t2)+'</td><td>'+fmt(x.t3)+'</td><td>'+fmt(x.rv)+'</td><td>'+x.time+'</td></tr>';
+ }).join('');
 }
 function showCoinSignal(s){
  const el=document.getElementById('sig-'+s.coin),info=document.getElementById('siginfo-'+s.coin);
