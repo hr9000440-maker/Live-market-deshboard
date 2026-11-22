@@ -645,6 +645,10 @@ async function analyzeCryptoCoin(coin){
  return signal;
 }
 const CRYPTO_MOVEMENT_KEY='cryptoMovementLog_v1';
+// Fix missing timestamp helpers that previously stopped signal rendering after candle analysis.
+function historyTime(ts){return new Date(ts).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'});}
+function indiaDate(ts){return new Date(ts).toLocaleDateString('en-IN',{timeZone:'Asia/Kolkata'});}
+
 function getCryptoMovementLog(){try{return JSON.parse(localStorage.getItem(CRYPTO_MOVEMENT_KEY)||'[]')}catch{return []}}
 function saveCryptoMovementLog(rows){try{localStorage.setItem(CRYPTO_MOVEMENT_KEY,JSON.stringify(rows))}catch(e){console.warn('Movement log storage full/unavailable',e)}}
 function captureCryptoMovement(s){
