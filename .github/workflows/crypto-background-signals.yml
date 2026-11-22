@@ -1,0 +1,22 @@
+name: Crypto Telegram Background Signals
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  alerts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Run background crypto signals
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python3 - <<'PY'
+          import urllib.request
+          urllib.request.urlretrieve("https://raw.githubusercontent.com/hr9000440-maker/Live-market-deshboard/main/background_crypto_signals.py", "background_crypto_signals.py")
+          PY
+          python3 background_crypto_signals.py
