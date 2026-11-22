@@ -238,7 +238,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 <button type="button" onclick="enableSignalNotifications()">🔔 Trade Signal Notification चालू करें</button>
 <p class="note" id="notificationStatus">Notification: बंद</p>
 <section class="panel" id="telegram-alerts"><h2>✈️ TELEGRAM SIGNAL ALERTS — BTC / ETH / BNB / ZEC</h2><p class="note">Bot token और Chat ID केवल इसी device/browser के Local Storage में रहेंगे; GitHub source में नहीं जाएंगे। ⚠️ यह तरीका सुरक्षित backend नहीं है और Telegram alert भेजने के लिए dashboard खुला तथा internet connected रहना चाहिए। 24×7 background alerts के लिए server/GitHub Actions setup आवश्यक है।</p><label for="telegramToken">Telegram Bot Token (गोपनीय रखें)</label><input id="telegramToken" type="password" autocomplete="off" placeholder="BotFather token"><label for="telegramChatId">Telegram Chat ID</label><input id="telegramChatId" type="text" inputmode="numeric" placeholder="Chat ID"><button type="button" onclick="findTelegramChatId()">Chat ID पता करें</button><button type="button" onclick="saveTelegramSettings()">सेटिंग सुरक्षित करें</button><button type="button" onclick="testTelegramAlert()">Test Message भेजें</button><p class="note" id="telegramStatus">अपने bot को Telegram में खोलें, Start दबाएँ और /start भेजें।</p></section>
-<p class="note">BTC/ETH: BUY CALL या BUY PUT दिशा का संकेत है, option contract/premium का live quote अलग Option Chain से जाँचें। Option premium पर Entry के 25% नीचे SL और 25%/50%/75% ऊपर TP1/TP2/TP3 indicative levels हैं; underlying Entry/SL/TP अलग हैं। BNB/ZEC: Entry, SL और targets underlying USDT price levels हैं। Spot data futures basis, fees, funding और slippage से अलग हो सकता है।</p>
+<p class="note">Telegram budget filter: ₹500 से अधिक अनुमानित minimum lot cost वाले alerts रोक दिए जाते हैं; option minimum lot metadata या futures exchange minimum quantity उपलब्ध न हो तो भी alert नहीं भेजा जाता। BTC/ETH: BUY CALL या BUY PUT दिशा का संकेत है, option contract/premium का live quote अलग Option Chain से जाँचें। Option premium पर Entry के 25% नीचे SL और 25%/50%/75% ऊपर TP1/TP2/TP3 indicative levels हैं; underlying Entry/SL/TP अलग हैं। BNB/ZEC: Entry, SL और targets underlying USDT price levels हैं। Spot data futures basis, fees, funding और slippage से अलग हो सकता है।</p>
 </section>
 
 <section class="panel" id="crypto-options">
@@ -735,8 +735,33 @@ function telegramStatus(s){const e=document.getElementById('telegramStatus');if(
 async function findTelegramChatId(){const token=document.getElementById('telegramToken').value.trim()||tgConfig().token;if(!token){telegramStatus('पहले BotFather token भरें।');return}telegramStatus('Bot और /start message जाँचा जा रहा है…');try{const m=await(await fetch('https://api.telegram.org/bot'+encodeURIComponent(token)+'/getMe')).json();if(!m.ok)throw Error(m.description);const u=await(await fetch('https://api.telegram.org/bot'+encodeURIComponent(token)+'/getUpdates')).json();if(!u.ok)throw Error(u.description);const chats=(u.result||[]).map(x=>x.message?.chat||x.edited_message?.chat).filter(x=>x&&x.type==='private');if(!chats.length){telegramStatus('Bot @'+m.result.username+' सही है। Telegram में bot खोलकर Start और /start भेजें, फिर दोबारा दबाएँ।');return}document.getElementById('telegramToken').value=token;document.getElementById('telegramChatId').value=String(chats[chats.length-1].id);saveTelegramSettings();telegramStatus('Bot @'+m.result.username+' जुड़ गया; Chat ID मिल गई। अब Test Message भेजें।')}catch(e){telegramStatus('Telegram connect error: '+e.message)}}
 async function sendTelegramText(message){const q=tgConfig();if(!q.token||!q.chatId)throw Error('पहले Bot token और Chat ID सेट करें।');const r=await fetch('https://api.telegram.org/bot'+encodeURIComponent(q.token)+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:q.chatId,text:message,disable_web_page_preview:true})});const j=await r.json();if(!j.ok)throw Error(j.description||'Send failed')}
 async function testTelegramAlert(){saveTelegramSettings();try{await sendTelegramText('✅ Telegram connected. BTC/ETH option और BTC/ETH/BNB/ZEC futures के signal alerts इस bot पर आएंगे।');telegramStatus('Test message भेज दिया गया।')}catch(e){telegramStatus('Test message नहीं गया: '+e.message)}}
+const TELEGRAM_BUDGET_INR=500;
+const TELEGRAM_USD_INR_BUFFER=95; // conservative conversion buffer
+let futuresExchangeRulesPromise=null;
+async function telegramFuturesMinOrderINR(symbol,entry){
+ if(!futuresExchangeRulesPromise){
+  futuresExchangeRulesPromise=fetch('https://fapi.binance.com/fapi/v1/exchangeInfo',{cache:'no-store'})
+   .then(r=>{if(!r.ok)throw Error('Binance futures rules HTTP '+r.status);return r.json()})
+   .then(j=>{const m=new Map();(j.symbols||[]).forEach(x=>m.set(x.symbol,x));return m})
+   .catch(e=>{futuresExchangeRulesPromise=null;throw e});
+ }
+ const rules=await futuresExchangeRulesPromise,info=rules.get(symbol);
+ if(!info)throw Error(symbol+' minimum lot data unavailable');
+ const lot=(info.filters||[]).find(x=>x.filterType==='LOT_SIZE');
+ if(!lot||!(Number(lot.minQty)>0))throw Error(symbol+' minimum quantity unavailable');
+ const minQty=Number(lot.minQty),notional=(info.filters||[]).find(x=>x.filterType==='MIN_NOTIONAL'||x.filterType==='NOTIONAL');
+ const exchangeMin=Number(notional?.notional??notional?.minNotional??0);
+ return Math.max(minQty*Number(entry),exchangeMin)*TELEGRAM_USD_INR_BUFFER;
+}
 function notifyTelegramStrongOption(coin,contract,signal,markUsd,spread,slUsd,tp1Usd,tp2Usd,tp3Usd,bidUsd,askUsd,side,strike,expiry,underlying,reason){
- if(!['BTC','ETH','BNB','ZEC'].includes(coin))return;
+ if(!['BTC','ETH'].includes(coin))return;
+ if(!['STRONG BUY CALL','STRONG BUY PUT'].includes(signal))return;
+ const contractData=(cryptoOptionData[coin]||[]).find(x=>x.instrument_name===contract);
+ const minAmount=Number(contractData?.min_trade_amount);
+ // Do not guess an option lot size: suppress the alert unless exchange metadata provides it.
+ if(!(minAmount>0)||!(markUsd>0))return;
+ const estimatedCostINR=markUsd*minAmount*TELEGRAM_USD_INR_BUFFER;
+ if(!Number.isFinite(estimatedCostINR)||estimatedCostINR>TELEGRAM_BUDGET_INR)return;
  const cfg=tgConfig(),lock=cryptoSignalLock[coin],candle=lock?.signal?.candleTime||'';
  if(!cfg.token||!cfg.chatId)return;
  const key='tgSent_'+coin+'_'+contract+'_'+signal,stamp=String(candle)+'_'+signal;
@@ -768,9 +793,14 @@ function notifyCryptoDataError(coin,message){
  sendTelegramText('⚠️ '+coin+' DATA ERROR\\n15m market data fetch failed: '+message+'\\nDashboard refresh/fallback will retry. No signal generated.').then(()=>localStorage.setItem(key,stamp)).catch(e=>telegramStatus('Telegram data-error alert failed: '+e.message));
 }
 
-function notifyTelegramCryptoSignal(s){
- if(!s||!['BTC','ETH','BNB','ZEC'].includes(s.coin)||!s.side||s.side==='WAIT')return;
+async function notifyTelegramCryptoSignal(s){
+ // BTC/ETH are handled only by the option-premium alert above. Futures budget filter applies to BNB/ZEC.
+ if(!s||!['BNB','ZEC'].includes(s.coin)||!s.side||s.side==='WAIT')return;
  const cfg=tgConfig();if(!cfg.token||!cfg.chatId)return;
+ let minCostINR;
+ try{minCostINR=await telegramFuturesMinOrderINR(s.coin+'USDT',s.entry);}
+ catch(e){telegramStatus('₹500 budget check: '+e.message+' — alert रोक दिया गया।');return;}
+ if(minCostINR>TELEGRAM_BUDGET_INR)return;
  const alerts=[];
  // EARLY alerts use the live candle; CONFIRMED alerts are sent only when the last
  // fully-closed 15m candle confirms the same direction, keeping Entry/SL/TP aligned.
