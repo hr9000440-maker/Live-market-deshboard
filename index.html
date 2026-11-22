@@ -781,7 +781,20 @@ function notifyTelegramCryptoSignal(s){
   const key='tgCryptoSignal_'+s.coin+'_'+a.type.replace(/[^A-Z0-9]/gi,'');
   if(localStorage.getItem(key)===stamp)return;
   const dir=(s.coin==='BTC'||s.coin==='ETH')?(a.side==='BUY / LONG'?'🟢 BUY CALL':'🔴 BUY PUT'):(a.side==='BUY / LONG'?'🟢 BUY / LONG':'🔴 SELL / SHORT');
-  const msg='🚨 CRYPTO '+a.type+' SIGNAL\\nCoin: '+s.coin+'\\nSignal: '+dir+'\\nEntry: '+fmt(a.entry)+'\\n🛑 SL: '+fmt(a.sl)+'\\n🎯 TP1: '+fmt(a.t1)+'\\n🎯 TP2: '+fmt(a.t2)+'\\n🎯 TP3: '+fmt(a.t3)+'\\nRSI: '+fmt(a.rv)+'\\nEMA9: '+fmt(a.e9)+' | EMA21: '+fmt(a.e21)+'\\nTime: '+(a.time||new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}))+'\\nReason: '+(a.reason||'15m movement signal')+'\\n⚠️ Signal only — automatic order नहीं।';
+  const msg='🚨 CRYPTO '+a.type+' SIGNAL\n'+
+   'Coin: '+s.coin+'\n'+
+   'Signal: '+dir+'\n'+
+   'Entry: '+fmt(a.entry)+'\n'+
+   '🛑 SL: '+fmt(a.sl)+'\n'+
+   '🎯 TP1: '+fmt(a.t1)+'\n'+
+   '🎯 TP2: '+fmt(a.t2)+'\n'+
+   '🎯 TP3: '+fmt(a.t3)+'\n'+
+   'RSI: '+fmt(a.rv)+'\n'+
+   'EMA9: '+fmt(a.e9)+'\n'+
+   'EMA21: '+fmt(a.e21)+'\n'+
+   'Time: '+(a.time||new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}))+'\n'+
+   'Reason: '+(a.reason||'15m movement signal')+'\n'+
+   '⚠️ Signal only — automatic order नहीं।';
   sendTelegramText(msg).then(()=>localStorage.setItem(key,stamp)).catch(e=>telegramStatus('Signal alert भेजने में error: '+e.message));
  });
 }
