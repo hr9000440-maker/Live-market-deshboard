@@ -343,6 +343,7 @@ function expiryDateValue(v){
 function todayISTExpiryValue(){const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const y=parts.find(p=>p.type==='year').value,m=parts.find(p=>p.type==='month').value,d=parts.find(p=>p.type==='day').value;return Date.UTC(Number(y),Number(m)-1,Number(d));}
 function expiryLabel(v){const t=expiryDateValue(v);if(!Number.isFinite(t))return String(v);const today=todayISTExpiryValue();const d=new Date(t);const base=new Date(today);const delta=Math.round((t-today)/86400000);const date=d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'});return date+(delta===0?' • TODAY':delta===1?' • NEXT DAY':delta>1?' • NEXT AVAILABLE':' • EXPIRED');}
 function fmt(n){return Number.isFinite(n)?n.toLocaleString('en-US',{maximumFractionDigits:2}):'—'}
+function fetchWithTimeout(url,options={},timeoutMs=8000){const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),timeoutMs);return fetch(url,{...options,signal:controller.signal}).finally(()=>clearTimeout(timer));}
 async function loadCryptoOptions(){
  const coin=document.getElementById('optCurrency').value,status=document.getElementById('optStatus');const token=++optionLoadToken;
  status.textContent=coin+' options का live data लिया जा रहा है…';
