@@ -705,12 +705,12 @@ async function analyzeCryptoCoin(coin){
   entry,sl,t1,t2,t3,rv:early5?early5.rv:rv,e9:early5?early5.e9:e9,e21:early5?early5.e21:e21,volume,avgVol,open,high,low,
   confirmedSide,confirmedClose:close,confirmedE9:e9,confirmedE21:e21,confirmedRsi:rv,
   confirmationReason,
-  time:new Date(candleTime+900000).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),
-  candleTime
+  time:early5&&confirmedSide==='WAIT'?early5.time:new Date(candleTime+900000).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),
+  candleTime:early5&&confirmedSide==='WAIT'?early5.candleTime:candleTime
  };
  cryptoSignalLock[coin]={candleTime,signal};
- // Persist a confirmed signal for this closed candle; WAIT is never stored as a lock.
- if(strong&&(!lockedSnapshot||!priorLock||Number(priorLock.candleTime)!==candleTime)){
+ // Persist only 15m confirmed signals; 5m EARLY alerts must not lock the 15m candle.
+ if(strong&&signalType!=='EARLY'&&(!lockedSnapshot||!priorLock||Number(priorLock.candleTime)!==candleTime)){
   saveSignalLock(coin,{candleTime,signal});
  }
  return signal;
