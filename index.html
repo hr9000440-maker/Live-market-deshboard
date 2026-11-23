@@ -821,6 +821,16 @@ async function telegramFuturesMinOrderINR(symbol,entry){
  const exchangeMin=Number(notional?.notional??notional?.minNotional??0);
  return Math.max(minQty*Number(entry),exchangeMin)*TELEGRAM_USD_INR_BUFFER;
 }
+const telegramPendingAlerts=new Set();
+function sendTelegramDeduped(key,stamp,message,onError){
+ const pendingKey=key+'|'+stamp;
+ if(localStorage.getItem(key)===stamp||telegramPendingAlerts.has(pendingKey))return;
+ telegramPendingAlerts.add(pendingKey);
+ sendTelegramText(message)
+  .then(()=>localStorage.setItem(key,stamp))
+  .catch(e=>{if(typeof onError==='function')onError(e);})
+  .finally(()=>telegramPendingAlerts.delete(pendingKey));
+}
 function notifyTelegramStrongOption(coin,contract,signal,markUsd,spread,slUsd,tp1Usd,tp2Usd,tp3Usd,bidUsd,askUsd,side,strike,expiry,underlying,reason){
  if(!['BTC','ETH'].includes(coin))return;
  if(!['STRONG BUY CALL','STRONG BUY PUT'].includes(signal))return;
@@ -833,7 +843,6 @@ function notifyTelegramStrongOption(coin,contract,signal,markUsd,spread,slUsd,tp
  const cfg=tgConfig(),lock=cryptoSignalLock[coin],candle=lock?.signal?.candleTime||'';
  if(!cfg.token||!cfg.chatId)return;
  const key='tgSent_'+coin+'_'+contract+'_'+signal,stamp=String(candle)+'_'+signal;
- if(localStorage.getItem(key)===stamp)return;
  const direction=signal.includes('CALL')?'🟢 BUY CALL':'🔴 BUY PUT';
  const message='🚨 OPTION TRADE SIGNAL\n'+
  'Coin: '+coin+'\n'+direction+'\n'+
@@ -852,7 +861,7 @@ function notifyTelegramStrongOption(coin,contract,signal,markUsd,spread,slUsd,tp
  'Reason: '+(reason||'15m trend + quote/spread confirmation')+'\n'+
  'Underlying Direction: '+(cryptoTrendSignal[coin]||'WAIT')+'\n'+
  '⚠️ Signal only — automatic order नहीं। Live quote verify करें.';
- sendTelegramText(message).then(()=>localStorage.setItem(key,stamp)).catch(e=>telegramStatus('Telegram option alert error: '+e.message));
+ sendTelegramDeduped(key,stamp,message,e=>telegramStatus('Telegram option alert error: '+e.message));
 }
 function notifyCryptoDataError(coin,message){
  const cfg=tgConfig();if(!cfg.token||!cfg.chatId)return;
@@ -877,7 +886,6 @@ async function notifyTelegramCryptoSignal(s){
  alerts.forEach(a=>{
   const stamp=String(a.candle)+'_'+a.side+'_'+a.type;
   const key='tgCryptoSignal_'+s.coin+'_'+a.type.replace(/[^A-Z0-9]/gi,'');
-  if(localStorage.getItem(key)===stamp)return;
   const dir=(s.coin==='BTC'||s.coin==='ETH')?(a.side==='BUY / LONG'?'🟢 BUY CALL':'🔴 BUY PUT'):(a.side==='BUY / LONG'?'🟢 BUY / LONG':'🔴 SELL / SHORT');
   const msg='🚨 CRYPTO '+a.type+' SIGNAL\n'+
    'Coin: '+s.coin+'\n'+
@@ -893,7 +901,7 @@ async function notifyTelegramCryptoSignal(s){
    'Time: '+(a.time||new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}))+'\n'+
    'Reason: '+(a.reason||'15m movement signal')+'\n'+
    '⚠️ Signal only — automatic order नहीं।';
-  sendTelegramText(msg).then(()=>localStorage.setItem(key,stamp)).catch(e=>telegramStatus('Signal alert भेजने में error: '+e.message));
+  sendTelegramDeduped(key,stamp,msg,e=>telegramStatus('Signal alert भेजने में error: '+e.message));
  });
 }
 
