@@ -19,8 +19,8 @@ function fail(message) {
   process.exit(1);
 }
 
-if (!/^[0-9a-fA-F]{64}$/.test(apiKey)) fail('API key missing or not a 32-byte hex public key.');
-if (!/^[0-9a-fA-F]{64}$/.test(secretHex)) fail('Secret key missing or not a 32-byte hex private seed.');
+if (!/^[0-9a-fA-F]{64}$/.test(apiKey)) fail('API key format invalid (length=' + apiKey.length + ', hex=' + /^[0-9a-fA-F]+$/.test(apiKey) + ').');
+if (!/^[0-9a-fA-F]{64}$/.test(secretHex)) fail('Secret key format invalid (length=' + secretHex.length + ', hex=' + /^[0-9a-fA-F]+$/.test(secretHex) + ').');
 
 async function main() {
   const epoch = String(Date.now());
