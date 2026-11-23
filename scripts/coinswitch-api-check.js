@@ -3,7 +3,11 @@ const crypto = require('node:crypto');
 // GitHub Secrets may contain accidental surrounding whitespace or a copied 0x prefix.
 // Normalize only these harmless formatting differences; never print credential values.
 function normalizeHex(value) {
-  return String(value || '').trim().replace(/^0x/i, '');
+  const raw = String(value || '').trim().replace(/^0x/i, '');
+  // Some copied key displays may group hex characters with dots.
+  // Remove dots only when the remaining value is exactly a valid 32-byte hex key.
+  const dotted = raw.replace(/\./g, '');
+  return /^[0-9a-fA-F]{64}$/.test(dotted) ? dotted : raw;
 }
 
 const apiKey = normalizeHex(process.env.COINSWITCH_API_KEY);
