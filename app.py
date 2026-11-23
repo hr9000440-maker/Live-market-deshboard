@@ -278,6 +278,27 @@ def crypto_options(coin):
         "count": len(rows), "details": errors[-4:],
     })
 
+@app.get("/api/algo/status")
+def algo_status():
+    return jsonify({
+        "credentials_configured": bool(os.getenv("COINSWITCH_API_KEY") and os.getenv("COINSWITCH_SECRET_KEY")),
+        "api_validation": "not_checked",
+        "live_orders": "NOT_ACTIVE",
+        "mode": "SAFE_SETUP",
+        "message": "API key validation only; no orders can be placed from this endpoint."
+    })
+
+@app.get("/api/algo/validate")
+def algo_validate():
+    try:
+        from coinswitch_api import validate_keys
+        status, result = validate_keys()
+        valid = status == 200 and str(result.get("message", "")).lower() == "valid access"
+        return jsonify({"valid": valid, "http_status": status, "message": "CoinSwitch API access verified" if valid else "CoinSwitch returned an unexpected validation response"}), (200 if valid else 502)
+    except Exception as exc:
+        safe = str(exc)[:200]
+        return jsonify({"valid": False, "message": safe}), 503
+
 @app.get("/health")
 def health():
     return jsonify({"status": "ok", "service": "live-market-dashboard"})
