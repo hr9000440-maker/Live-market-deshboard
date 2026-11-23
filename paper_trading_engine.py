@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""No-money paper trading engine. Public Binance USD-M futures candles only."""
+"""No-money paper trading engine. Bybit public linear candles with Binance fallback."""
 import json, os, time, urllib.request, datetime
 STATE_PATH="paper_trades.json"
 COINS=["BTC","ETH","BNB","ZEC"]
