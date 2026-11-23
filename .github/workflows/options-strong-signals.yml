@@ -1,0 +1,34 @@
+name: CoinSwitch Options Strong Signals
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+permissions:
+  contents: read
+concurrency:
+  group: options-strong-signals
+  cancel-in-progress: true
+jobs:
+  signals:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Restore signal state
+        uses: actions/cache/restore@v4
+        with:
+          path: options_algo_state.json
+          key: options-state-${{ github.run_id }}
+          restore-keys: options-state-
+      - name: Run BTC/ETH strong signal algo
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/hr9000440-maker/Live-market-deshboard/main/options_strong_signals.py -o options_strong_signals.py
+          python3 options_strong_signals.py
+      - name: Save signal state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: options_algo_state.json
+          key: options-state-${{ github.run_id }}
