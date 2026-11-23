@@ -2,8 +2,8 @@ import os, json, urllib.request, urllib.parse, datetime, sys
 
 COINS = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "ZECUSDT"]
 STATE_PATH = ".signal-state/state.json"
-INTERVAL = "5m"
-CANDLE_MS = 300000
+INTERVAL = "15m"
+CANDLE_MS = 900000
 
 def request_json(url):
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 market-signal-monitor", "Accept": "application/json"})
@@ -23,7 +23,7 @@ def get_klines(symbol):
         except Exception as exc:
             errors.append(f"Binance {host}: {exc}")
     try:
-        url = "https://api.bybit.com/v5/market/kline?" + urllib.parse.urlencode({"category":"spot","symbol":symbol,"interval":"5","limit":100})
+        url = "https://api.bybit.com/v5/market/kline?" + urllib.parse.urlencode({"category":"spot","symbol":symbol,"interval":"15","limit":100})
         payload = request_json(url)
         if payload.get("retCode") == 0:
             rows = list(reversed(payload.get("result", {}).get("list", [])))
@@ -88,7 +88,7 @@ for symbol in COINS:
         highs=[float(r[2]) for r in klines]
         lows=[float(r[3]) for r in klines]
         times=[int(r[0]) for r in klines]
-        # Exclude the still-forming candle; signal on every new CLOSED 5m candle.
+        # Exclude the still-forming candle; signal on every new CLOSED 15m candle.
         closes,highs,lows,times=closes[:-1],highs[:-1],lows[:-1],times[:-1]
         e9,e21=ema(closes,9),ema(closes,21)
         rv=rsi(closes)
@@ -113,7 +113,7 @@ for symbol in COINS:
         delivered=True
         if new_signal:
             candle_time=datetime.datetime.fromtimestamp(candle_ts/1000,datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-            msg=(f"🚦 5-MIN TRADE SIGNAL — {symbol}\n{direction}\nClosed 5m candle: {candle_time}\n"
+            msg=(f"🚦 15-MIN TRADE SIGNAL — {symbol}\n{direction}\nClosed 15m candle: {candle_time}\n"
                  f"Entry: {price:.8g}\nStop Loss: {sl:.8g}\nTP1: {targets[0]:.8g}\nTP2: {targets[1]:.8g}\nTP3: {targets[2]:.8g}\n"
                  f"EMA9: {e9[-1]:.8g} | EMA21: {e21[-1]:.8g} | RSI14: {rv:.1f}\nSignal only — no order placement.\nChecked: {now}")
             delivered=send(msg)
