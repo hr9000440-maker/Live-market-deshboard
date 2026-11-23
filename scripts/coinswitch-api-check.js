@@ -48,7 +48,34 @@ async function main() {
   if (body.message !== 'Valid Access') {
     fail('unexpected validation response; check CoinSwitch API response in Actions log.');
   }
-  console.log('CoinSwitch API check: VALID ACCESS. Credentials work. No orders were placed.');
+  console.log('CoinSwitch Spot API check: VALID ACCESS.');
+
+  // Verify Futures v2 read-only access and discover which requested markets are enabled.
+  const futuresPath = '/trade/api/v2/futures/instrument_info?exchange=EXCHANGE_2';
+  const futuresEpoch = String(Date.now());
+  const futuresMessage = 'GET' + futuresPath + futuresEpoch;
+  const futuresSignature = crypto.sign(null, Buffer.from(futuresMessage, 'utf8'), privateKey).toString('hex');
+  const futuresResponse = await fetch(baseUrl + futuresPath, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-AUTH-APIKEY': apiKey,
+      'X-AUTH-SIGNATURE': futuresSignature,
+      'X-AUTH-EPOCH': futuresEpoch,
+    },
+    signal: AbortSignal.timeout(15000),
+  });
+  const futuresBody = await futuresResponse.json().catch(() => ({}));
+  if (!futuresResponse.ok || !futuresBody.data || typeof futuresBody.data !== 'object') {
+    const safeMessage = typeof futuresBody.message === 'string' ? futuresBody.message : ('HTTP ' + futuresResponse.status);
+    fail('Futures v2 read-only access not confirmed (' + futuresResponse.status + '): ' + safeMessage);
+  }
+  const requested = ['BTC', 'ETH', 'BNB', 'ZEC'];
+  const available = requested.filter((coin) => futuresBody.data[coin + 'USDT']?.status === 'TRADING');
+  const unavailable = requested.filter((coin) => !available.includes(coin));
+  console.log('CoinSwitch Futures v2 READ-ONLY access: VALID. No orders were placed.');
+  console.log('Requested markets available: ' + (available.join(', ') || 'none confirmed'));
+  if (unavailable.length) console.log('Markets not confirmed as TRADING: ' + unavailable.join(', '));
 }
 
 main().catch((error) => fail(error.message || 'request failed'));
