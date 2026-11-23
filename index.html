@@ -606,9 +606,11 @@ async function analyzeCryptoCoin(coin){
   {name:'Gate.io Spot Backup',url:'https://api.gateio.ws/api/v4/spot/candlesticks?currency_pair='+coin+'_USDT&interval=15m&limit=60',parse:j=>(Array.isArray(j)?j:[]).map(x=>[Number(x[0])*1000,String(x[5]),String(x[3]),String(x[4]),String(x[2]),String(x[1]),Number(x[0])*1000+900000-1]).sort((a,b)=>a[0]-b[0])}
  ];
  let raw=null,lastFeedError='',usedFeed='';
- // Run independent public feeds in parallel so one slow endpoint cannot delay the whole dashboard.
+ const feedControllers=[];
+ // Race public feeds, then cancel losing requests as soon as one valid source wins.
  const feedAttempts=feeds.map(async feed=>{
-  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),12000);
+  const controller=new AbortController();feedControllers.push(controller);
+  const timeout=setTimeout(()=>controller.abort(),12000);
   try{
    const res=await fetch(feed.url,{cache:'no-store',signal:controller.signal});
    if(!res.ok)throw new Error('HTTP '+res.status);
@@ -624,11 +626,14 @@ async function analyzeCryptoCoin(coin){
    valid.sort((a,b)=>Number(a[0])-Number(b[0]));
    const unique=[...new Map(valid.map(x=>[Number(x[0]),x])).values()];
    if(unique.length<30)throw new Error('15m candles में duplicate के बाद पर्याप्त डेटा नहीं है');
-   return {data:unique,feed:feed.name};
+   return {data:unique,feed:feed.name,controller};
   }finally{clearTimeout(timeout)}
  });
- try{const winner=await Promise.any(feedAttempts);raw=winner.data;usedFeed=winner.feed}
- catch(e){lastFeedError=e.errors?.map(x=>x.name==='AbortError'?'timeout':x.message||'feed error').join(' | ')||'all feeds failed'}
+ try{
+  const winner=await Promise.any(feedAttempts);raw=winner.data;usedFeed=winner.feed;
+  feedControllers.forEach(c=>{if(c!==winner.controller)c.abort();});
+ }
+ catch(e){feedControllers.forEach(c=>c.abort());lastFeedError=e.errors?.map(x=>x.name==='AbortError'?'timeout':x.message||'feed error').join(' | ')||'all feeds failed'}
  if(!raw)throw new Error(coin+' 15m market feed unavailable. सभी स्रोत असफल: '+lastFeedError);
  const latestCandleOpen=Number(raw[raw.length-1][0]),candleAge=Date.now()-latestCandleOpen;
  if(!Number.isFinite(latestCandleOpen)||candleAge< -60000||candleAge>30*60*1000){
