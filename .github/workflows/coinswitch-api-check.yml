@@ -1,6 +1,10 @@
 name: CoinSwitch API Credential Check
 
 on:
+  push:
+    paths:
+      - 'scripts/coinswitch-api-check.js'
+      - '.github/workflows/coinswitch-api-check.yml'
   schedule:
     - cron: '17 */6 * * *'
   workflow_dispatch:
