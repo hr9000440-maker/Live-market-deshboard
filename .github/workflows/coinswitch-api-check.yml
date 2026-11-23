@@ -1,0 +1,26 @@
+name: CoinSwitch API Credential Check
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: coinswitch-api-credential-check
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout dashboard
+        uses: actions/checkout@v4
+      - name: Validate CoinSwitch credentials (read-only)
+        env:
+          COINSWITCH_API_KEY: ${{ secrets.COINSWITCH_API_KEY }}
+          COINSWITCH_SECRET_KEY: ${{ secrets.COINSWITCH_SECRET_KEY }}
+        run: node scripts/coinswitch-api-check.js
