@@ -1,0 +1,32 @@
+name: Crypto Paper Trading Engine
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+permissions:
+  contents: write
+concurrency:
+  group: crypto-paper-trading
+  cancel-in-progress: false
+jobs:
+  paper-trading:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout dashboard and saved paper ledger
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run paper trading engine (no real orders)
+        run: python3 paper_trading_engine.py
+      - name: Publish paper trade ledger for dashboard
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add paper_trades.json
+          if git diff --cached --quiet; then
+            echo "No paper ledger changes."
+          else
+            git commit -m "Update crypto paper trading ledger"
+            git push
+          fi
