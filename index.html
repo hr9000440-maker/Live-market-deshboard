@@ -568,7 +568,28 @@ function renderCryptoOptions(){
  document.getElementById('optRows').innerHTML=rows.length?rows.slice(0,150).map(x=>{const p=x.instrument_name.split('-'),side=p[3]==='C'?'CALL':'PUT',bid=Number(x.bid_price),ask=Number(x.ask_price),mark=Number(x.mark_price),markUsd=optionUsd(mark,underlying),oi=Number(x.open_interest||0),vol=Number(x.volume||0),mid=(bid>0&&ask>=bid)?(ask+bid)/2:0,spread=mid>0?(ask-bid)/mid:null,trend=cryptoTrendSignal[coin];let signal='WAIT',why='';if(trend!==(side==='CALL'?'BUY CALL':'BUY PUT'))why='15m दिशा मेल नहीं';else if(!(bid>0&&ask>=bid&&mark>0))why='quote अधूरा';else if(spread===null)why='spread उपलब्ध नहीं';else if(spread>0.10)why='spread 10% से अधिक';else if(!(oi>0||vol>0))why='OI और 24h volume दोनों शून्य';else signal=cryptoSignalStrength[coin]?(trend==='BUY CALL'?'STRONG BUY CALL':'STRONG BUY PUT'):(trend==='BUY CALL'?'EARLY BUY CALL':'EARLY BUY PUT');const slUsd=markUsd>0?markUsd*0.75:null,tp1Usd=markUsd>0?markUsd*1.25:null,tp2Usd=markUsd>0?markUsd*1.50:null,tp3Usd=markUsd>0?markUsd*1.75:null;if(trend===(side==='CALL'?'BUY CALL':'BUY PUT')&&bid>0&&ask>=bid&&mark>0&&spread!==null&&spread<=0.20)autoTrackOptionPremium(coin,x.instrument_name,markUsd,(signal==='STRONG BUY CALL'||signal==='STRONG BUY PUT')?signal:'EARLY MOVEMENT WATCH',side,Number(p[2]),optionDate(x.instrument_name));if(signal==='STRONG BUY CALL'||signal==='STRONG BUY PUT'||signal==='EARLY BUY CALL'||signal==='EARLY BUY PUT'){notifyTelegramStrongOption(coin,x.instrument_name,signal,markUsd,spread,slUsd,tp1Usd,tp2Usd,tp3Usd,optionUsd(bid,underlying),optionUsd(ask,underlying),side,Number(p[2]),optionDate(x.instrument_name),underlying,why);}return '<tr><td>'+x.instrument_name+'</td><td>'+Number(p[2]).toLocaleString('en-US')+'</td><td class="'+(side==='CALL'?'call-text':'put-text')+'">'+side+'</td><td>'+optionMoney(optionUsd(bid,underlying))+'</td><td>'+optionMoney(optionUsd(ask,underlying))+'</td><td>'+optionMoney(markUsd)+'</td><td>'+(spread===null?'—':(spread*100).toFixed(2)+'%')+'</td><td>'+optionMoney(slUsd)+'</td><td>'+optionMoney(tp1Usd)+'</td><td>'+optionMoney(tp2Usd)+'</td><td>'+optionMoney(tp3Usd)+'</td><td>'+oi.toLocaleString('en-US',{maximumFractionDigits:3})+'</td><td>'+vol.toLocaleString('en-US',{maximumFractionDigits:3})+'</td><td class="'+(signal==='WAIT'?'signal-neutral':side==='CALL'?'call-text':'put-text')+'">'+signal+(why?' ('+why+')':'')+'</td></tr>'}).join(''):'<tr><td colspan="14">इस expiry/filter में low-spread trade signal नहीं मिला।</td></tr>';
 }
 function ema(values,period){let k=2/(period+1),v=values[0];for(let i=1;i<values.length;i++)v=values[i]*k+v*(1-k);return v}
-function rsi(values,period=14){let gains=0,losses=0;for(let i=values.length-period;i<values.length;i++){let d=values[i]-values[i-1];if(d>0)gains+=d;else losses-=d}let ag=gains/period,al=losses/period;return al===0?100:100-100/(1+ag/al)}
+function rsi(values,period=14){
+ // Wilder's RSI (RMA): standard RSI calculation, seeded from the first period.
+ if(!Array.isArray(values)||values.length<period+1||!Number.isFinite(period)||period<2)return NaN;
+ let avgGain=0,avgLoss=0;
+ for(let i=1;i<=period;i++){
+  const change=Number(values[i])-Number(values[i-1]);
+  if(!Number.isFinite(change))return NaN;
+  if(change>0)avgGain+=change;else avgLoss-=change;
+ }
+ avgGain/=period;avgLoss/=period;
+ for(let i=period+1;i<values.length;i++){
+  const change=Number(values[i])-Number(values[i-1]);
+  if(!Number.isFinite(change))return NaN;
+  const gain=Math.max(change,0),loss=Math.max(-change,0);
+  avgGain=((avgGain*(period-1))+gain)/period;
+  avgLoss=((avgLoss*(period-1))+loss)/period;
+ }
+ if(avgGain===0&&avgLoss===0)return 50;
+ if(avgLoss===0)return 100;
+ if(avgGain===0)return 0;
+ return 100-(100/(1+avgGain/avgLoss));
+}
 let cryptoSignalLock={BTC:null,ETH:null,BNB:null,ZEC:null};
 // Cache the slower 1h confirmation so rapid dashboard refreshes do not overload the public market API.
 const cryptoH1Cache={};
@@ -728,9 +749,9 @@ function renderCryptoOrderRow(s){
  const tbody=document.getElementById('cryptoOrderRows');if(!tbody||!s)return;
  const rows=window.cryptoOrderSnapshots||{};rows[s.coin]=s;window.cryptoOrderSnapshots=rows;
  const names=['BTC','ETH','BNB','ZEC'];
- const active=names.map(coin=>rows[coin]).filter(x=>x&&x.side!=='WAIT'&&x.strong);
- if(!active.length){tbody.innerHTML='<tr><td colspan="10">अभी कोई योग्य LIVE BUY/SELL trade signal नहीं है।</td></tr>';return;}
- tbody.innerHTML=active.map(x=>{const coin=x.coin;const direction=(coin==='BTC'||coin==='ETH')?(x.side==='BUY / LONG'?'BUY CALL':'BUY PUT'):(x.side==='BUY / LONG'?'BUY / LONG':'SELL / SHORT');const cls=direction.includes('BUY')?'call-text':'put-text';return '<tr><td>'+coin+'</td><td>'+(x.signalType==='EARLY'?'EARLY':'CONFIRMED')+'</td><td class="'+cls+'"><strong>'+direction+'</strong></td><td>'+fmt(x.entry)+'</td><td>'+fmt(x.sl)+'</td><td>'+fmt(x.t1)+'</td><td>'+fmt(x.t2)+'</td><td>'+fmt(x.t3)+'</td><td>'+fmt(x.rv)+'</td><td>'+x.time+'</td></tr>'}).join('');
+ const active=names.map(coin=>rows[coin]).filter(x=>x&&x.side!=='WAIT'&&(x.signalType==='EARLY'||x.strong));
+ if(!active.length){tbody.innerHTML='<tr><td colspan="10">अभी कोई EARLY या CONFIRMED BUY/SELL signal उपलब्ध नहीं है।</td></tr>';return;}
+ tbody.innerHTML=active.map(x=>{const coin=x.coin;const direction=(coin==='BTC'||coin==='ETH')?(x.side==='BUY / LONG'?'BUY CALL':'BUY PUT'):(x.side==='BUY / LONG'?'BUY / LONG':'SELL / SHORT');const cls=direction.includes('BUY')?'call-text':'put-text';return '<tr><td>'+coin+'</td><td>'+(x.strong?'CONFIRMED':'EARLY')+'</td><td class="'+cls+'"><strong>'+direction+'</strong></td><td>'+fmt(x.entry)+'</td><td>'+fmt(x.sl)+'</td><td>'+fmt(x.t1)+'</td><td>'+fmt(x.t2)+'</td><td>'+fmt(x.t3)+'</td><td>'+fmt(x.rv)+'</td><td>'+x.time+'</td></tr>'}).join('');
 }
 function showCoinSignal(s){
  const el=document.getElementById('sig-'+s.coin),info=document.getElementById('siginfo-'+s.coin);
