@@ -12,9 +12,27 @@ def get_json(url):
     with urllib.request.urlopen(req,timeout=15) as r: return json.loads(r.read())
 
 def candles(symbol, interval, limit=80):
-    data=get_json(f"https://fapi.binance.com/fapi/v1/klines?symbol={symbol}USDT&interval={interval}&limit={limit}")
-    if not isinstance(data,list) or len(data)<35: raise RuntimeError("Insufficient candle data")
-    return data[:-1]
+    # Primary: Bybit public linear candles. Fallback: Binance USD-M.
+    errors=[]
+    try:
+        payload=get_json(f"https://api.bybit.com/v5/market/kline?category=linear&symbol={symbol}USDT&interval={interval}&limit={limit}")
+        if payload.get("retCode") != 0:
+            raise RuntimeError(f"Bybit {payload.get('retCode')}: {payload.get('retMsg')}")
+        items=payload.get("result",{}).get("list",[])
+        data=[[int(x[0]),x[1],x[2],x[3],x[4],x[5]] for x in reversed(items)]
+        if len(data)<35: raise RuntimeError("Bybit: insufficient candle data")
+        candles.last_source="Bybit linear"
+        return data[:-1]
+    except Exception as e:
+        errors.append(str(e))
+    try:
+        data=get_json(f"https://fapi.binance.com/fapi/v1/klines?symbol={symbol}USDT&interval={interval}&limit={limit}")
+        if not isinstance(data,list) or len(data)<35: raise RuntimeError("Binance: insufficient candle data")
+        candles.last_source="Binance USD-M"
+        return data[:-1]
+    except Exception as e:
+        errors.append(str(e))
+    raise RuntimeError("All market-data sources failed: " + " | ".join(errors)[:180])
 
 def ema(v,n):
     a=v[0]; k=2/(n+1)
@@ -83,7 +101,7 @@ def main():
         stamp=f'{coin}:{s15["side"]}:{s15["candle"]}'
         if state.get("last_signal",{}).get(coin)==stamp: continue
         entry=s15["entry"]; qty=(BUDGET_INR/USD_INR)/entry
-        trade={"id":stamp,"coin":coin,"side":s15["side"],"timeframe":"5m + 15m confirmed","entry":entry,
+        trade={"id":stamp,"coin":coin,"side":s15["side"],"timeframe":"5m + 15m confirmed","data_source":getattr(candles,"last_source","unknown"),"entry":entry,
           "sl":s15["sl"],"tp1":s15["tp1"],"tp2":s15["tp2"],"qty":qty,"budget_inr":BUDGET_INR,
           "rsi":round(s15["rsi"],2),"ema9":s15["ema9"],"ema21":s15["ema21"],
           "opened_at":now,"status":"OPEN","tp1_hit":False,"signal_candle":s15["candle"]}
