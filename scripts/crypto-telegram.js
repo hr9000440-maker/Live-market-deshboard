@@ -133,6 +133,13 @@ async function analyze(coin) {
       ].join('\n');
       await telegram(message);
       state[key] = new Date().toISOString();
+      const perfPath = 'state/performance.json';
+      let perf = { trades: [] };
+      try { perf = JSON.parse(fs.readFileSync(perfPath, 'utf8')); } catch {}
+      perf.trades = Array.isArray(perf.trades) ? perf.trades : [];
+      if (!perf.trades.some(t => t.key === key)) perf.trades.push({ key, coin, side: s.side, candleTime: s.candleTime, entry: s.entry, sl: s.sl, tp1: s.tp1, tp2: s.tp2, status: 'OPEN', createdAt: new Date().toISOString() });
+      fs.mkdirSync('state', { recursive: true });
+      fs.writeFileSync(perfPath, JSON.stringify(perf, null, 2) + '\\n');
       signals++;
       console.log(coin + ': Telegram signal sent');
     } catch (e) {
