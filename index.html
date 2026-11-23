@@ -234,6 +234,18 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 <button type="button" onclick="exportCryptoMovementLog()">⬇️ Movement CSV Export</button>
 <button type="button" onclick="clearCryptoMovementLog()">🗑️ Movement Log Clear</button>
 </section>
+<section class="panel" id="coinswitch-live-feed">
+<h2>🔌 COINSWITCH FUTURES V2 — LIVE DATA GATEWAY</h2>
+<p class="note">CoinSwitch के official public WebSocket से BTC / ETH / BNB / ZEC के 15m futures candles। यह read-only feed है; कोई order place नहीं होता। पहली बार Render service start होने के बाद candle history धीरे-धीरे जमा होगी।</p>
+<div class="grid">
+ <div class="result"><small>CoinSwitch Connection</small><strong id="csFeedConnection">जुड़ रहा है…</strong></div>
+ <div class="result"><small>Last WebSocket Update</small><strong id="csFeedUpdated">—</strong></div>
+ <div class="result"><small>Feed Source</small><strong>CoinSwitch Futures V2</strong></div>
+ <div class="result"><small>Signal Engine</small><strong>मौजूदा नियम सुरक्षित</strong></div>
+</div>
+<div class="option-table-wrap"><table class="option-table" style="min-width:760px"><thead><tr><th>Coin</th><th>Last Price (USDT)</th><th>15m Candle</th><th>Collected Candles</th><th>Freshness</th></tr></thead><tbody id="csFeedRows"><tr><td colspan="5">CoinSwitch feed से डेटा आने की प्रतीक्षा…</td></tr></tbody></table></div>
+<p class="note" id="csFeedNote">डेटा उपलब्ध होने पर यहाँ connection और freshness दिखाई देगी। पुराने या stale data को live signal नहीं माना जाएगा।</p>
+</section>
 <section class="panel" id="crypto-signals">
 <h2>🚦 CRYPTO 15 MIN SIGNALS — BTC / ETH OPTIONS + BNB / ZEC FUTURES</h2>
 <p class="note">LIVE MARKET TRADE SIGNAL MODE — यह पेपर-वॉच नहीं है। BTC/ETH/BNB/ZEC के वास्तविक public market data पर BUY/SELL संकेत हर 10 सेकंड refresh होंगे। BTC और ETH के लिए 15m EMA9/EMA21 + RSI14 से BUY CALL / BUY PUT संकेत; BNB और ZEC के लिए BUY/LONG या SELL/SHORT संकेत। EARLY संकेत शुरुआती momentum पर और CONFIRMED संकेत मजबूत पुष्टि पर आएगा। Bullish RSI range 45–75 और bearish RSI range 25–55 है। Signal trigger 15m EMA9/EMA21 + RSI14 है। 1h trend, volume और candle-body strength signal को block नहीं करेंगे; लगातार दो candles की पुष्टि नहीं चाहिए। Underlying Entry/SL/TP1/TP2/TP3 ATR-based हैं; option premium पर अलग 25% SL और 25%/50%/75% TP levels हैं। BNB/ZEC futures signals भी नीचे जारी हैं। TRADE SIGNAL MODE: BUY/SELL संकेत, Entry, SL और TP1/TP2/TP3 दिखेंगे। यह signal-only dashboard है; अपने-आप order place नहीं होगा।</p>
@@ -1060,6 +1072,27 @@ function exportOptionMovementTracker(){
  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='option-movement-tracker.csv';a.click();URL.revokeObjectURL(url);
 }
 
+async function loadCoinSwitchFeed(){
+ const status=document.getElementById('csFeedConnection'),updated=document.getElementById('csFeedUpdated'),rows=document.getElementById('csFeedRows'),note=document.getElementById('csFeedNote');
+ if(!status||!rows)return;
+ try{
+  const res=await fetch('https://live-market-deshboard.onrender.com/api/coinswitch/futures/klines?ts='+Date.now(),{cache:'no-store'});
+  if(!res.ok)throw new Error('Render Gateway HTTP '+res.status);
+  const data=await res.json();
+  status.textContent=data.connection||'unknown';
+  updated.textContent=data.last_message_at?new Date(data.last_message_at).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}):'अभी संदेश नहीं';
+  rows.innerHTML=['BTC','ETH','BNB','ZEC'].map(coin=>{
+   const c=data.coins?.[coin]||{},last=c.last_price;
+   const fresh=c.fresh===true?'LIVE':last?'STALE':'प्रतीक्षा';
+   return '<tr><td>'+coin+'</td><td>'+(last?Number(last).toLocaleString('en-US',{maximumFractionDigits:6}):'—')+'</td><td>'+(c.last_candle_closed===true?'बंद':c.last_candle_closed===false?'चल रही':'—')+'</td><td>'+Number(c.candle_count||0)+'</td><td>'+fresh+(c.age_seconds!=null?' • '+c.age_seconds+'s':'')+'</td></tr>';
+  }).join('');
+  note.textContent=data.last_error?'Gateway: '+data.last_error:'CoinSwitch feed live updates ले रहा है। Candles केवल WebSocket से जमा हो रही हैं; historical seed और signal-source switch को अलग से verify करना होगा।';
+ }catch(e){
+  status.textContent='DATA UNAVAILABLE';updated.textContent='—';
+  rows.innerHTML='<tr><td colspan="5">'+e.message+'</td></tr>';
+  note.textContent='CoinSwitch gateway अभी उपलब्ध नहीं। मौजूदा dashboard signal feed और paper-trading rules बदले नहीं गए हैं।';
+ }
+}
 async function loadPaperTradingLedger(){
  const status=document.getElementById('paperDataStatus');
  try{
@@ -1091,7 +1124,7 @@ function calculate(){
  document.getElementById('rr').textContent=valid&&riskPer>0&&rewardPer>0?(rewardPer/riskPer).toFixed(2)+' : 1':'—';
  document.getElementById('warning').textContent=!valid?'Entry, SL, Target और Quantity भरें।':(riskPer<=0||rewardPer<=0?'जाँचें: खरीद में SL एंट्री से नीचे और टारगेट ऊपर होना चाहिए। बिक्री में SL एंट्री से ऊपर और टारगेट नीचे होना चाहिए।':'यह अनुमानित गणना है। ब्रोकरेज, टैक्स, स्लिपेज, लॉट साइज़ और फंडिंग शामिल नहीं हैं।');
 }
-document.addEventListener('DOMContentLoaded',()=>{const tgToken=document.getElementById('telegramToken'),tgChat=document.getElementById('telegramChatId');if(tgToken)tgToken.value=localStorage.getItem('telegramBotToken')||'';if(tgChat)tgChat.value=localStorage.getItem('telegramChatId')||'';renderCryptoMovementLog();renderOptionMovementTracker();loadPaperTradingLedger();setInterval(loadPaperTradingLedger,60000);renderDashboardSignalHistory();loadServerOptionSnapshots();setInterval(loadServerOptionSnapshots,300000);loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals();if(localStorage.getItem('signalNotificationsEnabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){document.getElementById('notificationStatus').textContent='Notification: चालू';}setInterval(loadAllCryptoSignals,10000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadAllCryptoSignals();});window.addEventListener('online',()=>loadAllCryptoSignals());});
+document.addEventListener('DOMContentLoaded',()=>{const tgToken=document.getElementById('telegramToken'),tgChat=document.getElementById('telegramChatId');if(tgToken)tgToken.value=localStorage.getItem('telegramBotToken')||'';if(tgChat)tgChat.value=localStorage.getItem('telegramChatId')||'';renderCryptoMovementLog();renderOptionMovementTracker();loadCoinSwitchFeed();setInterval(loadCoinSwitchFeed,15000);loadPaperTradingLedger();setInterval(loadPaperTradingLedger,60000);renderDashboardSignalHistory();loadServerOptionSnapshots();setInterval(loadServerOptionSnapshots,300000);loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals();if(localStorage.getItem('signalNotificationsEnabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){document.getElementById('notificationStatus').textContent='Notification: चालू';}setInterval(loadAllCryptoSignals,10000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadAllCryptoSignals();});window.addEventListener('online',()=>loadAllCryptoSignals());});
 </script>
 </body>
 </html>
