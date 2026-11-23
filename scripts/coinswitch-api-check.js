@@ -1,7 +1,13 @@
 const crypto = require('node:crypto');
 
-const apiKey = process.env.COINSWITCH_API_KEY || '';
-const secretHex = process.env.COINSWITCH_SECRET_KEY || '';
+// GitHub Secrets may contain accidental surrounding whitespace or a copied 0x prefix.
+// Normalize only these harmless formatting differences; never print credential values.
+function normalizeHex(value) {
+  return String(value || '').trim().replace(/^0x/i, '');
+}
+
+const apiKey = normalizeHex(process.env.COINSWITCH_API_KEY);
+const secretHex = normalizeHex(process.env.COINSWITCH_SECRET_KEY);
 const baseUrl = 'https://coinswitch.co';
 
 function fail(message) {
