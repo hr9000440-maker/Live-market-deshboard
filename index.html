@@ -615,15 +615,25 @@ async function analyzeCryptoCoin(coin){
    const json=await res.json();if(json.code&&json.code!==0)throw new Error(json.retMsg||json.msg||'API error');
    const data=feed.parse(json);
    if(!Array.isArray(data)||data.length<30)throw new Error('15m candles कम हैं');
-   const valid=data.filter(x=>Array.isArray(x)&&x.length>=6&&[0,1,2,3,4,5].every(i=>Number.isFinite(Number(x[i])))&&Number(x[1])>0&&Number(x[2])>0&&Number(x[3])>0&&Number(x[4])>0);
+   const valid=data.filter(x=>{
+    if(!Array.isArray(x)||x.length<6||![0,1,2,3,4,5].every(i=>Number.isFinite(Number(x[i]))))return false;
+    const open=Number(x[1]),high=Number(x[2]),low=Number(x[3]),close=Number(x[4]),volume=Number(x[5]);
+    return open>0&&high>0&&low>0&&close>0&&volume>=0&&high>=Math.max(open,close)&&low<=Math.min(open,close)&&high>=low;
+   });
    if(valid.length<30)throw new Error('15m candles में valid OHLCV डेटा कम है');
    valid.sort((a,b)=>Number(a[0])-Number(b[0]));
-   return {data:valid,feed:feed.name};
+   const unique=[...new Map(valid.map(x=>[Number(x[0]),x])).values()];
+   if(unique.length<30)throw new Error('15m candles में duplicate के बाद पर्याप्त डेटा नहीं है');
+   return {data:unique,feed:feed.name};
   }finally{clearTimeout(timeout)}
  });
  try{const winner=await Promise.any(feedAttempts);raw=winner.data;usedFeed=winner.feed}
  catch(e){lastFeedError=e.errors?.map(x=>x.name==='AbortError'?'timeout':x.message||'feed error').join(' | ')||'all feeds failed'}
  if(!raw)throw new Error(coin+' 15m market feed unavailable. सभी स्रोत असफल: '+lastFeedError);
+ const latestCandleOpen=Number(raw[raw.length-1][0]),candleAge=Date.now()-latestCandleOpen;
+ if(!Number.isFinite(latestCandleOpen)||candleAge< -60000||candleAge>30*60*1000){
+  throw new Error(coin+' का 15m डेटा पुराना/भविष्य का timestamp है ('+Math.round(candleAge/60000)+' मिनट)। सुरक्षित रूप से signal रोका गया।');
+ }
  const candles=raw,lastClosed=Number(candles[candles.length-1][0]),saved=null;
  // Binance returns the latest 15m candle as still-forming. Keep it for EARLY signals only.
  // Closed-candle confirmation must use candles.slice(0,-1).
