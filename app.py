@@ -120,7 +120,7 @@ def _start_coinswitch_socket():
                     "https://ws.coinswitch.co",
                     namespaces=[NAMESPACE],
                     transports=["websocket"],
-                    socketio_path="pro/realtime-rates-socket/futures/exchange_2",
+                    socketio_path="/pro/realtime-rates-socket/futures/exchange_2",
                     wait=True,
                     wait_timeout=25,
                 )
