@@ -34,8 +34,8 @@ async function candles(coin){
    }
   }
  }
- fs.mkdirSync('state',{recursive:true});fs.writeFileSync(file,JSON.stringify(perf,null,2)+'\\n');
- if(changes.length){await telegram('📊 SIGNAL PERFORMANCE UPDATE\\n'+changes.join('\\n')+'\\nSignal tracking only; outcomes use candle high/low and conservative SL-first assumption.');}
+ fs.mkdirSync('state',{recursive:true});fs.writeFileSync(file,JSON.stringify(perf,null,2)+'\n');
+ if(changes.length){await telegram('📊 SIGNAL PERFORMANCE UPDATE\n'+changes.join('\n')+'\nSignal tracking only; outcomes use candle high/low and conservative SL-first assumption.');}
  const totals={};for(const t of perf.trades){totals[t.status]=(totals[t.status]||0)+1;}
  console.log('Performance tracking: '+JSON.stringify(totals)+'; updates='+changes.length);
 })().catch(e=>{console.error(e);process.exit(1);});
