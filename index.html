@@ -432,12 +432,37 @@ async function loadCryptoOptions(){
    }).filter(x=>Number(x.strike)>0);
    underlying=rows.map(x=>Number(x.underlying_price)).find(x=>x>0)||null;
    }else{
-    const endpoints=['https://api.deribit.com/api/v2/public/get_book_summary_by_currency?currency='+encodeURIComponent(coin)+'&kind=option','https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency='+encodeURIComponent(coin)+'&kind=option','https://deribit.com/api/v2/public/get_book_summary_by_currency?currency='+encodeURIComponent(coin)+'&kind=option'];
-    let json=null;
-    for(const url of endpoints){try{const response=await fetch(url,{cache:'no-store'});if(!response.ok)throw new Error('HTTP '+response.status);const data=await response.json();if(data.error)throw new Error(data.error.message||'API error');json=data;break;}catch(e){lastError=e;}}
-    if(!json)throw lastError||new Error('Fetch failed');
-    rows=(json.result||[]).filter(x=>typeof x.instrument_name==='string'&&x.instrument_name.startsWith(coin+'-'));
+    const hosts=['https://api.deribit.com/api/v2/public/','https://www.deribit.com/api/v2/public/','https://deribit.com/api/v2/public/'];
+    let instruments=null,summaries=null;
+    for(const host of hosts){
+     try{
+      const response=await fetch(host+'get_instruments?currency='+encodeURIComponent(coin)+'&kind=option&expired=false',{cache:'no-store'});
+      if(!response.ok)throw new Error('instruments HTTP '+response.status);
+      const data=await response.json();if(data.error)throw new Error(data.error.message||'instruments API error');
+      if(Array.isArray(data.result)){instruments=data.result;break;}
+     }catch(e){lastError=e;}
+    }
+    for(const host of hosts){
+     try{
+      const response=await fetch(host+'get_book_summary_by_currency?currency='+encodeURIComponent(coin)+'&kind=option',{cache:'no-store'});
+      if(!response.ok)throw new Error('summary HTTP '+response.status);
+      const data=await response.json();if(data.error)throw new Error(data.error.message||'summary API error');
+      if(Array.isArray(data.result)){summaries=data.result;break;}
+     }catch(e){lastError=e;}
+    }
+    if(!Array.isArray(instruments)&&!Array.isArray(summaries))throw lastError||new Error('Deribit instruments/summary fetch failed');
+    const summaryMap=new Map((summaries||[]).map(x=>[x.instrument_name,x]));
+    const source=Array.isArray(instruments)&&instruments.length?instruments:(summaries||[]);
+    rows=source.filter(x=>typeof x.instrument_name==='string'&&x.instrument_name.startsWith(coin+'-')&&(x.is_active!==false)).map(x=>{
+     const q=summaryMap.get(x.instrument_name)||{};
+     return {...x,...q,instrument_name:x.instrument_name,
+      strike:Number(q.strike??x.strike??0),
+      option_type:q.option_type||x.option_type||'',
+      min_trade_amount:Number(x.min_trade_amount??q.min_trade_amount??0),
+      expiry:x.instrument_name.split('-')[1]||undefined};
+    }).filter(x=>Number(x.strike)>0);
     underlying=rows.map(x=>Number(x.underlying_price)).find(x=>x>0)||null;
+   }
    }
   }
   if(token!==optionLoadToken)return;
@@ -598,17 +623,17 @@ function saveSignalLock(coin,obj){try{localStorage.setItem('signalLock_'+coin,JS
 async function analyzeCryptoCoin(coin){
  const symbol=coin+'USDT';
  const feeds=[
-  {name:'Binance Spot',url:'https://api.binance.com/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60',parse:j=>j},
-  {name:'Binance Spot Backup',url:'https://data-api.binance.vision/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60',parse:j=>j},
-  {name:'Binance Futures',url:'https://fapi.binance.com/fapi/v1/klines?symbol='+symbol+'&interval=15m&limit=60',parse:j=>j},
-  {name:'Bybit Futures',url:'https://api.bybit.com/v5/market/kline?category=linear&symbol='+symbol+'&interval=15&limit=60',parse:j=>(j.result?.list||[]).slice().reverse().map(x=>[Number(x[0]),x[1],x[2],x[3],x[4],x[5],Number(x[0])+900000-1])},
+  {name:'Binance Spot',group:'spot',url:'https://api.binance.com/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60',parse:j=>j},
+  {name:'Binance Spot Backup',group:'spot',url:'https://data-api.binance.vision/api/v3/klines?symbol='+symbol+'&interval=15m&limit=60',parse:j=>j},
+  {name:'Binance Futures',group:'futures',url:'https://fapi.binance.com/fapi/v1/klines?symbol='+symbol+'&interval=15m&limit=60',parse:j=>j},
+  {name:'Bybit Futures',group:'futures',url:'https://api.bybit.com/v5/market/kline?category=linear&symbol='+symbol+'&interval=15&limit=60',parse:j=>(j.result?.list||[]).slice().reverse().map(x=>[Number(x[0]),x[1],x[2],x[3],x[4],x[5],Number(x[0])+900000-1])},
   // Independent public spot fallback for all four coins when Binance/Bybit are blocked or unavailable.
-  {name:'Gate.io Spot Backup',url:'https://api.gateio.ws/api/v4/spot/candlesticks?currency_pair='+coin+'_USDT&interval=15m&limit=60',parse:j=>(Array.isArray(j)?j:[]).map(x=>[Number(x[0])*1000,String(x[5]),String(x[3]),String(x[4]),String(x[2]),String(x[1]),Number(x[0])*1000+900000-1]).sort((a,b)=>a[0]-b[0])}
+  {name:'Gate.io Spot Backup',group:'spot',url:'https://api.gateio.ws/api/v4/spot/candlesticks?currency_pair='+coin+'_USDT&interval=15m&limit=60',parse:j=>(Array.isArray(j)?j:[]).map(x=>[Number(x[0])*1000,String(x[5]),String(x[3]),String(x[4]),String(x[2]),String(x[1]),Number(x[0])*1000+900000-1]).sort((a,b)=>a[0]-b[0])}
  ];
  let raw=null,lastFeedError='',usedFeed='';
  const feedControllers=[];
  // Race public feeds, then cancel losing requests as soon as one valid source wins.
- const feedAttempts=feeds.map(async feed=>{
+ const attemptFeed=async feed=>{
   const controller=new AbortController();feedControllers.push(controller);
   const timeout=setTimeout(()=>controller.abort(),12000);
   try{
@@ -628,12 +653,20 @@ async function analyzeCryptoCoin(coin){
    if(unique.length<30)throw new Error('15m candles में duplicate के बाद पर्याप्त डेटा नहीं है');
    return {data:unique,feed:feed.name,controller};
   }finally{clearTimeout(timeout)}
- });
+ };
+ const raceGroup=group=>Promise.any(feeds.filter(feed=>feed.group===group).map(attemptFeed));
  try{
-  const winner=await Promise.any(feedAttempts);raw=winner.data;usedFeed=winner.feed;
+  // Keep the signal engine on spot data whenever a valid spot feed is available.
+  // Use futures feeds only as a fallback; do not let the fastest futures response
+  // randomly replace spot prices on otherwise successful refreshes.
+  let winner;
+  try{winner=await raceGroup('spot');}
+  catch(spotError){lastFeedError=spotError.errors?.map(x=>x.message||'spot feed error').join(' | ')||'spot feeds failed';winner=await raceGroup('futures');}
+  raw=winner.data;usedFeed=winner.feed;
   feedControllers.forEach(c=>{if(c!==winner.controller)c.abort();});
  }
- catch(e){feedControllers.forEach(c=>c.abort());lastFeedError=e.errors?.map(x=>x.name==='AbortError'?'timeout':x.message||'feed error').join(' | ')||'all feeds failed'}
+ catch(e){feedControllers.forEach(c=>c.abort());lastFeedError=[lastFeedError,e.errors?.map(x=>x.name==='AbortError'?'timeout':x.message||'feed error').join(' | ')||'all feeds failed'].filter(Boolean).join(' | ')}
+
  if(!raw)throw new Error(coin+' 15m market feed unavailable. सभी स्रोत असफल: '+lastFeedError);
  const latestCandleOpen=Number(raw[raw.length-1][0]),candleAge=Date.now()-latestCandleOpen;
  if(!Number.isFinite(latestCandleOpen)||candleAge< -60000||candleAge>30*60*1000){
