@@ -62,7 +62,7 @@ def main():
     for coin in COINS:
       try:
         # Check exits using latest completed 5m candle.
-        live=candles(coin,"5m",5)[-1]
+        live=candles(coin,"5m",40)[-1]
         lo,hi,cl=float(live[3]),float(live[2]),float(live[4])
         for t in list(state["open_trades"]):
           if t["coin"]!=coin: continue
