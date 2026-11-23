@@ -1,13 +1,42 @@
 {
   "mode": "PAPER ONLY",
   "budget_inr": 500,
-  "open_trades": [],
+  "open_trades": [
+    {
+      "id": "ZEC:SELL:1795437900000",
+      "coin": "ZEC",
+      "side": "SELL",
+      "timeframe": "15m CONFIRMED (manual signal capture)",
+      "data_source": "User-provided Telegram signal",
+      "entry": 785.91,
+      "sl": 792.39,
+      "tp1": 779.43,
+      "tp2": 772.96,
+      "tp3": 766.48,
+      "qty": 0.006696896457274806,
+      "budget_inr": 500,
+      "rsi": 42.01,
+      "ema9": 791.51,
+      "ema21": 792.27,
+      "opened_at": "2026-11-23T12:45:00+00:00",
+      "status": "OPEN",
+      "tp1_hit": false,
+      "tp2_hit": false,
+      "tp3_hit": false,
+      "signal_candle": 1795437900000,
+      "signal_reason": "CONFIRMED: पिछली पूरी बंद 15m candle में Price < EMA9 < EMA21 और RSI 25–55",
+      "historical_capture": true
+    }
+  ],
   "closed_trades": [],
-  "last_update": "2026-11-23T12:11:25.349040+00:00",
+  "last_update": "2026-11-23T13:04:45.706Z",
   "errors": {
-    "BTC": "HTTP Error 451: ",
-    "ETH": "HTTP Error 451: ",
-    "BNB": "HTTP Error 451: ",
-    "ZEC": "HTTP Error 451: "
+    "BTC": "HTTP Error 451",
+    "ETH": "HTTP Error 451",
+    "BNB": "HTTP Error 451",
+    "ZEC": "HTTP Error 451"
+  },
+  "last_signal": {
+    "ZEC": "ZEC:SELL:1795437900000"
   }
 }
