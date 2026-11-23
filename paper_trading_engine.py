@@ -106,7 +106,7 @@ def main():
         trade={"id":stamp,"coin":coin,"side":s15["side"],"timeframe":"15m CONFIRMED","data_source":getattr(candles,"last_source","unknown"),"entry":entry,
           "sl":s15["sl"],"tp1":s15["tp1"],"tp2":s15["tp2"],"tp3":s15["tp3"],"qty":qty,"budget_inr":BUDGET_INR,
           "rsi":round(s15["rsi"],2),"ema9":s15["ema9"],"ema21":s15["ema21"],
-          "opened_at":now,"status":"OPEN","tp1_hit":False,"tp2_hit":False,"tp3_hit":False,"signal_candle:s15["candle"]}
+          "opened_at":now,"status":"OPEN","tp1_hit":False,"tp2_hit":False,"tp3_hit":False,"signal_candle":s15["candle"]}
         state["open_trades"].insert(0,trade); state.setdefault("last_signal",{})[coin]=stamp
         state["errors"].pop(coin,None)
         print("PAPER OPEN",trade)
