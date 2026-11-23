@@ -210,6 +210,22 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 
 
 
+
+<section class="panel" id="paper-trading">
+<h2>🧪 CRYPTO PAPER TRADING — ₹500 प्रति ट्रेड</h2>
+<p class="note">केवल simulated futures trades • कोई असली order नहीं • Binance public futures candle data • हर 5 मिनट पर अपडेट (GitHub Actions schedule उपलब्धता के अनुसार)।</p>
+<div class="grid">
+ <div class="result"><small>खुली Paper Trades</small><strong id="paperOpenCount">—</strong></div>
+ <div class="result"><small>बंद Trades</small><strong id="paperClosedCount">—</strong></div>
+ <div class="result"><small>कुल Realized P/L (₹)</small><strong id="paperPnl">—</strong></div>
+ <div class="result"><small>अंतिम अपडेट (UTC)</small><strong id="paperUpdated">—</strong></div>
+</div>
+<h3>OPEN TRADES</h3>
+<div class="option-table-wrap"><table class="option-table" style="min-width:900px"><thead><tr><th>Coin</th><th>Side</th><th>Entry</th><th>SL</th><th>TP1</th><th>TP2</th><th>₹ Budget</th><th>TP1 Status</th></tr></thead><tbody id="paperOpenRows"><tr><td colspan="8">पहला Paper Trading run होने की प्रतीक्षा…</td></tr></tbody></table></div>
+<h3>CLOSED TRADES</h3>
+<div class="option-table-wrap"><table class="option-table" style="min-width:900px"><thead><tr><th>Coin</th><th>Side</th><th>Entry</th><th>Exit</th><th>Exit Reason</th><th>P/L (₹)</th><th>Closed UTC</th></tr></thead><tbody id="paperClosedRows"><tr><td colspan="7">अभी कोई बंद trade नहीं</td></tr></tbody></table></div>
+<p class="note" id="paperDataStatus">Ledger लोड हो रहा है…</p>
+</section>
 <section class="panel" id="crypto-movement-log">
 <h2>📈 CRYPTO EVERY MOVEMENT LOG — BTC / ETH / BNB / ZEC</h2>
 <p class="note">हर refresh पर चारों coins का price, 15m candle OHLC, RSI, EMA9/EMA21 और BUY/SELL/WAIT status capture होगा। Price/स्थिति बदलने पर नया snapshot save होगा; data इसी browser के Local Storage में रहेगा।</p>
@@ -1026,6 +1042,25 @@ function exportOptionMovementTracker(){
  const csv=[headers.join(','),...rows.map(x=>headers.map(k=>JSON.stringify(x[k]??'')).join(','))].join('\n');
  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='option-movement-tracker.csv';a.click();URL.revokeObjectURL(url);
 }
+
+async function loadPaperTradingLedger(){
+ const status=document.getElementById('paperDataStatus');
+ try{
+  const res=await fetch('https://raw.githubusercontent.com/hr9000440-maker/Live-market-deshboard/main/paper_trades.json?ts='+Date.now(),{cache:'no-store'});
+  if(!res.ok)throw new Error('Paper ledger अभी publish नहीं हुआ; पहला scheduled run पूरा होने दें।');
+  const d=await res.json(),open=d.open_trades||[],closed=d.closed_trades||[];
+  document.getElementById('paperOpenCount').textContent=open.length;
+  document.getElementById('paperClosedCount').textContent=closed.length;
+  const pnl=closed.reduce((a,t)=>a+Number(t.pnl_inr||0),0);
+  const pnlEl=document.getElementById('paperPnl');pnlEl.textContent=(pnl>=0?'+':'')+pnl.toFixed(2);pnlEl.style.color=pnl>=0?'#42e6a4':'#ff8d8d';
+  document.getElementById('paperUpdated').textContent=d.last_update?new Date(d.last_update).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}):'—';
+  const n=x=>Number(x).toLocaleString('en-IN',{maximumFractionDigits:4});
+  document.getElementById('paperOpenRows').innerHTML=open.map(t=>'<tr><td>'+t.coin+'</td><td>'+t.side+'</td><td>'+n(t.entry)+'</td><td>'+n(t.sl)+'</td><td>'+n(t.tp1)+'</td><td>'+n(t.tp2)+'</td><td>₹'+t.budget_inr+'</td><td>'+(t.tp1_hit?'HIT':'Pending')+'</td></tr>').join('')||'<tr><td colspan="8">अभी कोई खुली trade नहीं — signal की प्रतीक्षा।</td></tr>';
+  document.getElementById('paperClosedRows').innerHTML=closed.slice(0,50).map(t=>'<tr><td>'+t.coin+'</td><td>'+t.side+'</td><td>'+n(t.entry)+'</td><td>'+n(t.exit)+'</td><td>'+t.exit_reason+'</td><td>'+Number(t.pnl_inr).toFixed(2)+'</td><td>'+new Date(t.closed_at).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})+'</td></tr>').join('')||'<tr><td colspan="7">अभी कोई बंद trade नहीं</td></tr>';
+  status.textContent='डेटा: '+(d.mode||'PAPER ONLY')+' • प्रति ट्रेड ₹'+d.budget_inr+' • केवल simulated record, असली order नहीं।';
+  if(d.errors&&Object.keys(d.errors).length)status.textContent+=' • Feed errors: '+Object.keys(d.errors).join(', ');
+ }catch(e){status.textContent=e.message;}
+}
 function loadChart(){
  const symbol=document.getElementById('symbol').value.trim();if(!symbol)return;
  const params=new URLSearchParams({tvwidgetsymbol:symbol,interval:'15',hidesidetoolbar:'0',symboledit:'1',saveimage:'0',toolbarbg:'08111f',theme:'dark',style:'1',timezone:'Asia/Kolkata',withdateranges:'1',hideideas:'1'});
@@ -1039,7 +1074,7 @@ function calculate(){
  document.getElementById('rr').textContent=valid&&riskPer>0&&rewardPer>0?(rewardPer/riskPer).toFixed(2)+' : 1':'—';
  document.getElementById('warning').textContent=!valid?'Entry, SL, Target और Quantity भरें।':(riskPer<=0||rewardPer<=0?'जाँचें: खरीद में SL एंट्री से नीचे और टारगेट ऊपर होना चाहिए। बिक्री में SL एंट्री से ऊपर और टारगेट नीचे होना चाहिए।':'यह अनुमानित गणना है। ब्रोकरेज, टैक्स, स्लिपेज, लॉट साइज़ और फंडिंग शामिल नहीं हैं।');
 }
-document.addEventListener('DOMContentLoaded',()=>{const tgToken=document.getElementById('telegramToken'),tgChat=document.getElementById('telegramChatId');if(tgToken)tgToken.value=localStorage.getItem('telegramBotToken')||'';if(tgChat)tgChat.value=localStorage.getItem('telegramChatId')||'';renderCryptoMovementLog();renderOptionMovementTracker();renderDashboardSignalHistory();loadServerOptionSnapshots();setInterval(loadServerOptionSnapshots,300000);loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals();if(localStorage.getItem('signalNotificationsEnabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){document.getElementById('notificationStatus').textContent='Notification: चालू';}setInterval(loadAllCryptoSignals,10000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadAllCryptoSignals();});window.addEventListener('online',()=>loadAllCryptoSignals());});
+document.addEventListener('DOMContentLoaded',()=>{const tgToken=document.getElementById('telegramToken'),tgChat=document.getElementById('telegramChatId');if(tgToken)tgToken.value=localStorage.getItem('telegramBotToken')||'';if(tgChat)tgChat.value=localStorage.getItem('telegramChatId')||'';renderCryptoMovementLog();renderOptionMovementTracker();loadPaperTradingLedger();setInterval(loadPaperTradingLedger,60000);renderDashboardSignalHistory();loadServerOptionSnapshots();setInterval(loadServerOptionSnapshots,300000);loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals();if(localStorage.getItem('signalNotificationsEnabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){document.getElementById('notificationStatus').textContent='Notification: चालू';}setInterval(loadAllCryptoSignals,10000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadAllCryptoSignals();});window.addEventListener('online',()=>loadAllCryptoSignals());});
 </script>
 </body>
 </html>
