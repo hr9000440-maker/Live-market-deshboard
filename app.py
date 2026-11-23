@@ -142,6 +142,142 @@ def add_cors_headers(response):
     return response
 
 
+
+def _fetch_json(url, timeout=12):
+    import json
+    from urllib.request import Request, urlopen
+    req = Request(url, headers={"Accept": "application/json", "User-Agent": "LiveMarketDashboard/1.0"})
+    with urlopen(req, timeout=timeout) as response:
+        if response.status != 200:
+            raise RuntimeError("upstream HTTP " + str(response.status))
+        return json.loads(response.read().decode("utf-8"))
+
+
+@app.get("/api/options/<coin>")
+def crypto_options(coin):
+    """Read-only public option-chain proxy; keeps browser CORS out of the data path."""
+    coin = coin.upper()
+    if coin not in ("BTC", "ETH", "ZEC"):
+        return jsonify({"error": "unsupported coin", "coin": coin}), 400
+    errors = []
+    rows = []
+    underlying = None
+    source = None
+    if coin in ("BTC", "ETH"):
+        hosts = ("https://api.deribit.com/api/v2/public/", "https://www.deribit.com/api/v2/public/")
+        instruments = summaries = None
+        for host in hosts:
+            try:
+                payload = _fetch_json(host + "get_instruments?currency=" + coin + "&kind=option&expired=false")
+                if isinstance(payload.get("result"), list):
+                    instruments = payload["result"]
+                    break
+                errors.append("instruments response format")
+            except Exception as exc:
+                errors.append("instruments: " + str(exc)[:140])
+        for host in hosts:
+            try:
+                payload = _fetch_json(host + "get_book_summary_by_currency?currency=" + coin + "&kind=option")
+                if isinstance(payload.get("result"), list):
+                    summaries = payload["result"]
+                    break
+                errors.append("summary response format")
+            except Exception as exc:
+                errors.append("summary: " + str(exc)[:140])
+        if instruments is None and summaries is None:
+            return jsonify({"error": "Deribit option API unavailable", "details": errors[-4:]}), 502
+        summary_map = {x.get("instrument_name"): x for x in (summaries or []) if isinstance(x, dict)}
+        source_rows = instruments if instruments else (summaries or [])
+        for item in source_rows:
+            if not isinstance(item, dict):
+                continue
+            name = item.get("instrument_name", "")
+            if not name.startswith(coin + "-") or item.get("is_active") is False:
+                continue
+            quote = summary_map.get(name, {})
+            try:
+                strike = float(quote.get("strike") or item.get("strike") or 0)
+            except (TypeError, ValueError):
+                strike = 0
+            if strike <= 0:
+                continue
+            row = dict(item)
+            row.update(quote)
+            row.update({
+                "instrument_name": name,
+                "strike": strike,
+                "option_type": quote.get("option_type") or item.get("option_type") or "",
+                "expiry": name.split("-")[1] if len(name.split("-")) > 1 else "",
+                "bid_price": quote.get("bid_price", 0),
+                "ask_price": quote.get("ask_price", 0),
+                "mark_price": quote.get("mark_price", 0),
+                "open_interest": quote.get("open_interest", 0),
+                "volume": quote.get("volume", 0),
+                "underlying_price": quote.get("underlying_price", 0),
+                "min_trade_amount": item.get("min_trade_amount", quote.get("min_trade_amount", 0)),
+            })
+            rows.append(row)
+            try:
+                p = float(row.get("underlying_price") or 0)
+                if p > 0 and underlying is None:
+                    underlying = p
+            except (TypeError, ValueError):
+                pass
+        source = "Deribit public options API"
+    else:
+        try:
+            markets = _fetch_json("https://api.prod.paradex.trade/v1/markets?asset_kind=OPTION&base_asset=ZEC")
+            summaries = _fetch_json("https://api.prod.paradex.trade/v1/markets/summary?market=ALL&asset_kind=OPTION&base_asset=ZEC")
+            market_list = markets.get("results") or markets.get("data") or []
+            summary_list = summaries.get("results") or summaries.get("data") or []
+            if not isinstance(market_list, list) or not isinstance(summary_list, list):
+                raise RuntimeError("Paradex response format changed")
+            by_symbol = {x.get("symbol") or x.get("market") or x.get("instrument_name"): x
+                         for x in summary_list if isinstance(x, dict)}
+            for item in market_list:
+                if not isinstance(item, dict):
+                    continue
+                name = item.get("symbol") or item.get("market") or item.get("instrument_name") or ""
+                if "ZEC" not in name.upper():
+                    continue
+                quote = by_symbol.get(name, {})
+                try:
+                    strike = float(item.get("strike_price") or item.get("strike") or quote.get("strike_price") or quote.get("strike") or 0)
+                except (TypeError, ValueError):
+                    strike = 0
+                if strike <= 0:
+                    continue
+                exp = item.get("expiry_date") or item.get("expiration_date") or item.get("expiry") or item.get("expiration") or ""
+                typ = str(item.get("option_type") or item.get("option_side") or item.get("type") or name.split("-")[-1]).upper()
+                rows.append({
+                    "instrument_name": name, "strike": strike,
+                    "option_type": "C" if "CALL" in typ or typ == "C" else ("P" if "PUT" in typ or typ == "P" else typ),
+                    "expiry": exp,
+                    "bid_price": quote.get("bid_price", quote.get("bid", item.get("bid_price", 0))),
+                    "ask_price": quote.get("ask_price", quote.get("ask", item.get("ask_price", 0))),
+                    "mark_price": quote.get("mark_price", quote.get("mark", item.get("mark_price", 0))),
+                    "open_interest": quote.get("open_interest", item.get("open_interest", 0)),
+                    "volume": quote.get("volume_24h", quote.get("volume", item.get("volume_24h", 0))),
+                    "underlying_price": quote.get("underlying_price", item.get("underlying_price", 0)),
+                })
+            underlying = next((float(x.get("underlying_price") or 0) for x in rows if float(x.get("underlying_price") or 0) > 0), None)
+            source = "Paradex public options API"
+        except Exception as exc:
+            errors.append("Paradex: " + str(exc)[:180])
+            return jsonify({"error": "ZEC option API unavailable or no listed ZEC options", "details": errors}), 502
+
+    if not underlying:
+        try:
+            ticker = _fetch_json("https://api.binance.com/api/v3/ticker/price?symbol=" + coin + "USDT", timeout=7)
+            underlying = float(ticker.get("price") or 0) or None
+        except Exception as exc:
+            errors.append("spot fallback: " + str(exc)[:120])
+    return jsonify({
+        "coin": coin, "source": source, "rows": rows,
+        "underlying": underlying, "updated_at": _utc_now(),
+        "count": len(rows), "details": errors[-4:],
+    })
+
 @app.get("/health")
 def health():
     return jsonify({"status": "ok", "service": "live-market-dashboard"})
