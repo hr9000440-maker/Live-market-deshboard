@@ -58,7 +58,7 @@ def close_trade(state,t,price,reason,now):
     state["open_trades"].remove(t)
 
 def main():
-    state=load(); now=datetime.datetime.now(datetime.timezone.utc).isoformat()
+    state=load(); original=json.dumps(state,sort_keys=True); now=datetime.datetime.now(datetime.timezone.utc).isoformat()
     for coin in COINS:
       try:
         # Check exits using latest completed 5m candle.
@@ -95,7 +95,8 @@ def main():
         print("DATA ERROR",coin,e)
     state["open_trades"]=state["open_trades"][:50]
     state["closed_trades"]=state.get("closed_trades",[])[:300]
-    save(state)
+    if json.dumps(state,sort_keys=True)!=original:
+      save(state)
     print("PAPER SUMMARY",len(state["open_trades"]),"open",len(state["closed_trades"]),"closed")
 
 if __name__=="__main__": main()
