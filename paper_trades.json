@@ -3,6 +3,11 @@
   "budget_inr": 500,
   "open_trades": [],
   "closed_trades": [],
-  "last_update": "2026-11-23T12:06:30.272Z",
-  "errors": {}
+  "last_update": "2026-11-23T12:11:25.349040+00:00",
+  "errors": {
+    "BTC": "HTTP Error 451: ",
+    "ETH": "HTTP Error 451: ",
+    "BNB": "HTTP Error 451: ",
+    "ZEC": "HTTP Error 451: "
+  }
 }
