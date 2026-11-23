@@ -56,6 +56,7 @@ def analyze(coin,tf):
     return {"side":side,"entry":c[-1],"sl":c[-1]-(1.2*atr) if side=="BUY" else c[-1]+(1.2*atr) if side=="SELL" else None,
             "tp1":c[-1]+atr if side=="BUY" else c[-1]-atr if side=="SELL" else None,
             "tp2":c[-1]+2*atr if side=="BUY" else c[-1]-2*atr if side=="SELL" else None,
+            "tp3":c[-1]+3*atr if side=="BUY" else c[-1]-3*atr if side=="SELL" else None,
             "rsi":rv,"ema9":e9,"ema21":e21,"candle":int(rows[-1][0]),"atr":atr}
 
 def load():
@@ -88,23 +89,24 @@ def main():
             if lo<=t["sl"]: close_trade(state,t,t["sl"],"STOP LOSS",now); continue
             if not t.get("tp1_hit") and hi>=t["tp1"]:
               t["tp1_hit"]=True; t["tp1_hit_at"]=now
-            if hi>=t["tp2"]: close_trade(state,t,t["tp2"],"TARGET 2",now); continue
+            if hi>=t.get("tp3",t["tp2"]): close_trade(state,t,t.get("tp3",t["tp2"]),"TARGET 3",now); continue
           else:
             if hi>=t["sl"]: close_trade(state,t,t["sl"],"STOP LOSS",now); continue
             if not t.get("tp1_hit") and lo<=t["tp1"]:
               t["tp1_hit"]=True; t["tp1_hit_at"]=now
-            if lo<=t["tp2"]: close_trade(state,t,t["tp2"],"TARGET 2",now); continue
-        s5=analyze(coin,"5m"); s15=analyze(coin,"15m")
-        if s5["side"] not in ("BUY","SELL") or s5["side"]!=s15["side"]:
+            if lo<=t.get("tp3",t["tp2"]): close_trade(state,t,t.get("tp3",t["tp2"]),"TARGET 3",now); continue
+        s15=analyze(coin,"15m")
+        # Open paper trades from a confirmed closed 15m signal; no 5m confirmation gate.
+        if s15["side"] not in ("BUY","SELL"):
           state["errors"].pop(coin,None); continue
         if any(t["coin"]==coin for t in state["open_trades"]): continue
         stamp=f'{coin}:{s15["side"]}:{s15["candle"]}'
         if state.get("last_signal",{}).get(coin)==stamp: continue
         entry=s15["entry"]; qty=(BUDGET_INR/USD_INR)/entry
-        trade={"id":stamp,"coin":coin,"side":s15["side"],"timeframe":"5m + 15m confirmed","data_source":getattr(candles,"last_source","unknown"),"entry":entry,
-          "sl":s15["sl"],"tp1":s15["tp1"],"tp2":s15["tp2"],"qty":qty,"budget_inr":BUDGET_INR,
+        trade={"id":stamp,"coin":coin,"side":s15["side"],"timeframe":"15m CONFIRMED","data_source":getattr(candles,"last_source","unknown"),"entry":entry,
+          "sl":s15["sl"],"tp1":s15["tp1"],"tp2":s15["tp2"],"tp3":s15["tp3"],"qty":qty,"budget_inr":BUDGET_INR,
           "rsi":round(s15["rsi"],2),"ema9":s15["ema9"],"ema21":s15["ema21"],
-          "opened_at":now,"status":"OPEN","tp1_hit":False,"signal_candle":s15["candle"]}
+          "opened_at":now,"status":"OPEN","tp1_hit":False,"tp2_hit":False,"tp3_hit":False,"signal_candle:s15["candle"]}
         state["open_trades"].insert(0,trade); state.setdefault("last_signal",{})[coin]=stamp
         state["errors"].pop(coin,None)
         print("PAPER OPEN",trade)
