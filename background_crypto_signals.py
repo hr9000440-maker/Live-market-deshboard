@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import json, os, urllib.request
-COINS = ["BTC", "ETH", "BNB", "ZEC"]
+COINS = ["BTC", "ETH", "ZEC", "BNB", "SOL", "DOGE", "XRP"]
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 CHAT = os.getenv("TELEGRAM_CHAT_ID", "")
 STATE_FILE = "signal_state.json"
