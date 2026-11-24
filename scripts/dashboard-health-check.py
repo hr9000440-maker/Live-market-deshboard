@@ -64,7 +64,12 @@ def check_options():
                     if exp: expiries.add(str(exp))
                 except (TypeError, ValueError): pass
             if not rows: notes.append(coin + " options: API works but no listed contracts returned")
-            elif live == 0: notes.append(coin + " options: " + str(len(rows)) + " contracts but no valid live bid/ask quotes")
+            elif live == 0:
+                message = coin + " options: " + str(len(rows)) + " contracts but no valid live bid/ask quotes"
+                if coin == "ZEC":
+                    issues.append(message)
+                else:
+                    notes.append(message)
             print("PASS " + coin + " options gateway: rows=" + str(len(rows)) + ", live bid/ask=" + str(live) + ", expiries=" + str(len(expiries)) + ", source=" + str(data.get("source")))
         except Exception as e:
             issues.append(coin + " options gateway: " + str(e))
