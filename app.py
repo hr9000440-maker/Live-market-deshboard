@@ -157,13 +157,73 @@ def _fetch_json(url, timeout=12):
 def crypto_options(coin):
     """Read-only public option-chain proxy; keeps browser CORS out of the data path."""
     coin = coin.upper()
-    if coin not in ("BTC", "ETH", "ZEC"):
+    if coin not in ("BTC", "ETH", "ZEC", "DOGE"):
         return jsonify({"error": "unsupported coin", "coin": coin}), 400
     errors = []
     rows = []
     underlying = None
     source = None
-    if coin in ("BTC", "ETH"):
+    if coin == "DOGE":
+        # Bybit public options market data. Read-only; no account key or order API.
+        try:
+            instruments_payload = _fetch_json("https://api.bybit.com/v5/market/instruments-info?category=option&baseCoin=DOGE&status=Trading&limit=1000")
+            tickers_payload = _fetch_json("https://api.bybit.com/v5/market/tickers?category=option&baseCoin=DOGE")
+            if instruments_payload.get("retCode") != 0 or tickers_payload.get("retCode") != 0:
+                raise RuntimeError("Bybit returned a non-zero API response")
+            instruments = (instruments_payload.get("result") or {}).get("list") or []
+            tickers = (tickers_payload.get("result") or {}).get("list") or []
+            ticker_map = {x.get("symbol"): x for x in tickers if isinstance(x, dict)}
+            for item in instruments:
+                if not isinstance(item, dict) or item.get("status") != "Trading":
+                    continue
+                symbol = str(item.get("symbol") or "")
+                parts = symbol.split("-")
+                if len(parts) < 5 or parts[0].upper() != "DOGE":
+                    continue
+                try:
+                    strike = float(parts[2])
+                    expiry_ms = int(item.get("deliveryTime") or 0)
+                except (TypeError, ValueError):
+                    continue
+                if strike <= 0 or expiry_ms <= 0:
+                    continue
+                expiry = datetime.fromtimestamp(expiry_ms / 1000, timezone.utc).strftime("%d%b%y").upper()
+                side = str(item.get("optionsType") or parts[3]).upper()
+                option_type = "C" if side.startswith("CALL") or side == "C" else ("P" if side.startswith("PUT") or side == "P" else "")
+                if not option_type:
+                    continue
+                quote = ticker_map.get(symbol, {})
+                try:
+                    index_price = float(quote.get("indexPrice") or quote.get("underlyingPrice") or 0)
+                    bid = float(quote.get("bid1Price") or 0)
+                    ask = float(quote.get("ask1Price") or 0)
+                    mark = float(quote.get("markPrice") or 0)
+                except (TypeError, ValueError):
+                    continue
+                if index_price > 0 and underlying is None:
+                    underlying = index_price
+                # Existing UI converts coin-denominated premium to USD-equivalent.
+                rows.append({
+                    "instrument_name": "DOGE-" + expiry + "-" + format(strike, "g") + "-" + option_type,
+                    "exchange_symbol": symbol,
+                    "strike": strike,
+                    "option_type": option_type,
+                    "expiry": expiry,
+                    "bid_price": bid / index_price if bid > 0 and index_price > 0 else 0,
+                    "ask_price": ask / index_price if ask > 0 and index_price > 0 else 0,
+                    "mark_price": mark / index_price if mark > 0 and index_price > 0 else 0,
+                    "open_interest": quote.get("openInterest", 0),
+                    "volume": quote.get("volume24h", 0),
+                    "underlying_price": index_price,
+                    "min_trade_amount": (item.get("lotSizeFilter") or {}).get("minOrderQty", 0),
+                })
+            source = "Bybit public options API"
+            if not rows:
+                errors.append("Bybit has no active DOGE option quotes at this time")
+        except Exception as exc:
+            errors.append("Bybit: " + str(exc)[:180])
+            return jsonify({"error": "Bybit DOGE options API unavailable", "details": errors}), 502
+    elif coin in ("BTC", "ETH"):
         hosts = ("https://api.deribit.com/api/v2/public/", "https://www.deribit.com/api/v2/public/")
         instruments = summaries = None
         for host in hosts:
