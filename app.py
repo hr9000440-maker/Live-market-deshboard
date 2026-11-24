@@ -168,12 +168,14 @@ def crypto_options(coin):
         # Discover DOGE contracts robustly, with a fallback to the documented All listing.
         try:
             base_payload = _fetch_json("https://api.bybit.com/v5/market/option-base-coins?underlyingType=0")
+            if base_payload.get("retCode") != 0:
+                raise RuntimeError("Bybit base-coin discovery: " + str(base_payload.get("retMsg", "unknown error")))
             base_rows = (base_payload.get("result") or {}).get("list") or []
             doge_base = next((x for x in base_rows if str(x.get("baseCoin", "")).upper() == "DOGE"), None)
-            if not doge_base or int(doge_base.get("hasSymbol", 0) or 0) != 1:
-                raise RuntimeError("Bybit reports no currently tradable DOGE option symbols")
+            # Do not reject solely on hasSymbol: the instrument catalogue is the
+            # authoritative source and Bybit's discovery flag can lag listings.
 
-            instruments_payload = _fetch_json("https://api.bybit.com/v5/market/instruments-info?category=option&baseCoin=DOGE&status=Trading&limit=1000")
+            instruments_payload = _fetch_json("https://api.bybit.com/v5/market/instruments-info?category=option&baseCoin=DOGE&limit=1000")
             if instruments_payload.get("retCode") != 0:
                 raise RuntimeError("Bybit instruments API: " + str(instruments_payload.get("retMsg", "unknown error")))
             instruments = (instruments_payload.get("result") or {}).get("list") or []
