@@ -8,7 +8,7 @@ import json, os, sys, time, urllib.parse, urllib.request
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
-COINS = ("BTC", "ETH")
+COINS = ("BTC", "ETH", "ZEC")
 OPTION_API = "https://live-market-deshboard.onrender.com/api/options/{coin}"
 BINANCE = "https://api.binance.com/api/v3/klines"
 GATE = "https://api.gateio.ws/api/v4/spot/candlesticks"
@@ -138,21 +138,27 @@ def best_option(coin, signal, underlying, payload):
         parts = name.split("-")
         if not name or not expiry or str(row.get("expiry") or (parts[1] if len(parts) > 1 else "")) != expiry:
             continue
-        if not name.endswith("-" + wanted_side):
+        option_type = str(row.get("option_type") or "").upper()
+        is_wanted = (option_type in (wanted_side, "CALL" if wanted_side == "C" else "PUT")
+                     or name.endswith("-" + wanted_side)
+                     or name.endswith("-" + ("CALL" if wanted_side == "C" else "PUT")))
+        if not is_wanted:
             continue
         bid, ask, mark = (float(row.get(k) or 0) for k in ("bid_price", "ask_price", "mark_price"))
         oi, vol = float(row.get("open_interest") or 0), float(row.get("volume") or 0)
         strike = float(row.get("strike") or (parts[2] if len(parts) > 2 else 0) or 0)
-        min_amount = float(row.get("min_trade_amount") or 0)
+        min_amount = float(row.get("min_trade_amount") or row.get("min_order_size") or row.get("order_size_increment") or 0)
         if not (bid > 0 and ask >= bid and mark > 0 and strike > 0 and (oi > 0 or vol > 0)):
             continue
         mid = (bid + ask) / 2.0
         spread = (ask - bid) / mid if mid > 0 else 999
         if spread > 0.02:
             continue
-        bid_usd = bid * underlying
-        ask_usd = ask * underlying
         # Use the live ASK as the suggested limit-buy price; never submit an order.
+        # Deribit BTC/ETH premiums are coin-denominated; Paradex ZEC quotes are USD-denominated.
+        quote_is_usd = str(payload.get("source") or "").lower().startswith("paradex")
+        bid_usd = bid if quote_is_usd else bid * underlying
+        ask_usd = ask if quote_is_usd else ask * underlying
         limit_usd = ask_usd
         estimated_inr = limit_usd * min_amount * USD_INR_BUFFER
         # Same dashboard affordability gate: exchange min trade amount must be known and <= ₹500.
