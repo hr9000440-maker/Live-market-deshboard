@@ -136,7 +136,14 @@ def main():
     check_telegram()
     gh = os.getenv("GITHUB_TOKEN", "")
     check_workflow("options-strong-signals.yml", "BTC/ETH/ZEC option Telegram scanner", gh)
-    check_workflow("crypto-telegram.yml", "Separate futures Telegram workflow (manual-only)", gh)
+    try:
+        with open(".github/workflows/crypto-telegram.yml", "r", encoding="utf-8") as wf:
+            workflow_text = wf.read()
+        if "schedule:" not in workflow_text:
+            notes.append("Crypto futures Telegram workflow is MANUAL-ONLY (no automatic schedule is configured)")
+            print("NOTE Crypto futures Telegram workflow is manual-only; it will not send scheduled alerts")
+    except OSError as e:
+        notes.append("Could not inspect crypto futures workflow schedule: " + str(e))
 
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     print("\nHEALTH SUMMARY " + stamp)
