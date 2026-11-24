@@ -25,15 +25,15 @@ a.secondary{background:#29415f;color:#fff}.foot{font-size:12px;color:var(--muted
 <div class="item"><b>GitHub Pages</b><span>वेबसाइट HTTP response और dashboard content</span></div>
 <div class="item"><b>Render Backend</b><span>Backend health endpoint और dashboard response</span></div>
 <div class="item"><b>BTC / ETH / BNB / ZEC</b><span>Public 15-minute candle feeds</span></div>
-<div class="item"><b>Telegram Alert</b><span>जाँच में failure मिलने पर configured Telegram पर error alert</span></div>
+<div class="item"><b>Telegram Alert</b><span>Bot authentication और target chat lookup; failure पर Telegram alert</span></div>
 </div>
-<p class="note">यह monitor हर 15 मिनट में GitHub Actions से चलता है। किसी जाँच में failure मिलने पर workflow fail होगा और उपलब्ध Telegram credentials से alert भेजने की कोशिश करेगा।</p>
+<p class="note">यह monitor हर 15 मिनट में GitHub Actions से चलता है। यह BTC/ETH/ZEC option-chain gateway, live bid/ask availability, चारों coins के 15m public candles, option scanner की Python syntax, Telegram bot/chat और options scanner के पिछले GitHub Actions run को जाँचता है। Failure पर configured Telegram पर alert भेजने की कोशिश करेगा।</p>
 <a class="button" href="https://github.com/hr9000440-maker/Live-market-deshboard/actions/workflows/dashboard-health-monitor.yml" target="_blank" rel="noopener">जाँच रिपोर्ट खोलें</a>
 <a class="button secondary" href="https://github.com/hr9000440-maker/Live-market-deshboard/actions/workflows/dashboard-health-monitor.yml" target="_blank" rel="noopener">Manual Run / Actions</a>
 </section>
 <section class="panel">
 <h2>महत्वपूर्ण सीमा</h2>
-<p class="note">अभी का automatic checker website/backend availability और चारों coins के public market feeds जाँचता है। यह हर generated trading signal की गुणवत्ता, option expiry/premium matching, या Telegram पर हर individual signal की delivery की पुष्टि नहीं करता। उसके लिए signal-engine और delivery logs की अलग जाँच जोड़नी होगी।</p>
+<p class="note">सीमा: यह checker यह देखता है कि option-chain में contracts/quotes उपलब्ध हैं और scanner workflow सफल चला या नहीं। यह हर signal की profitability या हर individual message की delivery receipt नहीं पढ़ सकता; Telegram API bot/chat की पहुँच जाँची जाती है, test message नहीं भेजा जाता। कोई योग्य setup न बनने पर signal न जाना सामान्य है।</p>
 <p class="foot">Read-only monitor • कोई API secret इस पेज में नहीं रखा गया • कोई order execute नहीं होगा।</p>
 </section>
 </main>
