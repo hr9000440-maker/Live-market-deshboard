@@ -30,7 +30,9 @@ def check_page(label, url, expected):
         print("FAIL " + label + ": " + str(e))
 
 def check_telegram():
-    token, chat = os.getenv("TELEGRAM_BOT_TOKEN", ""), os.getenv("TELEGRAM_CHAT_ID", "")
+    token = (os.getenv("TELEGRAM_BOT_TOKEN") or os.getenv("TELEGRAMBOTTOKAN") or
+             os.getenv("TELEGRAM_BOT_TOKAN") or os.getenv("TELEGRAM_BOT_TOKAN") or "")
+    chat = os.getenv("TELEGRAM_CHAT_ID", "")
     if not token or not chat:
         issues.append("Telegram secrets: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID missing")
         print("FAIL Telegram configuration: required secrets missing")
@@ -156,7 +158,9 @@ def main():
     for i in issues: print("ISSUE " + i)
 
     if issues:
-        token, chat = os.getenv("TELEGRAM_BOT_TOKEN", ""), os.getenv("TELEGRAM_CHAT_ID", "")
+        token = (os.getenv("TELEGRAM_BOT_TOKEN") or os.getenv("TELEGRAMBOTTOKAN") or
+                 os.getenv("TELEGRAM_BOT_TOKAN") or os.getenv("TELEGRAM_BOT_TOKAN") or "")
+        chat = os.getenv("TELEGRAM_CHAT_ID", "")
         msg = "⚠️ DASHBOARD HEALTH CHECK\n" + "\n".join(issues) + "\nChecked: " + stamp
         if token and chat:
             try:
