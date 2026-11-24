@@ -10,7 +10,6 @@ import sys
 import time
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
 
 COINS = {"BTC": "BTCUSDT", "ETH": "ETHUSDT", "ZEC": "ZECUSDT", "BNB": "BNBUSDT", "SOL": "SOLUSDT", "DOGE": "DOGEUSDT", "XRP": "XRPUSDT"}
 INTERVALS = ("5m", "15m")
@@ -73,9 +72,9 @@ def analyse(symbol):
     bearish5 = close5_last < prior5_close and close5_last < e9_5 < e21_5
 
     direction = None
-    if bullish15 and e9_15 > e21_15 and bullish5 and 55 <= rsi5 <= 70:
+    if bullish15 and e9_15 > e21_15 and bullish5 and 45 <= rsi5 <= 75:
         direction = "STRONG BUY CALL"
-    elif bearish15 and e9_15 < e21_15 and bearish5 and 30 <= rsi5 <= 45:
+    elif bearish15 and e9_15 < e21_15 and bearish5 and 25 <= rsi5 <= 55:
         direction = "STRONG BUY PUT"
 
     return {
@@ -105,12 +104,8 @@ def send_telegram(message):
 
 
 def main():
-    # Scheduled at minutes 2, 17, 32 and 47: check shortly after each 15m close.
+    # Workflow schedule controls the 15m cadence. Do not reject delayed GitHub runs by minute.
     now_ms = int(time.time() * 1000)
-    now_minute = datetime.now(timezone.utc).minute
-    if now_minute not in (0, 1, 2, 15, 16, 17, 30, 31, 32, 45, 46, 47):
-        print("Not in the 15m confirmation check window; no alert.")
-        return
 
     sent = 0
     for coin, symbol in COINS.items():
@@ -118,8 +113,8 @@ def main():
             data = analyse(symbol)
             age_ms = now_ms - data["candle15_close_time"]
             # Avoid late/stale alerts and repeated alerts for the same 15m close.
-            if age_ms < 0 or age_ms > 6 * 60 * 1000:
-                print(f"{coin}: last completed 15m candle is outside the fresh confirmation window.")
+            if age_ms < 0 or age_ms > 12 * 60 * 1000:
+                print(f"{coin}: last completed 15m candle is older than 12 minutes; stale alert skipped.")
                 continue
             if not data["direction"]:
                 print(f"{coin}: WAIT — no confirmed strong setup; no Telegram alert.")
