@@ -12,7 +12,6 @@ COINS = ("BTC", "ETH", "ZEC")
 OPTION_API = "https://live-market-deshboard.onrender.com/api/options/{coin}"
 BINANCE = "https://api.binance.com/api/v3/klines"
 GATE = "https://api.gateio.ws/api/v4/spot/candlesticks"
-BUDGET_INR = 500.0
 USD_INR_BUFFER = 95.0
 STATE_PATH = "state/option_telegram_signals.json"
 
@@ -167,10 +166,10 @@ def best_option(coin, signal, underlying, payload):
         bid_usd = bid if quote_is_usd else bid * underlying
         ask_usd = ask if quote_is_usd else ask * underlying
         limit_usd = ask_usd
-        estimated_inr = limit_usd * min_amount * USD_INR_BUFFER
-        # Same dashboard affordability gate: exchange min trade amount must be known and <= ₹500.
-        if min_amount <= 0 or estimated_inr <= 0 or estimated_inr > BUDGET_INR:
-            continue
+        # TEMPORARY DELIVERY TEST: do not suppress valid market signals by the
+        # former ₹500 affordability cap. Missing lot metadata is informational,
+        # not a reason to hide an otherwise valid signal. No order is submitted.
+        estimated_inr = limit_usd * min_amount * USD_INR_BUFFER if min_amount > 0 else None
         candidates.append({"name": name, "strike": strike, "expiry": expiry, "bid": bid_usd,
                            "ask": ask_usd, "entry": limit_usd, "spread": spread,
                            "sl": limit_usd * 0.75, "tp1": limit_usd * 1.25, "tp2": limit_usd * 1.50,
@@ -231,8 +230,10 @@ def main():
                 print(coin + ": duplicate signal already sent for this closed candle")
                 continue
             side = "BUY CALL" if "CALL" in signal["direction"] else "BUY PUT"
+            cost_line = (f"Estimated minimum cost: ₹{option['cost']:.0f}" if option["cost"] is not None
+                         else "Estimated minimum cost: unavailable (lot metadata missing)")
             message = (
-                "🚨 STRONG OPTION TRADE SIGNAL\n"
+                "🚨 STRONG OPTION TRADE SIGNAL — TEMPORARY NO-BUDGET-CAP TEST\n"
                 f"Coin: {coin}\n{side}\nContract: {option['name']}\n"
                 f"Strike: {option['strike']:,.2f} | Expiry: {option['expiry']}\n"
                 f"Underlying: {underlying:,.2f} USD\n"
@@ -241,7 +242,7 @@ def main():
                 f"🛑 SL (-25%): {option['sl']:.4f} USD\n"
                 f"🎯 TP1 (+25%): {option['tp1']:.4f} USD\n"
                 f"🎯 TP2 (+50%): {option['tp2']:.4f} USD\n"
-                f"Spread: {option['spread']*100:.2f}% (max 2%) | Estimated minimum cost: ₹{option['cost']:.0f} (budget cap ₹500)\n"
+                f"Spread: {option['spread']*100:.2f}% (max 2%) | {cost_line} | ₹500 alert filter temporarily disabled\n"
                 f"RSI 14: {signal['rsi']:.1f} | EMA9: {signal['ema9']:.2f} | EMA21: {signal['ema21']:.2f}\n"
                 f"15m closed-candle source: {signal['source']}\n"
                 "LIMIT price is a suggestion at current ASK; quote may change. Signal only — कोई order अपने-आप place नहीं होगा।"
