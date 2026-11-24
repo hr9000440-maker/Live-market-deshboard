@@ -175,7 +175,7 @@ def best_option(coin, signal, underlying, payload):
                            "sl": limit_usd * 0.75, "tp1": limit_usd * 1.25, "tp2": limit_usd * 1.50,
                            "tp3": limit_usd * 1.75, "cost": estimated_inr})
     if not candidates:
-        raise RuntimeError("इस expiry में 2% तक spread, live quote, OI/volume और ₹500 budget वाला eligible " + wanted_side + " contract नहीं मिला")
+        raise RuntimeError("इस expiry में 2% तक spread, live quote और OI/volume वाला eligible " + wanted_side + " contract नहीं मिला")
     # Prefer nearest-to-ATM eligible contract, then tighter spread.
     return min(candidates, key=lambda x: (abs(x["strike"] - underlying), x["spread"]))
 
