@@ -669,7 +669,7 @@ async function analyzeCryptoCoin(coin){
    return {data:unique,feed:feed.name,controller};
   }finally{clearTimeout(timeout)}
  };
- const raceGroup=group=>Promise.any(feeds.filter(feed=>feed.group===group).map(attemptFeed));
+ const raceGroup=async group=>{let errors=[];for(const feed of feeds.filter(x=>x.group===group)){try{return await attemptFeed(feed)}catch(e){errors.push(e)}}throw new AggregateError(errors,group+' feeds failed')};
  try{
   // Keep the signal engine on spot data whenever a valid spot feed is available.
   // Use futures feeds only as a fallback; do not let the fastest futures response
