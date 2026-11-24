@@ -259,6 +259,7 @@ def crypto_options(coin):
                     "open_interest": quote.get("open_interest", item.get("open_interest", 0)),
                     "volume": quote.get("volume_24h", quote.get("volume", item.get("volume_24h", 0))),
                     "underlying_price": quote.get("underlying_price", item.get("underlying_price", 0)),
+                    "min_trade_amount": quote.get("min_trade_amount", item.get("min_trade_amount", item.get("min_order_size", item.get("order_size_increment", 0)))),
                 })
             underlying = next((float(x.get("underlying_price") or 0) for x in rows if float(x.get("underlying_price") or 0) > 0), None)
             source = "Paradex public options API"
