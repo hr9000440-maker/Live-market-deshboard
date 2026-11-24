@@ -7,9 +7,8 @@ if (!token || !chatId) {
   process.exit(1);
 }
 
-// BTC/ETH spot direction is NOT an options premium. Keep this workflow for BNB/ZEC futures only.
-// BTC/ETH option alerts must come from a verified contract + live premium workflow.
-const coins = ['BNB', 'ZEC'];
+// Seven-coin confirmed 15m futures-direction alerts. These are underlying signals, not option-premium quotes.
+const coins = ['BTC', 'ETH', 'ZEC', 'BNB', 'SOL', 'DOGE', 'XRP'];
 const statePath = 'state/signals.json';
 let state = {};
 try { state = JSON.parse(fs.readFileSync(statePath, 'utf8')); } catch {}
@@ -158,6 +157,6 @@ async function analyze(coin) {
       try { await telegram('⚠️ DASHBOARD SIGNAL HEALTH\n' + errors.join('\n') + '\nHealthy coins continue; failed coins retry next scan.'); state[key]=new Date().toISOString(); } catch (e) { console.error('Health alert failed: '+e.message); }
     }
   }
-  console.log(`Scan complete: ${signals} new signal(s), ${errors.length} data error(s), 2 futures coins checked (BNB/ZEC). BTC/ETH option premium alerts are handled separately.`);
+  console.log(`Scan complete: ${signals} new signal(s), ${errors.length} data error(s), 7 futures coins checked (BTC/ETH/ZEC/BNB/SOL/DOGE/XRP). Option-premium alerts are a separate feed.`);
   fs.writeFileSync(statePath, JSON.stringify(Object.fromEntries(Object.entries(state).sort((a,b)=>a[1].localeCompare(b[1])).slice(-500)), null, 2) + '\n');
 })().catch(e => { console.error(e); process.exit(1); });
