@@ -1,8 +1,8 @@
 name: CoinSwitch Options Strong Signals
 on:
+  # Manual-only while the legacy Binance-spot pseudo-options script is replaced
+  # with a verified option-chain premium feed.
   workflow_dispatch:
-  schedule:
-    - cron: '*/5 * * * *'
 permissions:
   contents: read
 concurrency:
@@ -11,24 +11,13 @@ concurrency:
 jobs:
   signals:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 2
     steps:
-      - name: Restore signal state
-        uses: actions/cache/restore@v4
-        with:
-          path: options_algo_state.json
-          key: options-state-${{ github.run_id }}
-          restore-keys: options-state-
-      - name: Run BTC/ETH strong signal algo
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      - name: Refuse unverified option alerts
         run: |
-          curl -fsSL https://raw.githubusercontent.com/hr9000440-maker/Live-market-deshboard/main/options_strong_signals.py -o options_strong_signals.py
-          python3 options_strong_signals.py
-      - name: Save signal state
-        if: always()
-        uses: actions/cache/save@v4
-        with:
-          path: options_algo_state.json
-          key: options-state-${{ github.run_id }}
+          python3 - <<'PY'
+          import sys
+          print("BLOCKED: no verified CoinSwitch option-chain premium feed is configured.")
+          print("No Telegram signal was sent. Spot price is not option premium.")
+          sys.exit(2)
+          PY
