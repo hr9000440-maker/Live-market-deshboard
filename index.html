@@ -248,7 +248,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 </section>
 <section class="panel" id="crypto-signals">
 <h2>🚦 CRYPTO 15 MIN SIGNALS — BTC / ETH OPTIONS + BNB / ZEC FUTURES</h2>
-<p class="note">LIVE MARKET TRADE SIGNAL MODE — यह पेपर-वॉच नहीं है। BTC/ETH/BNB/ZEC के वास्तविक public market data पर BUY/SELL संकेत हर 10 सेकंड refresh होंगे। BTC और ETH के लिए 15m EMA9/EMA21 + RSI14 से BUY CALL / BUY PUT संकेत; BNB और ZEC के लिए BUY/LONG या SELL/SHORT संकेत। EARLY संकेत शुरुआती momentum पर और CONFIRMED संकेत मजबूत पुष्टि पर आएगा। Bullish RSI range 45–75 और bearish RSI range 25–55 है। Signal trigger 15m EMA9/EMA21 + RSI14 है। 1h trend, volume और candle-body strength signal को block नहीं करेंगे; लगातार दो candles की पुष्टि नहीं चाहिए। Underlying Entry/SL/TP1/TP2/TP3 ATR-based हैं; option premium पर अलग 25% SL और 25%/50%/75% TP levels हैं। BNB/ZEC futures signals भी नीचे जारी हैं। TRADE SIGNAL MODE: BUY/SELL संकेत, Entry, SL और TP1/TP2/TP3 दिखेंगे। यह signal-only dashboard है; अपने-आप order place नहीं होगा।</p>
+<p class="note">LIVE MARKET TRADE SIGNAL MODE — BTC/ETH/BNB/ZEC के public market data पर signals refresh होंगे। केवल पूरी बंद 15m candle पर EMA9/EMA21 + RSI14 पुष्टि होने पर signal बनेगा; अधूरी candle पर WAIT रहेगा। BTC/ETH के लिए STRONG BUY CALL / STRONG BUY PUT option direction; BNB/ZEC के लिए confirmed BUY/LONG या SELL/SHORT। Bullish RSI 45–75 और bearish RSI 25–55। EARLY signal बंद; कमजोर signal Telegram पर नहीं जाएगा। Underlying Entry/SL/TP1/TP2/TP3 ATR-based हैं; option premium पर अलग 25% SL और 25%/50%/75% TP levels हैं। BNB/ZEC futures signals भी नीचे जारी हैं। TRADE SIGNAL MODE: BUY/SELL संकेत, Entry, SL और TP1/TP2/TP3 दिखेंगे। यह signal-only dashboard है; अपने-आप order place नहीं होगा।</p>
 <div class="grid">
 <div class="result"><small>BTCUSDT • 15m OPTION SIGNAL</small><strong id="sig-BTC">लोड हो रहा है…</strong><p class="note" id="siginfo-BTC">कैंडल डेटा जाँचा जा रहा है</p></div>
 <div class="result"><small>ETHUSDT • 15m OPTION SIGNAL</small><strong id="sig-ETH">लोड हो रहा है…</strong><p class="note" id="siginfo-ETH">कैंडल डेटा जाँचा जा रहा है</p></div>
@@ -664,32 +664,12 @@ async function analyzeCryptoCoin(coin){
  const prevHigh=highs.at(-2),prevLow=lows.at(-2),breakUp=close>prevHigh,breakDown=close<prevLow;
  const buyChecks={priceAboveEMA9:close>e9,emaBullish:e9>e21,breakout:breakUp,rsiInRange:rv>=30&&rv<=90};
  const sellChecks={priceBelowEMA9:close<e9,emaBearish:e9<e21,breakdown:breakDown,rsiInRange:rv>=10&&rv<=70};
- // EARLY SIGNAL: live 15m candle can trigger on EMA9 reclaim/loss with momentum RSI,
- // or on a break of the previous candle high/low. CONFIRMED SIGNAL uses the stricter
- // original EMA alignment / breakout rules. This keeps early alerts visible without hiding confirmation.
- let earlySide='WAIT',earlyReason='';
- // EARLY alerts use the live 15m candle before full EMA9/EMA21 alignment.
- // Require a modest move from the candle open plus RSI direction, or a prior-candle break.
- const candleMovePct=open>0?((close-open)/open)*100:0;
- const earlyBuyMomentum=close>open&&close>e9&&candleMovePct>=0.03&&rv>=45&&rv<=75;
- const earlySellMomentum=close<open&&close<e9&&candleMovePct<=-0.03&&rv>=25&&rv<=55;
- if(earlyBuyMomentum){earlySide='BUY / LONG';earlyReason='EARLY bullish 15m candle above EMA9 + 0.03% momentum + RSI 45–75';}
- else if(earlySellMomentum){earlySide='SELL / SHORT';earlyReason='EARLY bearish 15m candle below EMA9 + 0.03% momentum + RSI 25–55';}
- if(close>e9&&e9>e21&&rv>=45&&rv<=75){side='BUY / LONG';reason=breakUp?'CONFIRMED 15m EMA9>EMA21 breakout + RSI':'CONFIRMED 15m Price>EMA9>EMA21 + RSI';}
- else if(close<e9&&e9<e21&&rv>=25&&rv<=55){side='SELL / SHORT';reason=breakDown?'CONFIRMED 15m EMA9<EMA21 breakdown + RSI':'CONFIRMED 15m Price<EMA9<EMA21 + RSI';}
- if(side==='WAIT'&&earlySide!=='WAIT'){side=earlySide;reason=earlyReason;}
- // Keep a valid signal visible for the rest of the same live 15m candle.
- // A brief intra-candle pullback must not erase an already-issued BUY/SELL.
- const thisCandle=Number(candles.at(-1)[0]);
- const priorLock=readSignalLock(coin);
- let lockedSnapshot=null;
- // Once a valid BUY/SELL appears in a 15m candle, keep that first signal
- // until the candle closes. Do not let a brief opposite tick flip or erase it.
- if(priorLock&&Number(priorLock.candleTime)===thisCandle&&priorLock.signal&&priorLock.signal.side&&priorLock.signal.side!=='WAIT'){
-  lockedSnapshot=priorLock.signal;
-  side=lockedSnapshot.side;
-  reason='LOCKED: इस 15m candle का पहला '+side+' signal candle close तक सुरक्षित';
- }
+ // केवल पिछली पूरी बंद 15m candle की पुष्टि मान्य है; live/incomplete candle से EARLY signal नहीं बनेगा.
+ side=confirmedSide;
+ reason=confirmationReason;
+ // Signal identity और duplicate रोकने के लिए बंद 15m candle का timestamp उपयोग करें.
+ const thisCandle=Number(closedCandles.at(-1)[0]);
+ const lockedSnapshot=null;
  if(side==='WAIT'){
   const failed=[];
   if(!(close>e9))failed.push('BUY: Price EMA9 के ऊपर नहीं');
@@ -705,15 +685,13 @@ async function analyzeCryptoCoin(coin){
  const h1Info='1h filter disabled';
  const prevSide=null;
  const strong=side!=='WAIT'&&confirmedSide===side,signalType=side==='WAIT'?'WAIT':(strong?'CONFIRMED':'EARLY');
- const entry=lockedSnapshot?Number(lockedSnapshot.entry):close;
- const sl=lockedSnapshot?lockedSnapshot.sl:(side==='BUY / LONG'?entry-1.2*atr:side==='SELL / SHORT'?entry+1.2*atr:null);
- const risk=sl===null?null:Math.abs(entry-sl),t1=lockedSnapshot?lockedSnapshot.t1:(sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk)),t2=lockedSnapshot?lockedSnapshot.t2:(sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk)),t3=lockedSnapshot?lockedSnapshot.t3:(sl===null?null:(side==='BUY / LONG'?entry+3*risk:entry-3*risk));
+ const entry=confirmedClose;
+ const sl=side==='BUY / LONG'?entry-1.2*atr:side==='SELL / SHORT'?entry+1.2*atr:null;
+ const risk=sl===null?null:Math.abs(entry-sl),t1=sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk),t2=sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk),t3=sl===null?null:(side==='BUY / LONG'?entry+3*risk:entry-3*risk);
  const previous=prevSide||'कोई पिछला सिग्नल नहीं',changeReason=previous===side?'सिग्नल वही रहा':('सिग्नल बदला: '+previous+' → '+side);
  const quality='DATA: '+usedFeed+' • TRADE SIGNAL • 15m momentum/EMA + RSI active • Volume informational: '+(volOk?'औसत से अधिक':'औसत से कम')+' • Candle body informational: '+(candleOk?'strong':'weak');
- const signal={coin,side,strong,baseSide:side,signalType,reason,diagnostic,quality,changeReason,previous,entry,sl,t1,t2,t3,rv,e9,e21,volume,avgVol,open,high,low,confirmedSide,confirmedClose,confirmedE9,confirmedE21,confirmedRsi,confirmationReason,time:new Date(Number(candles.at(-1)[0])).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),candleTime:lastClosed};
- cryptoSignalLock[coin]={candleTime:lastClosed,signal};
- // Persist the first valid signal and its original Entry/SL/TP for this candle.
- if(!lockedSnapshot||!priorLock||Number(priorLock.candleTime)!==thisCandle)saveSignalLock(coin,{candleTime:thisCandle,signal});
+ const signal={coin,side,strong,baseSide:side,signalType,reason,diagnostic,quality,changeReason,previous,entry,sl,t1,t2,t3,rv,e9,e21,volume,avgVol,open,high,low,confirmedSide,confirmedClose,confirmedE9,confirmedE21,confirmedRsi,confirmationReason,time:new Date(Number(closedCandles.at(-1)[0])).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),candleTime:thisCandle};
+ cryptoSignalLock[coin]={candleTime:thisCandle,signal};
  return signal;
 }
 const CRYPTO_MOVEMENT_KEY='cryptoMovementLog_v1';
@@ -768,8 +746,8 @@ function renderCryptoOrderRow(s){
  const tbody=document.getElementById('cryptoOrderRows');if(!tbody||!s)return;
  const rows=window.cryptoOrderSnapshots||{};rows[s.coin]=s;window.cryptoOrderSnapshots=rows;
  const names=['BTC','ETH','BNB','ZEC'];
- const active=names.map(coin=>rows[coin]).filter(x=>x&&x.side!=='WAIT'&&(x.signalType==='EARLY'||x.strong));
- if(!active.length){tbody.innerHTML='<tr><td colspan="10">अभी कोई EARLY या CONFIRMED BUY/SELL signal उपलब्ध नहीं है।</td></tr>';return;}
+ const active=names.map(coin=>rows[coin]).filter(x=>x&&x.side!=='WAIT'&&x.strong);
+ if(!active.length){tbody.innerHTML='<tr><td colspan="10">अभी कोई confirmed मजबूत BUY/SELL signal उपलब्ध नहीं है।</td></tr>';return;}
  tbody.innerHTML=active.map(x=>{const coin=x.coin;const direction=(coin==='BTC'||coin==='ETH')?(x.side==='BUY / LONG'?'BUY CALL':'BUY PUT'):(x.side==='BUY / LONG'?'BUY / LONG':'SELL / SHORT');const cls=direction.includes('BUY')?'call-text':'put-text';return '<tr><td>'+coin+'</td><td>'+(x.strong?'CONFIRMED':'EARLY')+'</td><td class="'+cls+'"><strong>'+direction+'</strong></td><td>'+fmt(x.entry)+'</td><td>'+fmt(x.sl)+'</td><td>'+fmt(x.t1)+'</td><td>'+fmt(x.t2)+'</td><td>'+fmt(x.t3)+'</td><td>'+fmt(x.rv)+'</td><td>'+x.time+'</td></tr>'}).join('');
 }
 function showCoinSignal(s){
