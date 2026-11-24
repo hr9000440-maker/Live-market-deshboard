@@ -106,6 +106,13 @@ def expiry_ms(value):
         except ValueError:
             pass
     try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return int(parsed.timestamp() * 1000)
+    except ValueError:
+        pass
+    try:
         n = int(value)
         return n if n > 10**12 else n * 1000
     except ValueError:
