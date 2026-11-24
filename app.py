@@ -164,54 +164,77 @@ def crypto_options(coin):
     underlying = None
     source = None
     if coin == "DOGE":
-        # Bybit public options market data. Read-only; no account key or order API.
+        # Bybit public DOGE options market data. Read-only; no account key or order API.
+        # Discover DOGE contracts robustly, with a fallback to the documented All listing.
         try:
+            base_payload = _fetch_json("https://api.bybit.com/v5/market/option-base-coins?underlyingType=0")
+            base_rows = (base_payload.get("result") or {}).get("list") or []
+            doge_base = next((x for x in base_rows if str(x.get("baseCoin", "")).upper() == "DOGE"), None)
+            if not doge_base or int(doge_base.get("hasSymbol", 0) or 0) != 1:
+                raise RuntimeError("Bybit reports no currently tradable DOGE option symbols")
+
             instruments_payload = _fetch_json("https://api.bybit.com/v5/market/instruments-info?category=option&baseCoin=DOGE&status=Trading&limit=1000")
-            tickers_payload = _fetch_json("https://api.bybit.com/v5/market/tickers?category=option&baseCoin=DOGE")
-            if instruments_payload.get("retCode") != 0 or tickers_payload.get("retCode") != 0:
-                raise RuntimeError("Bybit returned a non-zero API response")
+            if instruments_payload.get("retCode") != 0:
+                raise RuntimeError("Bybit instruments API: " + str(instruments_payload.get("retMsg", "unknown error")))
             instruments = (instruments_payload.get("result") or {}).get("list") or []
+            # Some API edge nodes may ignore the baseCoin filter; use documented All listing as fallback.
+            if not any(str(x.get("baseCoin", "")).upper() == "DOGE" for x in instruments if isinstance(x, dict)):
+                all_payload = _fetch_json("https://api.bybit.com/v5/market/instruments-info?category=option&baseCoin=All&status=Trading&limit=1000")
+                if all_payload.get("retCode") != 0:
+                    raise RuntimeError("Bybit fallback instruments API: " + str(all_payload.get("retMsg", "unknown error")))
+                instruments = (all_payload.get("result") or {}).get("list") or []
+            instruments = [x for x in instruments if isinstance(x, dict)
+                           and str(x.get("baseCoin", "")).upper() == "DOGE"
+                           and str(x.get("status", "")).upper() == "TRADING"]
+
+            tickers_payload = _fetch_json("https://api.bybit.com/v5/market/tickers?category=option&baseCoin=DOGE")
+            if tickers_payload.get("retCode") != 0:
+                raise RuntimeError("Bybit tickers API: " + str(tickers_payload.get("retMsg", "unknown error")))
             tickers = (tickers_payload.get("result") or {}).get("list") or []
-            ticker_map = {x.get("symbol"): x for x in tickers if isinstance(x, dict)}
+            ticker_map = {str(x.get("symbol", "")).upper(): x for x in tickers if isinstance(x, dict)}
+
             for item in instruments:
-                if not isinstance(item, dict) or item.get("status") != "Trading":
-                    continue
-                symbol = str(item.get("symbol") or "")
+                symbol = str(item.get("symbol") or "").upper()
                 parts = symbol.split("-")
-                if len(parts) < 4 or parts[0].upper() != "DOGE":
+                if len(parts) < 5 or parts[0] != "DOGE":
                     continue
                 try:
                     strike = float(parts[2])
-                    expiry_ms = int(item.get("deliveryTime") or 0)
                 except (TypeError, ValueError):
                     continue
-                if strike <= 0 or expiry_ms <= 0:
-                    continue
-                expiry = datetime.fromtimestamp(expiry_ms / 1000, timezone.utc).strftime("%d%b%y").upper()
+                expiry_ms = int(item.get("deliveryTime") or 0)
+                expiry = (datetime.fromtimestamp(expiry_ms / 1000, timezone.utc).strftime("%d%b%y").upper()
+                          if expiry_ms > 0 else parts[1].upper())
                 side = str(item.get("optionsType") or parts[3]).upper()
                 option_type = "C" if side.startswith("CALL") or side == "C" else ("P" if side.startswith("PUT") or side == "P" else "")
-                if not option_type:
+                if strike <= 0 or not expiry or not option_type:
                     continue
                 quote = ticker_map.get(symbol, {})
-                try:
-                    index_price = float(quote.get("indexPrice") or quote.get("underlyingPrice") or 0)
-                    bid = float(quote.get("bid1Price") or 0)
-                    ask = float(quote.get("ask1Price") or 0)
-                    mark = float(quote.get("markPrice") or 0)
-                except (TypeError, ValueError):
-                    continue
+                def _num(*keys):
+                    for key in keys:
+                        try:
+                            value = float(quote.get(key) or 0)
+                            if value > 0:
+                                return value
+                        except (TypeError, ValueError):
+                            pass
+                    return 0.0
+                index_price = _num("indexPrice", "underlyingPrice")
+                bid = _num("bid1Price", "bidPrice")
+                ask = _num("ask1Price", "askPrice")
+                mark = _num("markPrice", "lastPrice")
                 if index_price > 0 and underlying is None:
                     underlying = index_price
-                # Existing UI converts coin-denominated premium to USD-equivalent.
+                # Bybit USDT-settled option premiums are already USDT values.
                 rows.append({
                     "instrument_name": "DOGE-" + expiry + "-" + format(strike, "g") + "-" + option_type,
                     "exchange_symbol": symbol,
                     "strike": strike,
                     "option_type": option_type,
                     "expiry": expiry,
-                    "bid_price": bid / index_price if bid > 0 and index_price > 0 else 0,
-                    "ask_price": ask / index_price if ask > 0 and index_price > 0 else 0,
-                    "mark_price": mark / index_price if mark > 0 and index_price > 0 else 0,
+                    "bid_price": bid,
+                    "ask_price": ask,
+                    "mark_price": mark,
                     "open_interest": quote.get("openInterest", 0),
                     "volume": quote.get("volume24h", 0),
                     "underlying_price": index_price,
@@ -219,7 +242,7 @@ def crypto_options(coin):
                 })
             source = "Bybit public options API"
             if not rows:
-                errors.append("Bybit has no active DOGE option quotes at this time")
+                errors.append("Bybit confirms DOGE options, but no active contracts/quotes were returned")
         except Exception as exc:
             errors.append("Bybit: " + str(exc)[:180])
             return jsonify({"error": "Bybit DOGE options API unavailable", "details": errors}), 502
