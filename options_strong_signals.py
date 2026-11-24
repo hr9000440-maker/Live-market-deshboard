@@ -60,6 +60,7 @@ def candles(coin):
     errors = []
     for url, gate in (
         (BINANCE + "?" + urllib.parse.urlencode({"symbol": symbol, "interval": "15m", "limit": 60}), False),
+        ("https://data-api.binance.vision/api/v3/klines?" + urllib.parse.urlencode({"symbol": symbol, "interval": "15m", "limit": 60}), False),
         (GATE + "?" + urllib.parse.urlencode({"currency_pair": coin + "_USDT", "interval": "15m", "limit": 60}), True),
     ):
         try:
@@ -124,8 +125,8 @@ def choose_expiry(rows):
     return min(future, key=expiry_ms) if future else (expiries[0] if expiries else "")
 
 
-def best_option(coin, signal, underlying):
-    payload = get_json(OPTION_API.format(coin=coin), timeout=25)
+def best_option(coin, signal, underlying, payload):
+
     rows = payload.get("rows")
     if not isinstance(rows, list):
         raise RuntimeError("Options gateway response में rows नहीं हैं")
@@ -207,7 +208,7 @@ def main():
             underlying = float(payload.get("underlying") or 0)
             if underlying <= 0:
                 raise RuntimeError("Options gateway underlying price unavailable")
-            option = best_option(coin, signal["direction"], underlying)
+            option = best_option(coin, signal["direction"], underlying, payload)
             key = coin + "|" + option["name"] + "|" + signal["direction"]
             stamp = str(signal["candle_time"])
             if state.get(key) == stamp:
