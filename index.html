@@ -857,37 +857,10 @@ function sendTelegramDeduped(key,stamp,message,onError){
   .catch(e=>{if(typeof onError==='function')onError(e);})
   .finally(()=>telegramPendingAlerts.delete(pendingKey));
 }
-function notifyTelegramStrongOption(coin,contract,signal,markUsd,spread,slUsd,tp1Usd,tp2Usd,tp3Usd,bidUsd,askUsd,side,strike,expiry,underlying,reason){
- if(!['BTC','ETH'].includes(coin))return;
- if(!['STRONG BUY CALL','STRONG BUY PUT'].includes(signal))return;
- const contractData=(cryptoOptionData[coin]||[]).find(x=>x.instrument_name===contract);
- const minAmount=Number(contractData?.min_trade_amount);
- // Do not guess an option lot size: suppress the alert unless exchange metadata provides it.
- if(!(minAmount>0)||!(markUsd>0))return;
- const estimatedCostINR=markUsd*minAmount*TELEGRAM_USD_INR_BUFFER;
- if(!Number.isFinite(estimatedCostINR)||estimatedCostINR>TELEGRAM_BUDGET_INR)return;
- const cfg=tgConfig(),lock=cryptoSignalLock[coin],candle=lock?.signal?.candleTime||'';
- if(!cfg.token||!cfg.chatId)return;
- const key='tgSent_'+coin+'_'+contract+'_'+signal,stamp=String(candle)+'_'+signal;
- const direction=signal.includes('CALL')?'🟢 BUY CALL':'🔴 BUY PUT';
- const message='🚨 OPTION TRADE SIGNAL\n'+
- 'Coin: '+coin+'\n'+direction+'\n'+
- 'Contract: '+contract+'\n'+
- 'Strike: '+Number(strike||0).toLocaleString('en-US')+'\n'+
- 'Expiry: '+(expiry||'—')+'\n'+
- 'Underlying: '+optionMoney(underlying)+' USD\n'+
- 'Bid: '+optionMoney(bidUsd)+' USD | Ask: '+optionMoney(askUsd)+' USD\n'+
- 'Spread: '+(spread*100).toFixed(2)+'%\n'+
- 'Entry Premium (Mark): '+optionMoney(markUsd)+' USD\n'+
- '🛑 Stop Loss (-25%): '+optionMoney(slUsd)+' USD\n'+
- '🎯 TP1 (+25%): '+optionMoney(tp1Usd)+' USD\n'+
- '🎯 TP2 (+50%): '+optionMoney(tp2Usd)+' USD\n'+
- '🎯 TP3 (+75%): '+optionMoney(tp3Usd)+' USD\n'+
- 'Signal Strength: '+signal+'\n'+
- 'Reason: '+(reason||'15m trend + quote/spread confirmation')+'\n'+
- 'Underlying Direction: '+(cryptoTrendSignal[coin]||'WAIT')+'\n'+
- '⚠️ Signal only — automatic order नहीं। Live quote verify करें.';
- sendTelegramDeduped(key,stamp,message,e=>telegramStatus('Telegram option alert error: '+e.message));
+function notifyTelegramStrongOption(){
+ // Server-side GitHub Actions sends these alerts from the same confirmed 15m rules.
+ // Browser refreshes must not send duplicate or browser-dependent Telegram messages.
+ return;
 }
 function notifyCryptoDataError(coin,message){
  const cfg=tgConfig();if(!cfg.token||!cfg.chatId)return;
