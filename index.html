@@ -353,6 +353,13 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 
 <script>
 let cryptoOptionData={BTC:[],ETH:[],ZEC:[]},cryptoOptionUnderlying={BTC:null,ETH:null,ZEC:null},cryptoTrendSignal={BTC:'WAIT',ETH:'WAIT',BNB:'WAIT',ZEC:'WAIT'},cryptoSignalStrength={BTC:false,ETH:false,BNB:false,ZEC:false};let optionLoadToken=0;
+// Every dashboard data request has a hard timeout so a stalled connection cannot leave a panel on "Loading…" forever.
+async function fetchWithTimeout(url,timeoutMs=10000,options={}){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);
+ try{return await fetch(url,{...options,signal:controller.signal});}
+ catch(e){if(e.name==='AbortError')throw new Error('Request timeout ('+Math.round(timeoutMs/1000)+'s)');throw e;}
+ finally{clearTimeout(timer);}
+}
 let cryptoOptionDataFresh={BTC:false,ETH:false,ZEC:false};
 async function fetchOptionJson(url,timeoutMs=7000){
  let lastError;
@@ -403,7 +410,7 @@ async function loadServerOptionSnapshots(){
  try{
   const url=new URL('./data/option-movement-snapshots.json',document.baseURI);
   url.searchParams.set('t',String(Date.now()));
-  const response=await fetch(url.toString(),{cache:'no-store'});
+  const response=await fetchWithTimeout(url.toString(),8000,{cache:'no-store'});
   if(!response.ok)throw new Error('HTTP '+response.status);
   const records=await response.json();
   if(!Array.isArray(records))throw new Error('Snapshot JSON format गलत है');
@@ -1070,7 +1077,7 @@ async function loadCoinSwitchFeed(){
  const status=document.getElementById('csFeedConnection'),updated=document.getElementById('csFeedUpdated'),rows=document.getElementById('csFeedRows'),note=document.getElementById('csFeedNote');
  if(!status||!rows)return;
  try{
-  const res=await fetch('https://live-market-deshboard.onrender.com/api/coinswitch/futures/klines?ts='+Date.now(),{cache:'no-store'});
+  const res=await fetchWithTimeout('https://live-market-deshboard.onrender.com/api/coinswitch/futures/klines?ts='+Date.now(),10000,{cache:'no-store'});
   if(!res.ok)throw new Error('Render Gateway HTTP '+res.status);
   const data=await res.json();
   status.textContent=data.connection||'unknown';
@@ -1090,7 +1097,7 @@ async function loadCoinSwitchFeed(){
 async function loadPaperTradingLedger(){
  const status=document.getElementById('paperDataStatus');
  try{
-  const res=await fetch('https://raw.githubusercontent.com/hr9000440-maker/Live-market-deshboard/main/paper_trades.json?ts='+Date.now(),{cache:'no-store'});
+  const res=await fetchWithTimeout('https://raw.githubusercontent.com/hr9000440-maker/Live-market-deshboard/main/paper_trades.json?ts='+Date.now(),10000,{cache:'no-store'});
   if(!res.ok)throw new Error('Paper ledger अभी publish नहीं हुआ; पहला scheduled run पूरा होने दें।');
   const d=await res.json(),open=d.open_trades||[],closed=d.closed_trades||[];
   document.getElementById('paperOpenCount').textContent=open.length;
