@@ -1,8 +1,7 @@
 name: Crypto Telegram Signals
 
+# Futures alerts paused for now. Keep manual dispatch available for later testing.
 on:
-  schedule:
-    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 permissions:
