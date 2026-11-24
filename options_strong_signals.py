@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""BTC/ETH direction-only alerts using closed Binance spot candles.
+"""Seven-coin direction-only alerts using closed Binance spot candles.
 
 These are directional CALL/PUT ideas only. They are NOT option contracts,
 option premiums, or instructions to place an order.
@@ -12,7 +12,7 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 
-COINS = {"BTC": "BTCUSDT", "ETH": "ETHUSDT"}
+COINS = {"BTC": "BTCUSDT", "ETH": "ETHUSDT", "ZEC": "ZECUSDT", "BNB": "BNBUSDT", "SOL": "SOLUSDT", "DOGE": "DOGEUSDT", "XRP": "XRPUSDT"}
 INTERVALS = ("5m", "15m")
 BINANCE = "https://api.binance.com/api/v3/klines"
 RSI_PERIOD = 14
