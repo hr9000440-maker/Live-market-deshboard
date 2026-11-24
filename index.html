@@ -270,11 +270,11 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 </section>
 
 <section class="panel" id="crypto-options">
-<h2>₿ CRYPTO OPTIONS CHAIN — BTC + ETH + ZEC</h2>
-<p class="note">Deribit public market data • BTC, ETH और ZEC के listed options • यहां से order place नहीं होगा। Premium USD में अनुमानित है (mark price × underlying price); OI/Volume exchange की मूल इकाई में हैं।</p>
+<h2>₿ CRYPTO OPTIONS CHAIN — BTC + ETH + ZEC + DOGE</h2>
+<p class="note">BTC/ETH: Deribit • ZEC: Paradex • DOGE: Bybit public options data • यहां से order place नहीं होगा। Premium USD में अनुमानित है (mark price × underlying price); OI/Volume exchange की मूल इकाई में हैं।</p>
 <div class="result" id="cryptoSignal" style="margin:12px 0"><p class="note">15m signal लोड हो रहा है…</p></div>
 <div class="option-controls">
-<div><label for="optCurrency">Coin</label><select id="optCurrency" onchange="loadCryptoOptions();loadCryptoSignal()"><option value="BTC">BTC — Bitcoin</option><option value="ETH">ETH — Ethereum</option><option value="ZEC">ZEC — Zcash</option></select></div>
+<div><label for="optCurrency">Coin</label><select id="optCurrency" onchange="loadCryptoOptions();loadCryptoSignal()"><option value="BTC">BTC — Bitcoin</option><option value="ETH">ETH — Ethereum</option><option value="ZEC">ZEC — Zcash</option><option value="DOGE">DOGE — Dogecoin</option></select></div>
 <div><label for="optExpiry">Expiry</label><select id="optExpiry" onchange="renderCryptoOptions()"><option value="">Loading…</option></select><div id="optExpiryStatus" class="note" style="margin-top:6px">Expiry API data जाँच रहा है…</div></div>
 <div><label for="optType">Option Type</label><select id="optType" onchange="renderCryptoOptions()"><option value="ALL">CALL + PUT</option><option value="C">CALL (CE)</option><option value="P">PUT (PE)</option></select></div>
 <div><label for="optSearch">Strike खोजें</label><input id="optSearch" type="number" placeholder="जैसे 90000" oninput="renderCryptoOptions()"></div>
@@ -315,7 +315,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 <h2>📉 CRYPTO OPTION PREMIUM CHART — 15 MIN</h2>
 <p class="note">Selected Deribit BTC/ETH option contract का 15-minute OHLC premium chart. यह CoinSwitch का exact contract/chart नहीं है; exchange और contract अलग हो सकते हैं।</p>
 <div class="option-controls">
-<div><label for="chartOptCoin">Coin</label><select id="chartOptCoin" onchange="changeOptionChartCoin(this.value)"><option value="BTC">BTC</option><option value="ETH">ETH</option><option value="ZEC">ZEC</option></select></div>
+<div><label for="chartOptCoin">Coin</label><select id="chartOptCoin" onchange="changeOptionChartCoin(this.value)"><option value="BTC">BTC</option><option value="ETH">ETH</option><option value="ZEC">ZEC</option><option value="DOGE">DOGE</option></select></div>
 <div><label for="chartOptExpiry">Expiry</label><select id="chartOptExpiry" onchange="populateOptionChartContracts()"></select></div>
 <div><label for="chartOptInstrument">Option Contract</label><select id="chartOptInstrument"></select></div>
 </div>
@@ -352,7 +352,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 </main>
 
 <script>
-let cryptoOptionData={BTC:[],ETH:[],ZEC:[]},cryptoOptionUnderlying={BTC:null,ETH:null,ZEC:null},cryptoTrendSignal={BTC:'WAIT',ETH:'WAIT',BNB:'WAIT',ZEC:'WAIT'},cryptoSignalStrength={BTC:false,ETH:false,BNB:false,ZEC:false};let optionLoadToken=0;
+let cryptoOptionData={BTC:[],ETH:[],ZEC:[],DOGE:[]},cryptoOptionUnderlying={BTC:null,ETH:null,ZEC:null,DOGE:null},cryptoTrendSignal={BTC:'WAIT',ETH:'WAIT',BNB:'WAIT',ZEC:'WAIT',DOGE:'WAIT'},cryptoSignalStrength={BTC:false,ETH:false,BNB:false,ZEC:false,DOGE:false};let optionLoadToken=0;
 // Every dashboard data request has a hard timeout so a stalled connection cannot leave a panel on "Loading…" forever.
 async function fetchWithTimeout(url,timeoutMs=10000,options={}){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);
@@ -360,7 +360,7 @@ async function fetchWithTimeout(url,timeoutMs=10000,options={}){
  catch(e){if(e.name==='AbortError')throw new Error('Request timeout ('+Math.round(timeoutMs/1000)+'s)');throw e;}
  finally{clearTimeout(timer);}
 }
-let cryptoOptionDataFresh={BTC:false,ETH:false,ZEC:false};
+let cryptoOptionDataFresh={BTC:false,ETH:false,ZEC:false,DOGE:false};
 async function fetchOptionJson(url,timeoutMs=7000){
  let lastError;
  for(let attempt=0;attempt<2;attempt++){
@@ -382,7 +382,7 @@ function applyCryptoOptionRows(coin,rows,underlying,updatedAt,stale=false){
  const expiryStatus=document.getElementById('optExpiryStatus');if(expiryStatus){const chosenDate=expiryDateValue(chosen),todayDate=todayISTExpiryValue();expiryStatus.textContent=chosen?(chosenDate===todayDate?'आज की Expiry उपलब्ध है: '+expiryLabel(chosen):chosenDate>todayDate?'अगली active expiry: '+expiryLabel(chosen):'API Expiry: '+expiryLabel(chosen)):'API से कोई active Expiry उपलब्ध नहीं है।';}
  document.getElementById('optUnderlying').textContent=underlying?fmt(underlying)+' '+coin+' spot/underlying':'—';
  document.getElementById('optCount').textContent=rows.length.toLocaleString('en-US');document.getElementById('optUpdated').textContent=updatedAt?new Date(updatedAt).toLocaleTimeString('en-IN'):'—';
- document.getElementById('optStatus').textContent=stale?'पिछला सफल data दिखाया जा रहा है ('+new Date(updatedAt).toLocaleString('en-IN')+')। यह LIVE quote नहीं है; नया API data आने तक signals बंद हैं।':rows.length?rows.length+' active '+coin+' option contracts मिले। स्रोत: '+(coin==='ZEC'?'Paradex':'Deribit')+'.':'API से active '+coin+' option contracts नहीं मिले।';
+ document.getElementById('optStatus').textContent=stale?'पिछला सफल data दिखाया जा रहा है ('+new Date(updatedAt).toLocaleString('en-IN')+')। यह LIVE quote नहीं है; नया API data आने तक signals बंद हैं।':rows.length?rows.length+' active '+coin+' option contracts मिले। स्रोत: '+(coin==='ZEC'?'Paradex':coin==='DOGE'?'Bybit':'Deribit')+'.':'API से active '+coin+' option contracts नहीं मिले।';
  renderCryptoOptions();populateOptionChartContracts();
 }
 
