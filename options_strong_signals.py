@@ -1,145 +1,244 @@
 #!/usr/bin/env python3
-"""Seven-coin direction-only alerts using closed Binance spot candles.
+"""Server-side Telegram delivery for the dashboard's confirmed BTC/ETH option signals.
 
-These are directional CALL/PUT ideas only. They are NOT option contracts,
-option premiums, or instructions to place an order.
+Signal rules, option quote filters, and budget gate mirror index.html.
+Only completed 15m candles are used. No order is ever placed.
 """
-import json
-import os
-import sys
-import time
-import urllib.parse
-import urllib.request
+import json, os, sys, time, urllib.parse, urllib.request
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
-COINS = {"BTC": "BTCUSDT", "ETH": "ETHUSDT", "ZEC": "ZECUSDT", "BNB": "BNBUSDT", "SOL": "SOLUSDT", "DOGE": "DOGEUSDT", "XRP": "XRPUSDT"}
-INTERVALS = ("5m", "15m")
+COINS = ("BTC", "ETH")
+OPTION_API = "https://live-market-deshboard.onrender.com/api/options/{coin}"
 BINANCE = "https://api.binance.com/api/v3/klines"
-RSI_PERIOD = 14
+GATE = "https://api.gateio.ws/api/v4/spot/candlesticks"
+BUDGET_INR = 500.0
+USD_INR_BUFFER = 95.0
+STATE_PATH = "state/option_telegram_signals.json"
 
 
-def get_klines(symbol, interval, limit=80):
-    query = urllib.parse.urlencode({"symbol": symbol, "interval": interval, "limit": limit})
-    req = urllib.request.Request(BINANCE + "?" + query, headers={"User-Agent": "market-signal-bot/1.0"})
-    with urllib.request.urlopen(req, timeout=15) as response:
-        rows = json.loads(response.read().decode("utf-8"))
-    # Exclude the still-forming candle; only completed candles are evaluated.
-    return rows[:-1]
+def get_json(url, timeout=20):
+    req = urllib.request.Request(url, headers={"User-Agent": "live-market-dashboard/1.0", "Accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=timeout) as response:
+        return json.loads(response.read().decode("utf-8"))
 
 
 def ema(values, period):
-    alpha = 2 / (period + 1)
-    result = values[0]
-    for value in values[1:]:
-        result = value * alpha + result * (1 - alpha)
-    return result
+    alpha = 2.0 / (period + 1)
+    value = values[0]
+    for item in values[1:]:
+        value = item * alpha + value * (1 - alpha)
+    return value
 
 
-def rsi(values, period=RSI_PERIOD):
-    changes = [values[i] - values[i - 1] for i in range(1, len(values))]
-    gains = [max(x, 0) for x in changes[-period:]]
-    losses = [max(-x, 0) for x in changes[-period:]]
-    avg_gain = sum(gains) / period
-    avg_loss = sum(losses) / period
+def rsi(values, period=14):
+    if len(values) < period + 1:
+        raise RuntimeError("RSI के लिए candles कम हैं")
+    gains = losses = 0.0
+    for i in range(1, period + 1):
+        change = values[i] - values[i - 1]
+        if change > 0:
+            gains += change
+        else:
+            losses -= change
+    avg_gain, avg_loss = gains / period, losses / period
+    for i in range(period + 1, len(values)):
+        change = values[i] - values[i - 1]
+        avg_gain = (avg_gain * (period - 1) + max(change, 0)) / period
+        avg_loss = (avg_loss * (period - 1) + max(-change, 0)) / period
+    if avg_gain == 0 and avg_loss == 0:
+        return 50.0
     if avg_loss == 0:
-        return 100.0 if avg_gain else 50.0
-    rs = avg_gain / avg_loss
-    return 100 - (100 / (1 + rs))
+        return 100.0
+    if avg_gain == 0:
+        return 0.0
+    return 100.0 - (100.0 / (1.0 + avg_gain / avg_loss))
 
 
-def analyse(symbol):
-    c5 = get_klines(symbol, "5m")
-    c15 = get_klines(symbol, "15m")
-    if len(c5) < 30 or len(c15) < 30:
-        raise RuntimeError("Not enough completed candle data")
+def candles(coin):
+    symbol = coin + "USDT"
+    errors = []
+    for url, gate in (
+        (BINANCE + "?" + urllib.parse.urlencode({"symbol": symbol, "interval": "15m", "limit": 60}), False),
+        (GATE + "?" + urllib.parse.urlencode({"currency_pair": coin + "_USDT", "interval": "15m", "limit": 60}), True),
+    ):
+        try:
+            rows = get_json(url, timeout=15)
+            if gate:
+                rows = [[int(float(x[0]) * 1000), x[5], x[3], x[4], x[2], x[1], int(float(x[0]) * 1000 + 899999)] for x in rows]
+                rows.sort(key=lambda x: int(x[0]))
+            rows = [x for x in rows if isinstance(x, list) and len(x) >= 7 and all(float(x[i]) > 0 for i in (0, 1, 2, 3, 4))]
+            if len(rows) >= 31:
+                return rows, "Gate.io Spot" if gate else "Binance Spot"
+            errors.append("candles कम")
+        except Exception as exc:
+            errors.append(str(exc))
+    raise RuntimeError(coin + " 15m market data unavailable: " + " | ".join(errors))
 
-    close5 = [float(row[4]) for row in c5]
-    close15 = [float(row[4]) for row in c15]
-    rsi5 = rsi(close5)
-    e9_5, e21_5 = ema(close5[-40:], 9), ema(close5[-40:], 21)
-    e9_15, e21_15 = ema(close15[-60:], 9), ema(close15[-60:], 21)
 
-    # Last completed 15m candle must itself confirm direction, not just EMA alignment.
-    last15 = c15[-1]
-    open15, high15, low15, close15_last = map(float, (last15[1], last15[2], last15[3], last15[4]))
-    prior15_close = float(c15[-2][4])
-    bullish15 = close15_last > open15 and close15_last > prior15_close
-    bearish15 = close15_last < open15 and close15_last < prior15_close
-
-    last5 = c5[-1]
-    close5_last = float(last5[4])
-    prior5_close = float(c5[-2][4])
-    bullish5 = close5_last > prior5_close and close5_last > e9_5 > e21_5
-    bearish5 = close5_last < prior5_close and close5_last < e9_5 < e21_5
-
+def confirmed_signal(coin):
+    rows, source = candles(coin)
+    latest_open = int(float(rows[-1][0]))
+    age = int(time.time() * 1000) - latest_open
+    if age < -60000 or age > 30 * 60 * 1000:
+        raise RuntimeError("15m candle data पुराना है; सुरक्षित रूप से signal रोका गया")
+    # Match dashboard: last row may still be forming; evaluate only the prior closed candle.
+    closed = rows[:-1]
+    closes = [float(x[4]) for x in closed]
+    close = closes[-1]
+    e9, e21 = ema(closes[-30:], 9), ema(closes[-50:], 21)
+    rv = rsi(closes, 14)
     direction = None
-    if bullish15 and e9_15 > e21_15 and bullish5 and 45 <= rsi5 <= 75:
+    if close > e9 > e21 and 45 <= rv <= 75:
         direction = "STRONG BUY CALL"
-    elif bearish15 and e9_15 < e21_15 and bearish5 and 25 <= rsi5 <= 55:
+    elif close < e9 < e21 and 25 <= rv <= 55:
         direction = "STRONG BUY PUT"
-
-    return {
-        "direction": direction,
-        "price": close5_last,
-        "rsi": rsi5,
-        "ema9": e9_5,
-        "ema21": e21_5,
-        "candle15_open": open15,
-        "candle15_close": close15_last,
-        "candle15_close_time": int(last15[6]),
-        "candle15_confirmed": bullish15 or bearish15,
-    }
+    return {"direction": direction, "price": close, "rsi": rv, "ema9": e9, "ema21": e21,
+            "candle_time": int(float(closed[-1][0])), "source": source}
 
 
-def send_telegram(message):
-    token = os.environ.get("TELEGRAM_BOT_TOKEN") or os.environ.get("TELEGRAMBOTTOKAN") or os.environ.get("TELEGRAM_BOT_TOKAN")
-    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+def expiry_ms(value):
+    value = str(value or "").strip()
+    for fmt in ("%Y-%m-%d", "%d%b%y", "%d%b%Y"):
+        try:
+            return int(datetime.strptime(value.upper(), fmt).replace(tzinfo=timezone.utc).timestamp() * 1000)
+        except ValueError:
+            pass
+    try:
+        n = int(value)
+        return n if n > 10**12 else n * 1000
+    except ValueError:
+        return 0
+
+
+def choose_expiry(rows):
+    expiries = sorted({str(x.get("expiry") or x.get("instrument_name", "").split("-")[1]) for x in rows
+                       if x.get("expiry") or len(x.get("instrument_name", "").split("-")) > 1})
+    today = datetime.now(ZoneInfo("Asia/Kolkata")).date()
+    today_ms = int(datetime(today.year, today.month, today.day, tzinfo=timezone.utc).timestamp() * 1000)
+    # Match dashboard: today's expiry if present, else nearest future, else first listed.
+    for value in expiries:
+        if expiry_ms(value) == today_ms:
+            return value
+    future = [x for x in expiries if expiry_ms(x) >= today_ms]
+    return min(future, key=expiry_ms) if future else (expiries[0] if expiries else "")
+
+
+def best_option(coin, signal, underlying):
+    payload = get_json(OPTION_API.format(coin=coin), timeout=25)
+    rows = payload.get("rows")
+    if not isinstance(rows, list):
+        raise RuntimeError("Options gateway response में rows नहीं हैं")
+    expiry = choose_expiry(rows)
+    wanted_side = "C" if "CALL" in signal else "P"
+    candidates = []
+    for row in rows:
+        name = str(row.get("instrument_name") or "")
+        parts = name.split("-")
+        if not name or not expiry or str(row.get("expiry") or (parts[1] if len(parts) > 1 else "")) != expiry:
+            continue
+        if not name.endswith("-" + wanted_side):
+            continue
+        bid, ask, mark = (float(row.get(k) or 0) for k in ("bid_price", "ask_price", "mark_price"))
+        oi, vol = float(row.get("open_interest") or 0), float(row.get("volume") or 0)
+        strike = float(row.get("strike") or (parts[2] if len(parts) > 2 else 0) or 0)
+        min_amount = float(row.get("min_trade_amount") or 0)
+        if not (bid > 0 and ask >= bid and mark > 0 and strike > 0 and (oi > 0 or vol > 0)):
+            continue
+        mid = (bid + ask) / 2.0
+        spread = (ask - bid) / mid if mid > 0 else 999
+        if spread > 0.10:
+            continue
+        mark_usd = mark * underlying
+        estimated_inr = mark_usd * min_amount * USD_INR_BUFFER
+        # Same dashboard affordability gate: exchange min trade amount must be known and <= ₹500.
+        if min_amount <= 0 or estimated_inr <= 0 or estimated_inr > BUDGET_INR:
+            continue
+        candidates.append({"name": name, "strike": strike, "expiry": expiry, "bid": bid * underlying,
+                           "ask": ask * underlying, "entry": mark_usd, "spread": spread,
+                           "sl": mark_usd * 0.75, "tp1": mark_usd * 1.25, "tp2": mark_usd * 1.50,
+                           "tp3": mark_usd * 1.75, "cost": estimated_inr})
+    if not candidates:
+        raise RuntimeError("इस expiry में 10% तक spread, live quote, OI/volume और ₹500 budget वाला eligible " + wanted_side + " contract नहीं मिला")
+    # Prefer nearest-to-ATM eligible contract, then tighter spread.
+    return min(candidates, key=lambda x: (abs(x["strike"] - underlying), x["spread"]))
+
+
+def telegram(message):
+    token = (os.getenv("TELEGRAM_BOT_TOKEN") or os.getenv("TELEGRAMBOTTOKAN") or
+             os.getenv("TELEGRAM_BOT_TOKAN") or os.getenv("TELEGRAM_BOT_TOKAN"))
+    chat_id = os.getenv("TELEGRAM_CHAT_ID")
     if not token or not chat_id:
-        raise RuntimeError("Telegram bot token/chat ID secrets are missing")
-    data = urllib.parse.urlencode({"chat_id": chat_id, "text": message}).encode()
-    req = urllib.request.Request(f"https://api.telegram.org/bot{token}/sendMessage", data=data)
+        raise RuntimeError("Telegram token/chat ID repository secrets missing")
+    data = urllib.parse.urlencode({"chat_id": chat_id, "text": message, "disable_web_page_preview": "true"}).encode()
+    req = urllib.request.Request("https://api.telegram.org/bot" + token + "/sendMessage", data=data)
     with urllib.request.urlopen(req, timeout=20) as response:
         result = json.loads(response.read().decode())
     if not result.get("ok"):
-        raise RuntimeError("Telegram API rejected the message")
+        raise RuntimeError("Telegram API error: " + str(result.get("description", "unknown error")))
+
+
+def load_state():
+    try:
+        with open(STATE_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def save_state(state):
+    os.makedirs(os.path.dirname(STATE_PATH), exist_ok=True)
+    with open(STATE_PATH, "w", encoding="utf-8") as f:
+        json.dump(state, f, ensure_ascii=False, indent=2, sort_keys=True)
+        f.write("\n")
 
 
 def main():
-    # Workflow schedule controls the 15m cadence. Do not reject delayed GitHub runs by minute.
-    now_ms = int(time.time() * 1000)
-
+    state = load_state()
     sent = 0
-    for coin, symbol in COINS.items():
+    errors = 0
+    for coin in COINS:
         try:
-            data = analyse(symbol)
-            age_ms = now_ms - data["candle15_close_time"]
-            # Avoid late/stale alerts and repeated alerts for the same 15m close.
-            if age_ms < 0 or age_ms > 12 * 60 * 1000:
-                print(f"{coin}: last completed 15m candle is older than 12 minutes; stale alert skipped.")
+            signal = confirmed_signal(coin)
+            if not signal["direction"]:
+                print(coin + ": no confirmed strong setup; no Telegram alert")
                 continue
-            if not data["direction"]:
-                print(f"{coin}: WAIT — no confirmed strong setup; no Telegram alert.")
+            payload = get_json(OPTION_API.format(coin=coin), timeout=25)
+            underlying = float(payload.get("underlying") or 0)
+            if underlying <= 0:
+                raise RuntimeError("Options gateway underlying price unavailable")
+            option = best_option(coin, signal["direction"], underlying)
+            key = coin + "|" + option["name"] + "|" + signal["direction"]
+            stamp = str(signal["candle_time"])
+            if state.get(key) == stamp:
+                print(coin + ": duplicate signal already sent for this closed candle")
                 continue
-
-            direction = data["direction"]
-            side = "bullish" if "CALL" in direction else "bearish"
+            side = "BUY CALL" if "CALL" in signal["direction"] else "BUY PUT"
             message = (
-                "🚨 CRYPTO DIRECTION SIGNAL (SIGNAL ONLY)\n"
-                f"Coin: {coin}\n"
-                f"🟢 {direction}\n"
-                f"Underlying price: {data['price']:,.2f} USDT\n"
-                f"15m candle: CLOSED and {side} confirmed\n"
-                f"RSI(5m): {data['rsi']:.1f}\n"
-                f"EMA9(5m): {data['ema9']:.2f} | EMA21(5m): {data['ema21']:.2f}\n"
-                "Option premium/strike/expiry: UNAVAILABLE — not verified from CoinSwitch.\n"
-                "Direction signal only; ₹500 option affordability is NOT verified.\n"
-                "No order placed. Check CoinSwitch option chain manually before any decision."
+                "🚨 STRONG OPTION TRADE SIGNAL\n"
+                f"Coin: {coin}\n{side}\nContract: {option['name']}\n"
+                f"Strike: {option['strike']:,.2f} | Expiry: {option['expiry']}\n"
+                f"Underlying: {underlying:,.2f} USD\n"
+                f"Entry Premium: {option['entry']:.4f} USD\n"
+                f"🛑 SL (-25%): {option['sl']:.4f} USD\n"
+                f"🎯 TP1 (+25%): {option['tp1']:.4f} USD\n"
+                f"🎯 TP2 (+50%): {option['tp2']:.4f} USD\n"
+                f"Spread: {option['spread']*100:.2f}% | Estimated minimum cost: ₹{option['cost']:.0f}\n"
+                f"RSI 14: {signal['rsi']:.1f} | EMA9: {signal['ema9']:.2f} | EMA21: {signal['ema21']:.2f}\n"
+                f"15m closed-candle source: {signal['source']}\n"
+                "Signal only — कोई order अपने-आप place नहीं होगा।"
             )
-            send_telegram(message)
+            telegram(message)
+            state[key] = stamp
+            save_state(state)
             sent += 1
-            print(f"{coin}: sent {direction}")
+            print(coin + ": Telegram sent " + signal["direction"] + " " + option["name"])
         except Exception as exc:
-            print(f"{coin}: data/alert error: {exc}", file=sys.stderr)
-    print(f"Completed. Telegram alerts sent: {sent}")
+            errors += 1
+            print(coin + ": ERROR: " + str(exc), file=sys.stderr)
+    print(f"Completed. Telegram alerts sent: {sent}; coin errors: {errors}")
+    if errors:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":
