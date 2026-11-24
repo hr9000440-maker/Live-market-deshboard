@@ -178,7 +178,7 @@ def crypto_options(coin):
                     continue
                 symbol = str(item.get("symbol") or "")
                 parts = symbol.split("-")
-                if len(parts) < 5 or parts[0].upper() != "DOGE":
+                if len(parts) < 4 or parts[0].upper() != "DOGE":
                     continue
                 try:
                     strike = float(parts[2])
