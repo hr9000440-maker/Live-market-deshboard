@@ -50,7 +50,7 @@ for coin in COINS:
 if issues:
     token=os.getenv("TELEGRAM_BOT_TOKEN","")
     chat=os.getenv("TELEGRAM_CHAT_ID","")
-    msg="⚠️ DASHBOARD HEALTH CHECK\n"+ "\\n".join(issues)+"\nChecked: "+datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    msg="⚠️ DASHBOARD HEALTH CHECK\n"+ "\n".join(issues)+"\nChecked: "+datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     if token and chat:
         try:
             data=json.dumps({"chat_id":chat,"text":msg}).encode()
