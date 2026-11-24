@@ -7,7 +7,9 @@ if (!token || !chatId) {
   process.exit(1);
 }
 
-const coins = ['BTC', 'ETH', 'BNB', 'ZEC'];
+// BTC/ETH spot direction is NOT an options premium. Keep this workflow for BNB/ZEC futures only.
+// BTC/ETH option alerts must come from a verified contract + live premium workflow.
+const coins = ['BNB', 'ZEC'];
 const statePath = 'state/signals.json';
 let state = {};
 try { state = JSON.parse(fs.readFileSync(statePath, 'utf8')); } catch {}
@@ -114,12 +116,10 @@ async function analyze(coin) {
       if (s.side === 'WAIT') { console.log(coin + ': no qualified signal', JSON.stringify(s.diagnostics)); continue; }
       const key = coin + ':' + s.candleTime + ':' + s.side;
       if (state[key]) { console.log(coin + ': duplicate skipped'); continue; }
-      const direction = (coin === 'BTC' || coin === 'ETH')
-        ? (s.side === 'BUY / LONG' ? 'BUY CALL' : 'BUY PUT')
-        : s.side;
+      const direction = s.side;
       const when = new Date(s.candleTime + 900000).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
       const message = [
-        '🚨 HIGH-CONFIDENCE FILTERED 15m SIGNAL',
+        '🚨 HIGH-CONFIDENCE 15m FUTURES SIGNAL',
         'Coin: ' + coin,
         'Signal: ' + direction,
         'Entry: ' + fmt(s.entry),
@@ -158,6 +158,6 @@ async function analyze(coin) {
       try { await telegram('⚠️ DASHBOARD SIGNAL HEALTH\n' + errors.join('\n') + '\nHealthy coins continue; failed coins retry next scan.'); state[key]=new Date().toISOString(); } catch (e) { console.error('Health alert failed: '+e.message); }
     }
   }
-  console.log(`Scan complete: ${signals} new signal(s), ${errors.length} data error(s), 4 coins checked.`);
+  console.log(`Scan complete: ${signals} new signal(s), ${errors.length} data error(s), 2 futures coins checked (BNB/ZEC). BTC/ETH option premium alerts are handled separately.`);
   fs.writeFileSync(statePath, JSON.stringify(Object.fromEntries(Object.entries(state).sort((a,b)=>a[1].localeCompare(b[1])).slice(-500)), null, 2) + '\n');
 })().catch(e => { console.error(e); process.exit(1); });
