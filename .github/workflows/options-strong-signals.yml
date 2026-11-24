@@ -1,7 +1,8 @@
-name: CoinSwitch Options Strong Signals
+name: BTC ETH 15m Confirmed Direction Signals
 on:
-  # Manual-only while the legacy Binance-spot pseudo-options script is replaced
-  # with a verified option-chain premium feed.
+  schedule:
+    # Run shortly after each 15-minute candle closes (UTC).
+    - cron: "2,17,32,47 * * * *"
   workflow_dispatch:
 permissions:
   contents: read
@@ -11,13 +12,14 @@ concurrency:
 jobs:
   signals:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 5
     steps:
-      - name: Refuse unverified option alerts
-        run: |
-          python3 - <<'PY'
-          import sys
-          print("BLOCKED: no verified CoinSwitch option-chain premium feed is configured.")
-          print("No Telegram signal was sent. Spot price is not option premium.")
-          sys.exit(2)
-          PY
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Send BTC and ETH direction-only signals
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAMBOTTOKAN: ${{ secrets.TELEGRAMBOTTOKAN }}
+          TELEGRAM_BOT_TOKAN: ${{ secrets.TELEGRAM_BOT_TOKAN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python3 options_strong_signals.py
