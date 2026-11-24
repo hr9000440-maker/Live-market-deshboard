@@ -430,131 +430,78 @@ async function loadServerOptionSnapshots(){
  }
 }
 async function loadCryptoOptions(){
- const coin=document.getElementById('optCurrency').value,status=document.getElementById('optStatus');const token=++optionLoadToken;
- const rowsEl=document.getElementById('optRows'),hasPreviousRows=!!(cryptoOptionData[coin]&&cryptoOptionData[coin].length);
- status.textContent=hasPreviousRows?coin+' का पिछला उपलब्ध डेटा दिख रहा है; नया डेटा background में अपडेट हो रहा है।':coin+' का डेटा अभी उपलब्ध नहीं है।';
- if(!hasPreviousRows)rowsEl.innerHTML='<tr><td colspan="13">अभी कोई ताज़ा option data उपलब्ध नहीं है।</td></tr>';
- const watchdog=setTimeout(()=>{
-  if(token!==optionLoadToken)return;
-  if(status.textContent.includes('background में अपडेट')||status.textContent.includes('अभी उपलब्ध नहीं है।')){
-   status.textContent='DATA UNAVAILABLE • समय पर live option data नहीं मिला। Refresh करके दोबारा जाँचें।';
-   if(!hasPreviousRows)rowsEl.innerHTML='<tr><td colspan="13">DATA UNAVAILABLE • Live option data नहीं मिला।</td></tr>';
-  }
- },18000);
+ const coin=document.getElementById('optCurrency').value,status=document.getElementById('optStatus');
+ const token=++optionLoadToken,rowsEl=document.getElementById('optRows');
+ const expiry=document.getElementById('optExpiry'),expiryStatus=document.getElementById('optExpiryStatus');
+ const hasPreviousRows=!!(cryptoOptionData[coin]&&cryptoOptionData[coin].length);
+ status.textContent=hasPreviousRows?coin+' का पिछला उपलब्ध डेटा दिख रहा है; नया live data अपडेट हो रहा है।':coin+' option data server से लिया जा रहा है…';
+ if(!hasPreviousRows)rowsEl.innerHTML='<tr><td colspan="14">Live option data प्राप्त किया जा रहा है…</td></tr>';
+ expiry.innerHTML='<option value="">Expiry लोड हो रही है…</option>';
+ if(expiryStatus)expiryStatus.textContent='Server से active expiry जाँची जा रही है…';
+ const url='https://live-market-deshboard.onrender.com/api/options/'+encodeURIComponent(coin)+'?ts='+Date.now();
  try{
-  let rows=[],underlying=null,lastError=null;
-  if(coin==='ZEC'){
-   // ZEC options are listed on Paradex, not Deribit. Fetch its public option markets and summaries.
-   const marketUrl='https://api.prod.paradex.trade/v1/markets?asset_kind=OPTION&base_asset=ZEC';
-   const summaryUrl='https://api.prod.paradex.trade/v1/markets/summary?market=ALL&asset_kind=OPTION&base_asset=ZEC';
-   const [mr,sr]=await Promise.all([fetch(marketUrl,{cache:'no-store'}),fetch(summaryUrl,{cache:'no-store'})]);
-   if(!mr.ok)throw new Error('Paradex markets HTTP '+mr.status);
-   const mj=await mr.json();if(mj.error)throw new Error(mj.error.message||'Paradex markets API error');
-   const marketList=mj.results||mj.data||[];
-   if(!Array.isArray(marketList))throw new Error('Paradex markets response format बदल गया');
-   let summaries=[];
-   if(sr.ok){const sj=await sr.json();summaries=sj.results||sj.data||[];}
-   const bySymbol=new Map(summaries.map(x=>[x.symbol||x.market||x.instrument_name,x]));
-   rows=marketList.filter(x=>String(x.symbol||x.market||'').includes('ZEC')&&String(x.asset_kind||x.type||'OPTION').toUpperCase().includes('OPTION')).map(x=>{
-    const name=x.symbol||x.market||x.instrument_name,sm=bySymbol.get(name)||{};
-    const strike=Number(x.strike_price??x.strike??sm.strike_price??sm.strike);
-    const exp=x.expiry_date||x.expiration_date||x.expiry||x.expiration||name.split('-')[2]||'';
-    const type=String(x.option_type||x.option_side||x.type||name.split('-').pop()).toUpperCase();
-    return {instrument_name:name,strike,option_type:type.includes('CALL')||type==='C'?'C':type.includes('PUT')||type==='P'?'P':type,
-     bid_price:Number(sm.bid_price??sm.bid??x.bid_price??0),ask_price:Number(sm.ask_price??sm.ask??x.ask_price??0),
-     mark_price:Number(sm.mark_price??sm.mark??x.mark_price??0),open_interest:Number(sm.open_interest??x.open_interest??0),
-     volume:Number(sm.volume_24h??sm.volume??x.volume_24h??0),underlying_price:Number(sm.underlying_price??x.underlying_price??0),expiry:exp};
-   }).filter(x=>x.instrument_name&&x.strike>0);
-   underlying=rows.map(x=>x.underlying_price).find(x=>x>0)||null;
-  }else{
-   if(coin==='ETH'){
-   const base='https://www.deribit.com/api/v2/public/';
-   const hosts=['https://api.deribit.com/api/v2/public/','https://www.deribit.com/api/v2/public/','https://deribit.com/api/v2/public/'];
-   // ETH के लिए instruments endpoint से active expiry/contracts भी लें; book-summary खाली/partial होने पर expiry गायब न हो।
-   let instruments=null, summaries=null;
-   for(const host of hosts){
-    try{
-     const response=await fetch(host+'get_instruments?currency='+encodeURIComponent(coin)+'&kind=option&expired=false',{cache:'no-store'});
-     if(!response.ok)throw new Error('instruments HTTP '+response.status);
-     const data=await response.json();if(data.error)throw new Error(data.error.message||'instruments API error');
-     if(Array.isArray(data.result)){instruments=data.result;break;}
-    }catch(e){lastError=e;}
-   }
-   for(const host of hosts){
-    try{
-     const response=await fetch(host+'get_book_summary_by_currency?currency='+encodeURIComponent(coin)+'&kind=option',{cache:'no-store'});
-     if(!response.ok)throw new Error('summary HTTP '+response.status);
-     const data=await response.json();if(data.error)throw new Error(data.error.message||'summary API error');
-     if(Array.isArray(data.result)){summaries=data.result;break;}
-    }catch(e){lastError=e;}
-   }
-   if(!Array.isArray(instruments)&&!Array.isArray(summaries))throw lastError||new Error('Deribit instruments/summary fetch failed');
-   const summaryMap=new Map((summaries||[]).map(x=>[x.instrument_name,x]));
-   const source=Array.isArray(instruments)&&instruments.length?instruments:(summaries||[]);
-   rows=source.filter(x=>typeof x.instrument_name==='string'&&x.instrument_name.startsWith(coin+'-')&&(x.is_active!==false)).map(x=>{
-    const q=summaryMap.get(x.instrument_name)||{};
-    return {...x,...q,instrument_name:x.instrument_name,
-     strike:Number(q.strike??x.strike??0),
-     option_type:q.option_type||x.option_type||'',
-     expiry:x.instrument_name.split('-')[1]||undefined};
-   }).filter(x=>Number(x.strike)>0);
-   underlying=rows.map(x=>Number(x.underlying_price)).find(x=>x>0)||null;
-   }else{
-    const hosts=['https://api.deribit.com/api/v2/public/','https://www.deribit.com/api/v2/public/','https://deribit.com/api/v2/public/'];
-    let instruments=null,summaries=null;
-    for(const host of hosts){
-     try{
-      const response=await fetch(host+'get_instruments?currency='+encodeURIComponent(coin)+'&kind=option&expired=false',{cache:'no-store'});
-      if(!response.ok)throw new Error('instruments HTTP '+response.status);
-      const data=await response.json();if(data.error)throw new Error(data.error.message||'instruments API error');
-      if(Array.isArray(data.result)){instruments=data.result;break;}
-     }catch(e){lastError=e;}
-    }
-    for(const host of hosts){
-     try{
-      const response=await fetch(host+'get_book_summary_by_currency?currency='+encodeURIComponent(coin)+'&kind=option',{cache:'no-store'});
-      if(!response.ok)throw new Error('summary HTTP '+response.status);
-      const data=await response.json();if(data.error)throw new Error(data.error.message||'summary API error');
-      if(Array.isArray(data.result)){summaries=data.result;break;}
-     }catch(e){lastError=e;}
-    }
-    if(!Array.isArray(instruments)&&!Array.isArray(summaries))throw lastError||new Error('Deribit instruments/summary fetch failed');
-    const summaryMap=new Map((summaries||[]).map(x=>[x.instrument_name,x]));
-    const source=Array.isArray(instruments)&&instruments.length?instruments:(summaries||[]);
-    rows=source.filter(x=>typeof x.instrument_name==='string'&&x.instrument_name.startsWith(coin+'-')&&(x.is_active!==false)).map(x=>{
-     const q=summaryMap.get(x.instrument_name)||{};
-     return {...x,...q,instrument_name:x.instrument_name,
-      strike:Number(q.strike??x.strike??0),
-      option_type:q.option_type||x.option_type||'',
-      min_trade_amount:Number(x.min_trade_amount??q.min_trade_amount??0),
-      expiry:x.instrument_name.split('-')[1]||undefined};
-    }).filter(x=>Number(x.strike)>0);
-    underlying=rows.map(x=>Number(x.underlying_price)).find(x=>x>0)||null;
-   }
-   }
+  let response=null,lastError=null;
+  for(let attempt=0;attempt<2;attempt++){
+   try{
+    response=await fetchWithTimeout(url,30000,{cache:'no-store',headers:{'Accept':'application/json'}});
+    if(!response.ok)throw new Error('Options gateway HTTP '+response.status);
+    break;
+   }catch(e){lastError=e;response=null;if(attempt===0)await new Promise(resolve=>setTimeout(resolve,900));}
   }
+  if(!response)throw lastError||new Error('Options gateway उपलब्ध नहीं');
+  const payload=await response.json();
   if(token!==optionLoadToken)return;
-  if(!underlying){try{const ticker=await fetch('https://api.binance.com/api/v3/ticker/price?symbol='+coin+'USDT',{cache:'no-store'});if(ticker.ok){const t=await ticker.json(),p=Number(t.price);if(p>0)underlying=p;}}catch{}}
+  if(!payload||!Array.isArray(payload.rows))throw new Error(payload?.error||'Options response format गलत है');
+  const rows=payload.rows.filter(x=>x&&x.instrument_name&&Number(x.strike)>0).map(x=>({
+   ...x,
+   strike:Number(x.strike),
+   bid_price:Number(x.bid_price??0),
+   ask_price:Number(x.ask_price??0),
+   mark_price:Number(x.mark_price??0),
+   open_interest:Number(x.open_interest??0),
+   volume:Number(x.volume??0),
+   underlying_price:Number(x.underlying_price??0),
+   expiry:x.expiry||optionDate(x.instrument_name)||''
+  }));
+  let underlying=Number(payload.underlying)||rows.map(x=>Number(x.underlying_price)).find(x=>x>0)||null;
+  if(!underlying){
+   try{const spot=await fetchWithTimeout('https://api.binance.com/api/v3/ticker/price?symbol='+coin+'USDT',8000,{cache:'no-store'});if(spot.ok){const p=Number((await spot.json()).price);if(p>0)underlying=p;}}catch{}
+  }
   if(token!==optionLoadToken)return;
   cryptoOptionData[coin]=rows;cryptoOptionUnderlying[coin]=underlying;cryptoOptionDataFresh[coin]=true;
   const expiries=[...new Set(rows.map(x=>x.expiry||optionDate(x.instrument_name)).filter(Boolean))].sort((a,b)=>expiryDateValue(a)-expiryDateValue(b));
-  const expiry=document.getElementById('optExpiry');const previous=expiry.value;const today=todayISTExpiryValue();const todayExpiry=expiries.find(x=>expiryDateValue(x)===today);const nearestFuture=expiries.find(x=>expiryDateValue(x)>=today);const defaultExpiry=todayExpiry||nearestFuture||expiries[0]||'';const chosen=expiries.includes(previous)?previous:defaultExpiry;expiry.innerHTML=expiries.map(x=>'<option value="'+x+'">'+expiryLabel(x)+'</option>').join('')||'<option value="">No active '+coin+' expiry</option>';if(chosen)expiry.value=chosen;
-  const expiryStatus=document.getElementById('optExpiryStatus');if(expiryStatus){const chosenDate=expiryDateValue(chosen),todayDate=todayISTExpiryValue();expiryStatus.textContent=chosen?(chosenDate===todayDate?'आज की Expiry उपलब्ध है: '+expiryLabel(chosen):chosenDate>todayDate?'आज की expiry के contracts API में active नहीं हैं (संभवतः expiry time बीत चुका है)। अगली active expiry: '+expiryLabel(chosen):'API Expiry: '+expiryLabel(chosen)):'API से कोई active Expiry उपलब्ध नहीं है।';}
+  const previous=expiry.value,today=todayISTExpiryValue();
+  const todayExpiry=expiries.find(x=>expiryDateValue(x)===today);
+  const nearestFuture=expiries.find(x=>expiryDateValue(x)>=today);
+  const chosen=expiries.includes(previous)?previous:(todayExpiry||nearestFuture||expiries[0]||'');
+  expiry.innerHTML=expiries.map(x=>'<option value="'+String(x).replace(/"/g,'&quot;')+'">'+expiryLabel(x)+'</option>').join('')||'<option value="">No active '+coin+' expiry</option>';
+  if(chosen)expiry.value=chosen;
+  if(expiryStatus){
+   const d=expiryDateValue(chosen);
+   expiryStatus.textContent=chosen?(d===today?'आज की Expiry उपलब्ध है: '+expiryLabel(chosen):d>today?'अगली active expiry: '+expiryLabel(chosen):'API Expiry: '+expiryLabel(chosen)):'API से कोई active Expiry उपलब्ध नहीं है।';
+  }
   document.getElementById('optUnderlying').textContent=underlying?fmt(underlying)+' '+coin+' spot/underlying':'—';
-  document.getElementById('optCount').textContent=rows.length.toLocaleString('en-US');document.getElementById('optUpdated').textContent=new Date().toLocaleTimeString('en-IN');
-  status.textContent=rows.length?rows.length+' active '+coin+' option contracts मिले।'+(coin==='ZEC'?' स्रोत: Paradex public API.':''):'API से active '+coin+' option contracts नहीं मिले।';
-  clearTimeout(watchdog);renderCryptoOptions();populateOptionChartContracts();
+  document.getElementById('optCount').textContent=rows.length.toLocaleString('en-US');
+  document.getElementById('optUpdated').textContent=payload.updated_at?new Date(payload.updated_at).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata'}):new Date().toLocaleTimeString('en-IN');
+  status.textContent=rows.length?rows.length+' active '+coin+' option contracts मिले। Source: '+(payload.source||'server options gateway')+'.'+(payload.details?.length?' नोट: '+payload.details.join(' | '):''):'API से active '+coin+' option contracts नहीं मिले।';
+  renderCryptoOptions();populateOptionChartContracts();
  }catch(e){
-  clearTimeout(watchdog);if(token!==optionLoadToken)return;
-  status.textContent='Live data नहीं मिला: '+(e.message||'API fetch error')+'. '+(coin==='ZEC'?'Paradex API/CORS access जाँचें।':'Internet/API access जाँचें।');
-  document.getElementById('optRows').innerHTML='<tr><td colspan="13">डेटा उपलब्ध नहीं है।</td></tr>';
-  cryptoOptionData[coin]=[];cryptoOptionUnderlying[coin]=null;cryptoOptionDataFresh[coin]=false;
-  document.getElementById('optExpiry').innerHTML='<option value="">Expiry unavailable</option>';
-  document.getElementById('optUnderlying').textContent='—';document.getElementById('optCount').textContent='0';
+  if(token!==optionLoadToken)return;
+  cryptoOptionDataFresh[coin]=false;
+  status.textContent='DATA UNAVAILABLE • '+(e.message||'Options API error')+'। Retry करके दोबारा जाँचें।';
+  rowsEl.innerHTML='<tr><td colspan="14">DATA UNAVAILABLE • Live option quotes अभी नहीं मिले।</td></tr>';
+  expiry.innerHTML='<option value="">Expiry unavailable — Retry करें</option>';
+  if(expiryStatus)expiryStatus.textContent='Expiry API से data नहीं मिला।';
+  document.getElementById('optUnderlying').textContent='—';
+  document.getElementById('optCount').textContent='0';
+  document.getElementById('optUpdated').textContent='—';
   document.getElementById('chartOptExpiry').innerHTML='<option value="">Expiry unavailable</option>';
   document.getElementById('chartOptInstrument').innerHTML='<option value="">Contract unavailable</option>';
-  document.getElementById('chartOptName').textContent='—';document.getElementById('chartOptLast').textContent='—';document.getElementById('chartOptUpdated').textContent='—';
-  document.getElementById('chartOptStatus').textContent=coin+' options API ने डेटा नहीं दिया: '+e.message;drawOptionPremiumChart([]);
+  document.getElementById('chartOptName').textContent='—';
+  document.getElementById('chartOptLast').textContent='—';
+  document.getElementById('chartOptUpdated').textContent='—';
+  document.getElementById('chartOptStatus').textContent=coin+' option data unavailable: '+(e.message||'API error');
+  drawOptionPremiumChart([]);
  }
 }
 function changeOptionChartCoin(coin){
