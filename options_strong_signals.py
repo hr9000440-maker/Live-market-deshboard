@@ -148,19 +148,22 @@ def best_option(coin, signal, underlying, payload):
             continue
         mid = (bid + ask) / 2.0
         spread = (ask - bid) / mid if mid > 0 else 999
-        if spread > 0.10:
+        if spread > 0.02:
             continue
-        mark_usd = mark * underlying
-        estimated_inr = mark_usd * min_amount * USD_INR_BUFFER
+        bid_usd = bid * underlying
+        ask_usd = ask * underlying
+        # Use the live ASK as the suggested limit-buy price; never submit an order.
+        limit_usd = ask_usd
+        estimated_inr = limit_usd * min_amount * USD_INR_BUFFER
         # Same dashboard affordability gate: exchange min trade amount must be known and <= ₹500.
         if min_amount <= 0 or estimated_inr <= 0 or estimated_inr > BUDGET_INR:
             continue
-        candidates.append({"name": name, "strike": strike, "expiry": expiry, "bid": bid * underlying,
-                           "ask": ask * underlying, "entry": mark_usd, "spread": spread,
-                           "sl": mark_usd * 0.75, "tp1": mark_usd * 1.25, "tp2": mark_usd * 1.50,
-                           "tp3": mark_usd * 1.75, "cost": estimated_inr})
+        candidates.append({"name": name, "strike": strike, "expiry": expiry, "bid": bid_usd,
+                           "ask": ask_usd, "entry": limit_usd, "spread": spread,
+                           "sl": limit_usd * 0.75, "tp1": limit_usd * 1.25, "tp2": limit_usd * 1.50,
+                           "tp3": limit_usd * 1.75, "cost": estimated_inr})
     if not candidates:
-        raise RuntimeError("इस expiry में 10% तक spread, live quote, OI/volume और ₹500 budget वाला eligible " + wanted_side + " contract नहीं मिला")
+        raise RuntimeError("इस expiry में 2% तक spread, live quote, OI/volume और ₹500 budget वाला eligible " + wanted_side + " contract नहीं मिला")
     # Prefer nearest-to-ATM eligible contract, then tighter spread.
     return min(candidates, key=lambda x: (abs(x["strike"] - underlying), x["spread"]))
 
@@ -220,14 +223,15 @@ def main():
                 f"Coin: {coin}\n{side}\nContract: {option['name']}\n"
                 f"Strike: {option['strike']:,.2f} | Expiry: {option['expiry']}\n"
                 f"Underlying: {underlying:,.2f} USD\n"
-                f"Entry Premium: {option['entry']:.4f} USD\n"
+                f"Bid: {option['bid']:.4f} USD | Ask: {option['ask']:.4f} USD\n"
+                f"Suggested LIMIT BUY: {option['entry']:.4f} USD\n"
                 f"🛑 SL (-25%): {option['sl']:.4f} USD\n"
                 f"🎯 TP1 (+25%): {option['tp1']:.4f} USD\n"
                 f"🎯 TP2 (+50%): {option['tp2']:.4f} USD\n"
-                f"Spread: {option['spread']*100:.2f}% | Estimated minimum cost: ₹{option['cost']:.0f}\n"
+                f"Spread: {option['spread']*100:.2f}% (max 2%) | Estimated minimum cost: ₹{option['cost']:.0f} (budget cap ₹500)\n"
                 f"RSI 14: {signal['rsi']:.1f} | EMA9: {signal['ema9']:.2f} | EMA21: {signal['ema21']:.2f}\n"
                 f"15m closed-candle source: {signal['source']}\n"
-                "Signal only — कोई order अपने-आप place नहीं होगा।"
+                "LIMIT price is a suggestion at current ASK; quote may change. Signal only — कोई order अपने-आप place नहीं होगा।"
             )
             telegram(message)
             state[key] = stamp
