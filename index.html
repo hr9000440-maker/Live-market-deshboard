@@ -424,9 +424,16 @@ async function loadServerOptionSnapshots(){
 }
 async function loadCryptoOptions(){
  const coin=document.getElementById('optCurrency').value,status=document.getElementById('optStatus');const token=++optionLoadToken;
- status.textContent=coin+' options का live data लिया जा रहा है…';
- document.getElementById('optRows').innerHTML='<tr><td colspan="13">लोड हो रहा है…</td></tr>';
- document.getElementById('optUnderlying').textContent='—';document.getElementById('optCount').textContent='—';
+ const rowsEl=document.getElementById('optRows'),hasPreviousRows=!!(cryptoOptionData[coin]&&cryptoOptionData[coin].length);
+ status.textContent=hasPreviousRows?coin+' का पिछला उपलब्ध डेटा दिख रहा है; नया डेटा background में अपडेट हो रहा है।':coin+' का डेटा अभी उपलब्ध नहीं है।';
+ if(!hasPreviousRows)rowsEl.innerHTML='<tr><td colspan="13">अभी कोई ताज़ा option data उपलब्ध नहीं है।</td></tr>';
+ const watchdog=setTimeout(()=>{
+  if(token!==optionLoadToken)return;
+  if(status.textContent.includes('background में अपडेट')||status.textContent.includes('अभी उपलब्ध नहीं है।')){
+   status.textContent='DATA UNAVAILABLE • समय पर live option data नहीं मिला। Refresh करके दोबारा जाँचें।';
+   if(!hasPreviousRows)rowsEl.innerHTML='<tr><td colspan="13">DATA UNAVAILABLE • Live option data नहीं मिला।</td></tr>';
+  }
+ },18000);
  try{
   let rows=[],underlying=null,lastError=null;
   if(coin==='ZEC'){
@@ -529,9 +536,9 @@ async function loadCryptoOptions(){
   document.getElementById('optUnderlying').textContent=underlying?fmt(underlying)+' '+coin+' spot/underlying':'—';
   document.getElementById('optCount').textContent=rows.length.toLocaleString('en-US');document.getElementById('optUpdated').textContent=new Date().toLocaleTimeString('en-IN');
   status.textContent=rows.length?rows.length+' active '+coin+' option contracts मिले।'+(coin==='ZEC'?' स्रोत: Paradex public API.':''):'API से active '+coin+' option contracts नहीं मिले।';
-  renderCryptoOptions();populateOptionChartContracts();
+  clearTimeout(watchdog);renderCryptoOptions();populateOptionChartContracts();
  }catch(e){
-  if(token!==optionLoadToken)return;
+  clearTimeout(watchdog);if(token!==optionLoadToken)return;
   status.textContent='Live data नहीं मिला: '+(e.message||'API fetch error')+'. '+(coin==='ZEC'?'Paradex API/CORS access जाँचें।':'Internet/API access जाँचें।');
   document.getElementById('optRows').innerHTML='<tr><td colspan="13">डेटा उपलब्ध नहीं है।</td></tr>';
   cryptoOptionData[coin]=[];cryptoOptionUnderlying[coin]=null;cryptoOptionDataFresh[coin]=false;
