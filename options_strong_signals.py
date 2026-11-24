@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Server-side Telegram delivery for the dashboard's confirmed BTC/ETH option signals.
+"""Server-side Telegram delivery for confirmed BTC/ETH/ZEC/DOGE option signals.
 
 Signal rules, option quote filters, and budget gate mirror index.html.
 Only completed 15m candles are used. No order is ever placed.
@@ -8,7 +8,7 @@ import json, os, sys, time, urllib.parse, urllib.request
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
-COINS = ("BTC", "ETH", "ZEC")
+COINS = ("BTC", "ETH", "ZEC", "DOGE")
 OPTION_API = "https://live-market-deshboard.onrender.com/api/options/{coin}"
 BINANCE = "https://api.binance.com/api/v3/klines"
 GATE = "https://api.gateio.ws/api/v4/spot/candlesticks"
@@ -82,7 +82,6 @@ def confirmed_signal(coin):
     age = int(time.time() * 1000) - latest_open
     if age < -60000 or age > 30 * 60 * 1000:
         raise RuntimeError("15m candle data पुराना है; सुरक्षित रूप से signal रोका गया")
-    # Match dashboard: last row may still be forming; evaluate only the prior closed candle.
     closed = rows[:-1]
     closes = [float(x[4]) for x in closed]
     close = closes[-1]
@@ -123,7 +122,6 @@ def choose_expiry(rows):
                        if x.get("expiry") or len(x.get("instrument_name", "").split("-")) > 1})
     today = datetime.now(ZoneInfo("Asia/Kolkata")).date()
     today_ms = int(datetime(today.year, today.month, today.day, tzinfo=timezone.utc).timestamp() * 1000)
-    # Match dashboard: today's expiry if present, else nearest future, else first listed.
     for value in expiries:
         if expiry_ms(value) == today_ms:
             return value
@@ -132,7 +130,6 @@ def choose_expiry(rows):
 
 
 def best_option(coin, signal, underlying, payload):
-
     rows = payload.get("rows")
     if not isinstance(rows, list):
         raise RuntimeError("Options gateway response में rows नहीं हैं")
@@ -160,15 +157,14 @@ def best_option(coin, signal, underlying, payload):
         spread = (ask - bid) / mid if mid > 0 else 999
         if spread > 0.02:
             continue
-        # Use the live ASK as the suggested limit-buy price; never submit an order.
-        # Deribit BTC/ETH premiums are coin-denominated; Paradex ZEC quotes are USD-denominated.
-        quote_is_usd = str(payload.get("source") or "").lower().startswith("paradex")
+        # Deribit BTC/ETH premiums are coin-denominated. Paradex ZEC and
+        # Bybit/Binance DOGE option premiums are already USD/USDT-denominated.
+        source = str(payload.get("source") or "").lower()
+        quote_is_usd = any(x in source for x in ("paradex", "bybit", "binance"))
         bid_usd = bid if quote_is_usd else bid * underlying
         ask_usd = ask if quote_is_usd else ask * underlying
         limit_usd = ask_usd
-        # TEMPORARY DELIVERY TEST: do not suppress valid market signals by the
-        # former ₹500 affordability cap. Missing lot metadata is informational,
-        # not a reason to hide an otherwise valid signal. No order is submitted.
+        # Alert-only scanner: no affordability gate and no order submission.
         estimated_inr = limit_usd * min_amount * USD_INR_BUFFER if min_amount > 0 else None
         candidates.append({"name": name, "strike": strike, "expiry": expiry, "bid": bid_usd,
                            "ask": ask_usd, "entry": limit_usd, "spread": spread,
@@ -176,7 +172,6 @@ def best_option(coin, signal, underlying, payload):
                            "tp3": limit_usd * 1.75, "cost": estimated_inr})
     if not candidates:
         raise RuntimeError("इस expiry में 2% तक spread, live quote और OI/volume वाला eligible " + wanted_side + " contract नहीं मिला")
-    # Prefer nearest-to-ATM eligible contract, then tighter spread.
     return min(candidates, key=lambda x: (abs(x["strike"] - underlying), x["spread"]))
 
 
@@ -233,7 +228,7 @@ def main():
             cost_line = (f"Estimated minimum cost: ₹{option['cost']:.0f}" if option["cost"] is not None
                          else "Estimated minimum cost: unavailable (lot metadata missing)")
             message = (
-                "🚨 STRONG OPTION TRADE SIGNAL — TEMPORARY NO-BUDGET-CAP TEST\n"
+                "🚨 STRONG OPTION TRADE SIGNAL\n"
                 f"Coin: {coin}\n{side}\nContract: {option['name']}\n"
                 f"Strike: {option['strike']:,.2f} | Expiry: {option['expiry']}\n"
                 f"Underlying: {underlying:,.2f} USD\n"
@@ -242,7 +237,7 @@ def main():
                 f"🛑 SL (-25%): {option['sl']:.4f} USD\n"
                 f"🎯 TP1 (+25%): {option['tp1']:.4f} USD\n"
                 f"🎯 TP2 (+50%): {option['tp2']:.4f} USD\n"
-                f"Spread: {option['spread']*100:.2f}% (max 2%) | {cost_line} | ₹500 alert filter temporarily disabled\n"
+                f"Spread: {option['spread']*100:.2f}% (max 2%) | {cost_line}\n"
                 f"RSI 14: {signal['rsi']:.1f} | EMA9: {signal['ema9']:.2f} | EMA21: {signal['ema21']:.2f}\n"
                 f"15m closed-candle source: {signal['source']}\n"
                 "LIMIT price is a suggestion at current ASK; quote may change. Signal only — कोई order अपने-आप place नहीं होगा।"
