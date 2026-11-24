@@ -247,7 +247,79 @@ def crypto_options(coin):
                 errors.append("Bybit confirms DOGE options, but no active contracts/quotes were returned")
         except Exception as exc:
             errors.append("Bybit: " + str(exc)[:180])
-            return jsonify({"error": "Bybit DOGE options API unavailable", "details": errors}), 502
+
+        # Binance public European Options API fallback. This is also read-only:
+        # it fetches listed DOGE contracts and public quotes only; no order endpoints.
+        if not rows:
+            try:
+                info = _fetch_json("https://eapi.binance.com/eapi/v1/exchangeInfo")
+                symbols = (info.get("optionSymbols") or []) if isinstance(info, dict) else []
+                doge_symbols = [x for x in symbols if isinstance(x, dict)
+                                and str(x.get("underlying", "")).upper() == "DOGEUSDT"
+                                and str(x.get("status", "")).upper() == "TRADING"]
+                tickers = _fetch_json("https://eapi.binance.com/eapi/v1/ticker")
+                ticker_map = {str(x.get("symbol", "")).upper(): x for x in tickers if isinstance(x, dict)} if isinstance(tickers, list) else {}
+                marks = _fetch_json("https://eapi.binance.com/eapi/v1/mark")
+                mark_map = {str(x.get("symbol", "")).upper(): x for x in marks if isinstance(x, dict)} if isinstance(marks, list) else {}
+                try:
+                    index_data = _fetch_json("https://eapi.binance.com/eapi/v1/index?underlying=DOGEUSDT")
+                    underlying = float(index_data.get("indexPrice") or 0) or None
+                except Exception as exc:
+                    errors.append("Binance index: " + str(exc)[:100])
+                for item in doge_symbols:
+                    symbol = str(item.get("symbol") or "").upper()
+                    parts = symbol.split("-")
+                    if len(parts) < 4:
+                        continue
+                    try:
+                        strike = float(item.get("strikePrice") or parts[2])
+                    except (TypeError, ValueError):
+                        continue
+                    side = str(item.get("side") or parts[-1]).upper()
+                    option_type = "C" if side == "CALL" or side == "C" else ("P" if side == "PUT" or side == "P" else "")
+                    if strike <= 0 or not option_type:
+                        continue
+                    expiry_ms = int(item.get("expiryDate") or 0)
+                    expiry = (datetime.fromtimestamp(expiry_ms / 1000, timezone.utc).strftime("%d%b%y").upper()
+                              if expiry_ms > 0 else parts[1].upper())
+                    quote = ticker_map.get(symbol, {})
+                    mark = mark_map.get(symbol, {})
+                    def _binance_num(obj, *keys):
+                        for key in keys:
+                            try:
+                                value = float(obj.get(key) or 0)
+                                if value > 0:
+                                    return value
+                            except (TypeError, ValueError):
+                                pass
+                        return 0.0
+                    bid = _binance_num(quote, "bidPrice")
+                    ask = _binance_num(quote, "askPrice")
+                    last = _binance_num(quote, "lastPrice")
+                    mark_price = _binance_num(mark, "markPrice") or last
+                    rows.append({
+                        "instrument_name": "DOGE-" + expiry + "-" + format(strike, "g") + "-" + option_type,
+                        "exchange_symbol": symbol,
+                        "strike": strike,
+                        "option_type": option_type,
+                        "expiry": expiry,
+                        # Normalize USDT premium by index so the existing UI can convert it back to USD.
+                        "bid_price": bid / underlying if bid > 0 and underlying else 0,
+                        "ask_price": ask / underlying if ask > 0 and underlying else 0,
+                        "mark_price": mark_price / underlying if mark_price > 0 and underlying else 0,
+                        "open_interest": quote.get("amount", 0),
+                        "volume": quote.get("volume", 0),
+                        "underlying_price": underlying or 0,
+                        "min_trade_amount": item.get("minQty", 0),
+                    })
+                if rows:
+                    source = "Binance public options API"
+                else:
+                    errors.append("Binance: no active DOGE option contracts with quotes")
+            except Exception as exc:
+                errors.append("Binance: " + str(exc)[:180])
+            if not rows:
+                return jsonify({"error": "DOGE options data unavailable from Bybit and Binance", "details": errors[-4:]}), 502
     elif coin in ("BTC", "ETH"):
         hosts = ("https://api.deribit.com/api/v2/public/", "https://www.deribit.com/api/v2/public/")
         instruments = summaries = None
