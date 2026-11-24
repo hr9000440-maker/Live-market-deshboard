@@ -90,11 +90,12 @@ async function analyze(coin) {
   });
   const atr = ranges.reduce((a,b)=>a+b,0)/ranges.length;
   const atrPct = atr/last.c*100;
-  // Fail-safe: avoid abnormal volatility and weak/uncorroborated setups.
-  const buy = last.c > e9 && e9 > e21 && e21 > e50 && rv >= 50 && rv <= 70 && bullishCandle && volumeOK && atrPct <= 3.5;
-  const sell = last.c < e9 && e9 < e21 && e21 < e50 && rv >= 30 && rv <= 50 && bearishCandle && volumeOK && atrPct <= 3.5;
+  // Keep the confirmed 15m EMA9/EMA21 trend, candle, RSI and volume checks.
+  // Do not require EMA50 alignment: it can lag a fresh strong move and suppress valid early signals.
+  const buy = last.c > e9 && e9 > e21 && rv >= 50 && rv <= 70 && bullishCandle && volumeOK && atrPct <= 3.5;
+  const sell = last.c < e9 && e9 < e21 && rv >= 30 && rv <= 50 && bearishCandle && volumeOK && atrPct <= 3.5;
   const side = buy ? 'BUY / LONG' : sell ? 'SELL / SHORT' : 'WAIT';
-  if (side === 'WAIT') return { coin, side, candleTime: last.t, diagnostics: { rsi:rv, volumeOK, atrPct } };
+  if (side === 'WAIT') return { coin, side, candleTime: last.t, diagnostics: { rsi: Number(rv.toFixed(1)), belowEma9: last.c < e9, ema9BelowEma21: e9 < e21, bearishCandle, aboveVolumeThreshold: volumeOK, atrPct: Number(atrPct.toFixed(3)) } };
 
   const entry = last.c;
   const sl = side === 'BUY / LONG' ? entry - 1.5*atr : entry + 1.5*atr;
