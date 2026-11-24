@@ -1,4 +1,4 @@
-name: BTC ETH 15m Confirmed Direction Signals
+name: Seven Coin 15m Confirmed CALL PUT Direction Signals
 on:
   schedule:
     # Run shortly after each 15-minute candle closes (UTC).
@@ -16,7 +16,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Send BTC and ETH direction-only signals
+      - name: Send seven-coin confirmed direction signals
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAMBOTTOKAN: ${{ secrets.TELEGRAMBOTTOKAN }}
