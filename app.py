@@ -232,15 +232,20 @@ def crypto_options(coin):
             summary_list = summaries.get("results") or summaries.get("data") or []
             if not isinstance(market_list, list) or not isinstance(summary_list, list):
                 raise RuntimeError("Paradex response format changed")
-            by_symbol = {x.get("symbol") or x.get("market") or x.get("instrument_name"): x
-                         for x in summary_list if isinstance(x, dict)}
+            by_symbol = {}
+            for summary in summary_list:
+                if not isinstance(summary, dict):
+                    continue
+                summary_symbol = (summary.get("symbol") or summary.get("market") or summary.get("instrument_name") or "").upper()
+                if summary_symbol:
+                    by_symbol[summary_symbol] = summary
             for item in market_list:
                 if not isinstance(item, dict):
                     continue
                 name = item.get("symbol") or item.get("market") or item.get("instrument_name") or ""
                 if "ZEC" not in name.upper():
                     continue
-                quote = by_symbol.get(name, {})
+                quote = by_symbol.get(name.upper(), {})
                 try:
                     strike = float(item.get("strike_price") or item.get("strike") or quote.get("strike_price") or quote.get("strike") or 0)
                 except (TypeError, ValueError):
@@ -253,11 +258,13 @@ def crypto_options(coin):
                     "instrument_name": name, "strike": strike,
                     "option_type": "C" if "CALL" in typ or typ == "C" else ("P" if "PUT" in typ or typ == "P" else typ),
                     "expiry": exp,
-                    "bid_price": quote.get("bid_price", quote.get("bid", item.get("bid_price", 0))),
-                    "ask_price": quote.get("ask_price", quote.get("ask", item.get("ask_price", 0))),
-                    "mark_price": quote.get("mark_price", quote.get("mark", item.get("mark_price", 0))),
+                    # Paradex market summaries use bid/ask/mark_price; tolerate
+                    # alternate documented/legacy aliases without inventing quotes.
+                    "bid_price": quote.get("bid_price") or quote.get("bid") or item.get("bid_price") or item.get("bid") or 0,
+                    "ask_price": quote.get("ask_price") or quote.get("ask") or item.get("ask_price") or item.get("ask") or 0,
+                    "mark_price": quote.get("mark_price") or quote.get("mark") or item.get("mark_price") or item.get("mark") or 0,
                     "open_interest": quote.get("open_interest", item.get("open_interest", 0)),
-                    "volume": quote.get("volume_24h", quote.get("volume", item.get("volume_24h", 0))),
+                    "volume": quote.get("volume_24h") or quote.get("volume") or quote.get("total_volume") or item.get("volume_24h") or item.get("volume") or 0,
                     "underlying_price": quote.get("underlying_price", item.get("underlying_price", 0)),
                     "min_trade_amount": quote.get("min_trade_amount", item.get("min_trade_amount", item.get("min_order_size", item.get("order_size_increment", 0)))),
                 })
