@@ -437,7 +437,7 @@ def crypto_options(coin):
                     continue
                 name = str(item.get("name") or "").upper()
                 parts = name.split("-")
-                if len(parts) < 4 or not name.startswith("BNB_"):
+                if len(parts) < 4 or not (name.startswith("BNB-") or name.startswith("BNB_")):
                     continue
                 try:
                     strike = float(item.get("strike_price") or parts[-2])
@@ -448,10 +448,10 @@ def crypto_options(coin):
                 if not option_type or strike <= 0:
                     continue
                 expiry_ts = int(float(item.get("expiration_time") or 0))
-                expiry = (
+                expiry = (parts[1] if len(parts) > 1 and parts[1].isdigit() and len(parts[1]) == 8 else (
                     datetime.fromtimestamp(expiry_ts, timezone.utc).strftime("%d%b%y").upper()
                     if expiry_ts > 0 else (parts[1] if len(parts) > 1 else "")
-                )
+                ))
                 quote = ticker_map.get(name, {})
                 def _bnb_gate_num(obj, *keys):
                     for key in keys:
