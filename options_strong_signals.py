@@ -98,7 +98,7 @@ def confirmed_signal(coin):
 
 def expiry_ms(value):
     value = str(value or "").strip()
-    for fmt in ("%Y-%m-%d", "%d%b%y", "%d%b%Y"):
+    for fmt in ("%Y-%m-%d", "%Y%m%d", "%d%b%y", "%d%b%Y"):
         try:
             return int(datetime.strptime(value.upper(), fmt).replace(tzinfo=timezone.utc).timestamp() * 1000)
         except ValueError:
