@@ -55,8 +55,36 @@ def rsi(values, period=14):
 
 
 def candles(coin):
+    """Read 15m SPOT candles only. Options contracts/premiums still come from OPTION_API."""
     symbol = coin + "USDT"
     errors = []
+
+    # KuCoin public SPOT candles: independent fallback when Binance returns 401/451.
+    try:
+        kucoin_symbol = coin + "-USDT"
+        url = "https://api.kucoin.com/api/v1/market/candles?" + urllib.parse.urlencode({
+            "symbol": kucoin_symbol, "type": "15min"
+        })
+        payload = get_json(url, timeout=15)
+        data = payload.get("data") if isinstance(payload, dict) else None
+        if payload.get("code") != "200000" or not isinstance(data, list):
+            raise RuntimeError("KuCoin response unavailable: " + str(payload.get("msg", payload.get("code", "unknown"))))
+        rows = []
+        for item in data:
+            if not isinstance(item, list) or len(item) < 6:
+                continue
+            ts = int(float(item[0])) * 1000
+            op, close, high, low, volume = (float(item[i]) for i in (1, 2, 3, 4, 5))
+            if min(op, close, high, low) <= 0 or volume < 0:
+                continue
+            rows.append([ts, str(op), str(high), str(low), str(close), str(volume), ts + 899999])
+        rows.sort(key=lambda x: int(x[0]))
+        if len(rows) >= 31:
+            return rows, "KuCoin Spot"
+        errors.append("KuCoin: 15m candles कम")
+    except Exception as exc:
+        errors.append("KuCoin: " + str(exc)[:160])
+
     for url, gate in (
         (BINANCE + "?" + urllib.parse.urlencode({"symbol": symbol, "interval": "15m", "limit": 60}), False),
         ("https://data-api.binance.vision/api/v3/klines?" + urllib.parse.urlencode({"symbol": symbol, "interval": "15m", "limit": 60}), False),
@@ -72,8 +100,8 @@ def candles(coin):
                 return rows, "Gate.io Spot" if gate else "Binance Spot"
             errors.append("candles कम")
         except Exception as exc:
-            errors.append(str(exc))
-    raise RuntimeError(coin + " 15m market data unavailable: " + " | ".join(errors))
+            errors.append(str(exc)[:160])
+    raise RuntimeError(coin + " 15m SPOT market data unavailable: " + " | ".join(errors))
 
 
 def confirmed_signal(coin):
