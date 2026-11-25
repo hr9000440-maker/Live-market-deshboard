@@ -120,8 +120,8 @@ def main():
     if json.dumps(state,sort_keys=True)!=original:
       save(state)
     print("PAPER SUMMARY",len(state["open_trades"]),"open",len(state["closed_trades"]),"closed;",data_ok,"/",len(COINS),"coins with usable 5m+15m data")
-    if data_ok==0:
-      print("FATAL: all coin feeds failed; marking this Actions run as failed instead of reporting a false success.")
+    if state.get("errors"):
+      print("FATAL: market data unavailable for",len(state["errors"]),"coin(s); marking this Actions run as failed instead of reporting a false success.")
       raise SystemExit(1)
 
 if __name__=="__main__": main()
