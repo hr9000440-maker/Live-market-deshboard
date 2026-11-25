@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Server-side Telegram delivery for confirmed BTC/ETH/ZEC/DOGE option signals.
+"""Server-side Telegram delivery for confirmed BTC/ETH/BNB/ZEC/DOGE option signals.
 
 Signal rules, option quote filters, and budget gate mirror index.html.
 Only completed 15m candles are used. No order is ever placed.
@@ -8,7 +8,7 @@ import json, os, sys, time, urllib.parse, urllib.request
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
-COINS = ("BTC", "ETH", "ZEC", "DOGE")
+COINS = ("BTC", "ETH", "BNB", "ZEC", "DOGE")
 OPTION_API = "https://live-market-deshboard.onrender.com/api/options/{coin}"
 BINANCE = "https://api.binance.com/api/v3/klines"
 GATE = "https://api.gateio.ws/api/v4/spot/candlesticks"
