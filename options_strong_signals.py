@@ -270,8 +270,9 @@ def main():
                 print(coin + ": duplicate signal already sent for this closed candle")
                 continue
             side = "BUY CALL" if "CALL" in signal["direction"] else "BUY PUT"
-            cost_line = (f"Estimated minimum cost: ₹{option['cost']:.0f}" if option["cost"] is not None
-                         else "Estimated minimum cost: unavailable (lot metadata missing)")
+            cost_line = (f"Estimated premium value (not margin): ₹{option['cost']:.0f}" if option["cost"] is not None
+                         else "Estimated premium value: unavailable (lot metadata missing)")
+            quote_source = str(payload.get("source") or "unknown")
             message = (
                 "🚨 STRONG OPTION TRADE SIGNAL\n"
                 f"Coin: {coin}\n{side}\nContract: {option['name']}\n"
@@ -283,6 +284,7 @@ def main():
                 f"🎯 TP1 (+25%): {option['tp1']:.4f} USD\n"
                 f"🎯 TP2 (+50%): {option['tp2']:.4f} USD\n"
                 f"Spread: {option['spread']*100:.2f}% (max 10%) | {cost_line}\n"
+                f"Option quote source: {quote_source} (CoinSwitch price not live-verified)\n"
                 f"RSI 14: {signal['rsi']:.1f} | EMA9: {signal['ema9']:.2f} | EMA21: {signal['ema21']:.2f}\n"
                 f"15m closed-candle source: {signal['source']}\n"
                 "LIMIT price is a suggestion at current ASK; quote may change. Signal only — कोई order अपने-आप place नहीं होगा।"
