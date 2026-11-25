@@ -14,12 +14,14 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout dashboard and saved paper ledger
+        id: checkout
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run paper trading engine (no real orders)
         run: python3 paper_trading_engine.py
       - name: Publish paper trade ledger for dashboard
+        if: always() && steps.checkout.outcome == 'success'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
