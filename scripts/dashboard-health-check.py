@@ -5,7 +5,7 @@ import json, os, sys, datetime, urllib.request, urllib.parse, py_compile
 BASE = "https://live-market-deshboard.onrender.com"
 PAGES = "https://hr9000440-maker.github.io/Live-market-deshboard/"
 REPO = "hr9000440-maker/Live-market-deshboard"
-COINS = ("BTC", "ETH", "ZEC")
+COINS = ("BTC", "ETH", "BNB", "ZEC", "DOGE")
 issues, notes = [], []
 
 def request_json(url, headers=None, timeout=20):
