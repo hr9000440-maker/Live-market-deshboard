@@ -366,6 +366,7 @@ def crypto_options(coin):
                         try:
                             index_price = float(
                                 quote.get("index_price") or item.get("index_price")
+                                or item.get("underlying_price")
                                 or gate_underlying.get("index_price") or 0
                             )
                         except (TypeError, ValueError):
@@ -379,9 +380,14 @@ def crypto_options(coin):
                                 except (TypeError, ValueError):
                                     pass
                             return 0.0
-                        bid = _gate_num(quote, "bid1_price")
-                        ask = _gate_num(quote, "ask1_price")
-                        mark = _gate_num(quote, "mark_price", "last_price")
+                        # Gate's contracts endpoint can carry quote fields too;
+                        # do not discard them when the separate ticker list omits a symbol.
+                        bid = _gate_num(quote, "bid1_price", "bid_price") or _gate_num(item, "bid1_price", "bid_price")
+                        ask = _gate_num(quote, "ask1_price", "ask_price") or _gate_num(item, "ask1_price", "ask_price")
+                        mark = (
+                            _gate_num(quote, "mark_price", "last_price")
+                            or _gate_num(item, "mark_price", "last_price")
+                        )
                         if index_price > 0 and underlying is None:
                             underlying = index_price
                         rows.append({
