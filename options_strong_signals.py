@@ -193,7 +193,12 @@ def best_option(coin, signal, underlying, payload):
         ask_usd = ask if quote_is_usd else ask * underlying
         limit_usd = ask_usd
         # Alert-only scanner: no affordability gate and no order submission.
-        estimated_inr = limit_usd * min_amount * USD_INR_BUFFER if min_amount > 0 else None
+        # CoinSwitch ETH options screen shows 1 lot = 0.1 ETH. The upstream
+        # Deribit min_trade_amount is not the CoinSwitch lot multiplier, so
+        # use the visible CoinSwitch lot size for the ETH INR estimate only.
+        # This affects the displayed estimate, never signal eligibility/delivery.
+        cost_quantity = 0.1 if coin == "ETH" else min_amount
+        estimated_inr = limit_usd * cost_quantity * USD_INR_BUFFER if cost_quantity > 0 else None
         candidates.append({"name": name, "strike": strike, "expiry": expiry, "bid": bid_usd,
                            "ask": ask_usd, "entry": limit_usd, "spread": spread,
                            "sl": limit_usd * 0.75, "tp1": limit_usd * 1.25, "tp2": limit_usd * 1.50,
