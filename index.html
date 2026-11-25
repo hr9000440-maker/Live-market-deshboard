@@ -296,7 +296,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 </section>
 <section class="panel" id="manual-option-movement-tracker">
 <h2>📝 OPTION MOVEMENT TRACKER — CHART UNAVAILABLE BACKUP</h2>
-<p class="note">Normal BUY CALL / BUY PUT option signal के matching contract का live Mark Premium अपने-आप track होगा। पहली qualifying quote Entry बनेगी; आगे premium बदलने पर snapshots, movement, SL और TP status अपडेट होंगे। Manual snapshot भी उपलब्ध है।</p>
+<p class="note">Normal BUY CALL / BUY PUT option signal के matching contract का live Mark Premium अपने-आप track होगा। TP1 (+25%) पर SL Entry पर, TP2 (+50%) पर SL TP1 पर और उसके बाद peak से 15% trailing SL चलेगा। TP3 (+75%) पर FINAL PROFIT BOOK alert; SL hit होने पर EXIT alert। Manual snapshot भी उपलब्ध है।</p>
 <div class="option-controls">
 <div><label for="trackContract">Contract / Strike</label><input id="trackContract" value="BTC 50000 CALL" placeholder="BTC 50000 CALL"></div>
 <div><label for="trackEntry">Entry Premium</label><input id="trackEntry" type="number" value="8000" step="any"></div>
@@ -309,7 +309,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 <button type="button" onclick="saveOptionMovementSnapshot()">📌 Premium Snapshot Save करें</button>
 <button type="button" onclick="exportOptionMovementTracker()">⬇️ Tracker CSV Export</button>
 <div class="grid" style="margin-top:12px"><div class="result"><small>Latest Premium</small><strong id="trackLatest">—</strong></div><div class="result"><small>Movement vs Entry</small><strong id="trackMovement">—</strong></div><div class="result"><small>Target / SL Status</small><strong id="trackStatus">—</strong></div><div class="result"><small>Snapshots</small><strong id="trackCount">0</strong></div></div>
-<div class="option-table-wrap"><table class="option-table" style="min-width:700px"><thead><tr><th>Time (IST)</th><th>Contract</th><th>Premium</th><th>Change vs Entry</th><th>Status</th></tr></thead><tbody id="trackRows"><tr><td colspan="5">कोई snapshot नहीं</td></tr></tbody></table></div>
+<div class="option-table-wrap"><table class="option-table" style="min-width:700px"><thead><tr><th>Time (IST)</th><th>Contract</th><th>Premium</th><th>Change vs Entry</th><th>Trailing SL</th><th>Peak</th><th>Status</th></tr></thead><tbody id="trackRows"><tr><td colspan="5">कोई snapshot नहीं</td></tr></tbody></table></div>
 <p class="note">Records browser Local Storage में रहेंगे; dashboard/website खुला और यह browser उपलब्ध होना ज़रूरी है। CSV export करके backup रखें।</p>
 </section>
 <section class="panel" id="option-premium-chart">
@@ -981,17 +981,46 @@ async function loadCryptoSignal(){
 const OPTION_TRACK_KEY='manualOptionMovementTracker_v1';
 function getOptionTrackerRows(){try{return JSON.parse(localStorage.getItem(OPTION_TRACK_KEY)||'[]')}catch{return []}}
 const AUTO_OPTION_ENTRY_KEY='autoOptionPremiumEntries_v1';
+function notifyOptionMilestone(contract,status,current,entry){
+ const message='📣 OPTION PROFIT UPDATE\n'+contract+'\n'+status+'\nCurrent Premium: '+fmt(current)+'\nEntry: '+fmt(entry)+'\nDashboard signal only — order अपने broker app में स्वयं manage करें।';
+ try{if('Notification' in window&&Notification.permission==='granted')new Notification('Option: '+status,{body:contract+' • Premium '+fmt(current)});}catch(e){}
+ try{const cfg=typeof tgConfig==='function'?tgConfig():null;if(cfg&&cfg.token&&cfg.chatId&&typeof sendTelegramText==='function')sendTelegramText(message).catch(()=>{});}catch(e){}
+}
 function autoTrackOptionPremium(coin,contract,current,signal,side,strike,expiry){
  if(!(current>0)||!contract)return;
  let entries={};try{entries=JSON.parse(localStorage.getItem(AUTO_OPTION_ENTRY_KEY)||'{}')}catch{}
- const key=coin+'|'+contract,entry=entries[key]||{entry:current,signal,side,coin,contract,strike,expiry,started:Date.now()};
+ const key=coin+'|'+contract;
+ let entry=entries[key]||{entry:current,signal,side,coin,contract,strike,expiry,started:Date.now(),peak:current,stage:0,closed:false,trailSL:current*.75};
+ const e=Number(entry.entry);if(!(e>0))return;
+ const t1=e*1.25,t2=e*1.50,t3=e*1.75,initialSL=e*.75;
+ let status='चल रहा',milestone='';
+ if(!entry.closed){
+  entry.peak=Math.max(Number(entry.peak||e),current);
+  if(current>=t3){entry.stage=3;entry.trailSL=Math.max(Number(entry.trailSL||initialSL),t2);entry.closed=true;entry.exitReason='FINAL TARGET';status='🎯 FINAL TARGET HIT — PROFIT BOOK';milestone=status;}
+  else{
+   if(current>=t2&&Number(entry.stage||0)<2){entry.stage=2;entry.trailSL=Math.max(Number(entry.trailSL||initialSL),t1);status='🎯 TP2 HIT • TRAILING SL '+fmt(entry.trailSL);milestone='TP2 HIT — SL अब TP1 पर';}
+   else if(current>=t1&&Number(entry.stage||0)<1){entry.stage=1;entry.trailSL=Math.max(Number(entry.trailSL||initialSL),e);status='🎯 TP1 HIT • SL ENTRY पर';milestone='TP1 HIT — SL अब ENTRY पर';}
+   else if(Number(entry.stage||0)>=2){
+    const peakTrail=Number(entry.peak)*0.85;
+    entry.trailSL=Math.max(Number(entry.trailSL||initialSL),t1,peakTrail);
+    if(current<=entry.trailSL){entry.closed=true;entry.exitReason='TRAILING SL';status='🛑 TRAILING SL HIT — EXIT';milestone=status;}
+    else status='↗️ TP2 के बाद HOLD • TRAILING SL '+fmt(entry.trailSL);
+   }else if(Number(entry.stage||0)>=1){
+    entry.trailSL=Math.max(Number(entry.trailSL||initialSL),e);
+    if(current<=entry.trailSL){entry.closed=true;entry.exitReason='BREAKEVEN SL';status='🛑 ENTRY SL HIT — EXIT';milestone=status;}
+    else status='↗️ TP1 के बाद HOLD • SL ENTRY '+fmt(e);
+   }else{
+    entry.trailSL=Math.max(Number(entry.trailSL||initialSL),initialSL);
+    if(current<=entry.trailSL){entry.closed=true;entry.exitReason='INITIAL SL';status='🛑 INITIAL SL HIT — EXIT';milestone=status;}
+   }
+  }
+ }else status=entry.exitReason==='FINAL TARGET'?'✅ PROFIT BOOKED — FINAL TARGET':'⛔ TRADE CLOSED — '+entry.exitReason;
  entries[key]=entry;localStorage.setItem(AUTO_OPTION_ENTRY_KEY,JSON.stringify(entries));
- const e=Number(entry.entry),sl=e*.75,t1=e*1.25,t2=e*1.5,t3=e*1.75;
- const status=current<=sl?'🛑 SL HIT':current>=t3?'🎯 TP3 HIT':current>=t2?'🎯 TP2 HIT':current>=t1?'🎯 TP1 HIT':'चल रहा';
  const rows=getOptionTrackerRows(),last=rows.find(x=>x.contract===contract&&x.auto===true);
  if(last&&Number(last.current)===Number(current)&&last.status===status)return;
- const row={ts:Date.now(),time:new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),contract,entry:e,current,change:current-e,changePct:(current-e)/e*100,sl,t1,t2,t3,status,auto:true,coin,signal,side,strike,expiry};
+ const row={ts:Date.now(),time:new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),contract,entry:e,current,change:current-e,changePct:(current-e)/e*100,sl:initialSL,trailSL:Number(entry.trailSL),peak:Number(entry.peak),t1,t2,t3,status,stage:Number(entry.stage||0),closed:!!entry.closed,auto:true,coin,signal,side,strike,expiry};
  rows.unshift(row);if(rows.length>5000)rows.length=5000;localStorage.setItem(OPTION_TRACK_KEY,JSON.stringify(rows));renderOptionMovementTracker();
+ if(milestone)notifyOptionMilestone(contract,milestone,current,e);
 }
 
 function saveOptionMovementSnapshot(){
@@ -1008,11 +1037,11 @@ function renderOptionMovementTracker(){
  document.getElementById('trackLatest').textContent=latest?fmt(latest.current):'—';
  document.getElementById('trackMovement').textContent=latest?fmt(latest.change)+' ('+latest.changePct.toFixed(2)+'%)':'—';
  document.getElementById('trackStatus').textContent=latest?latest.status:'—';
- tbody.innerHTML=rows.slice(0,100).map(x=>'<tr><td>'+x.time+'</td><td>'+x.contract+'</td><td>'+fmt(x.current)+'</td><td>'+fmt(x.change)+' ('+Number(x.changePct).toFixed(2)+'%)</td><td>'+x.status+'</td></tr>').join('')||'<tr><td colspan="5">कोई snapshot नहीं</td></tr>';
+ tbody.innerHTML=rows.slice(0,100).map(x=>'<tr><td>'+x.time+'</td><td>'+x.contract+'</td><td>'+fmt(x.current)+'</td><td>'+fmt(x.change)+' ('+Number(x.changePct).toFixed(2)+'%)</td><td>'+(x.trailSL?fmt(x.trailSL):'—')+'</td><td>'+(x.peak?fmt(x.peak):'—')+'</td><td>'+x.status+'</td></tr>').join('')||'<tr><td colspan="7">कोई snapshot नहीं</td></tr>';
 }
 function exportOptionMovementTracker(){
  const rows=getOptionTrackerRows();if(!rows.length){alert('Export के लिए records नहीं हैं।');return}
- const headers=['time','contract','entry','current','change','changePct','sl','t1','t2','t3','status'];
+ const headers=['time','contract','entry','current','change','changePct','sl','trailSL','peak','t1','t2','t3','stage','closed','status'];
  const csv=[headers.join(','),...rows.map(x=>headers.map(k=>JSON.stringify(x[k]??'')).join(','))].join('\n');
  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='option-movement-tracker.csv';a.click();URL.revokeObjectURL(url);
 }
