@@ -22,6 +22,9 @@ jobs:
         env:
           # Reuse the exact same bot token as the Crypto Futures Telegram workflow.
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAMBOTTOKAN: ${{ secrets.TELEGRAMBOTTOKAN }}
+          TELEGRAM_BOT_TOKAN: ${{ secrets.TELEGRAM_BOT_TOKAN }}
+          TELEGRAM_BOT_FATHER: ${{ secrets.TELEGRAM_BOT_FATHER }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python3 options_strong_signals.py
       - name: Save duplicate-prevention state
