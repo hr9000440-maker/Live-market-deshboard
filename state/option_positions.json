@@ -1,17 +1,17 @@
 [
   {
-    "key": "ETH|ETH-26NOV26-1700-C|STRONG BUY CALL",
+    "key": "ETH|ETH-26NOV26-1600-C|STRONG BUY CALL",
     "coin": "ETH",
-    "contract": "ETH-26NOV26-1700-C",
+    "contract": "ETH-26NOV26-1600-C",
     "source": "Deribit public options API",
-    "entry": 6.552975,
-    "sl": 4.91473125,
-    "tp1": 8.19121875,
-    "tp2": 9.8294625,
-    "tp3": 12.12300375,
-    "peak": 6.552975,
+    "entry": 92.86035,
+    "sl": 69.6452625,
+    "tp1": 116.07543749999999,
+    "tp2": 139.290525,
+    "tp3": 171.7916475,
+    "peak": 92.86035,
     "stage": 0,
     "status": "ACTIVE",
-    "created_at": "2026-11-25T20:11:40.955331+00:00"
+    "created_at": "2026-11-25T21:07:01.525919+00:00"
   }
 ]\n
