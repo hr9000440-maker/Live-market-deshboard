@@ -157,7 +157,7 @@ def _fetch_json(url, timeout=12):
 def crypto_options(coin):
     """Read-only public option-chain proxy; keeps browser CORS out of the data path."""
     coin = coin.upper()
-    if coin not in ("BTC", "ETH", "ZEC", "DOGE"):
+    if coin not in ("BTC", "ETH", "ZEC", "DOGE", "BNB"):
         return jsonify({"error": "unsupported coin", "coin": coin}), 400
     errors = []
     rows = []
@@ -408,6 +408,103 @@ def crypto_options(coin):
                     errors.append("Gate.io: " + str(exc)[:180])
             if not rows:
                 return jsonify({"error": "DOGE options data unavailable from Bybit, Binance and Gate.io", "details": errors[-4:]}), 502
+    elif coin == "BNB":
+        # Gate.io public Options API fallback. Discover the underlying first;
+        # never fabricate BNB option contracts if Gate does not list BNB_USDT.
+        try:
+            gate_underlyings = _fetch_json("https://api.gateio.ws/api/v4/options/underlyings")
+            gate_underlying = next(
+                (x for x in gate_underlyings if isinstance(x, dict)
+                 and str(x.get("name", "")).upper() in ("BNB_USDT", "BNB_USD")),
+                None,
+            ) if isinstance(gate_underlyings, list) else None
+            if not gate_underlying:
+                raise RuntimeError("Gate.io options catalogue does not list BNB_USDT/BNB_USD")
+            gate_pair = str(gate_underlying.get("name")).upper()
+            contracts = _fetch_json(
+                "https://api.gateio.ws/api/v4/options/contracts?underlying=" + gate_pair
+            )
+            tickers = _fetch_json(
+                "https://api.gateio.ws/api/v4/options/tickers?underlying=" + gate_pair
+            )
+            if not isinstance(contracts, list) or not isinstance(tickers, list):
+                raise RuntimeError("Gate.io options response format changed")
+            ticker_map = {
+                str(x.get("name", "")).upper(): x for x in tickers if isinstance(x, dict)
+            }
+            for item in contracts:
+                if not isinstance(item, dict):
+                    continue
+                name = str(item.get("name") or "").upper()
+                parts = name.split("-")
+                if len(parts) < 4 or not name.startswith("BNB_"):
+                    continue
+                try:
+                    strike = float(item.get("strike_price") or parts[-2])
+                except (TypeError, ValueError):
+                    continue
+                is_call = item.get("is_call")
+                option_type = "C" if is_call is True else ("P" if is_call is False else "")
+                if not option_type or strike <= 0:
+                    continue
+                expiry_ts = int(float(item.get("expiration_time") or 0))
+                expiry = (
+                    datetime.fromtimestamp(expiry_ts, timezone.utc).strftime("%d%b%y").upper()
+                    if expiry_ts > 0 else (parts[1] if len(parts) > 1 else "")
+                )
+                quote = ticker_map.get(name, {})
+                def _bnb_gate_num(obj, *keys):
+                    for key in keys:
+                        try:
+                            value = float(obj.get(key) or 0)
+                            if value > 0:
+                                return value
+                        except (TypeError, ValueError):
+                            pass
+                    return 0.0
+                index_price = _bnb_gate_num(
+                    quote, "index_price", "underlying_price"
+                ) or _bnb_gate_num(item, "index_price", "underlying_price") or _bnb_gate_num(
+                    gate_underlying, "index_price"
+                )
+                bid = _bnb_gate_num(quote, "bid1_price", "bid_price")
+                ask = _bnb_gate_num(quote, "ask1_price", "ask_price")
+                mark = _bnb_gate_num(quote, "mark_price", "last_price") or _bnb_gate_num(
+                    item, "mark_price", "last_price"
+                )
+                if index_price > 0 and underlying is None:
+                    underlying = index_price
+                rows.append({
+                    "instrument_name": name,
+                    "exchange_symbol": name,
+                    "strike": strike,
+                    "option_type": option_type,
+                    "expiry": expiry,
+                    # Normalize Gate quote-currency premiums to BNB units for
+                    # compatibility with the existing premium × underlying UI.
+                    "bid_price": bid / index_price if bid > 0 and index_price > 0 else 0,
+                    "ask_price": ask / index_price if ask > 0 and index_price > 0 else 0,
+                    "mark_price": mark / index_price if mark > 0 and index_price > 0 else 0,
+                    "open_interest": quote.get("position_size", item.get("position_size", 0)),
+                    "volume": quote.get("volume_24h", quote.get("trade_size", item.get("trade_size", 0))),
+                    "underlying_price": index_price,
+                    "min_trade_amount": item.get("order_size_min", 0),
+                })
+            if not rows:
+                raise RuntimeError("Gate.io lists BNB underlying but returned no active option contracts")
+            source = "Gate.io public options API"
+        except Exception as exc:
+            errors.append("Gate.io: " + str(exc)[:180])
+            return jsonify({
+                "error": "BNB options data unavailable from Gate.io",
+                "details": errors[-4:],
+                "coin": coin,
+                "source": "Gate.io public options API",
+                "rows": [],
+                "underlying": underlying,
+                "updated_at": _utc_now(),
+                "count": 0,
+            }), 502
     elif coin in ("BTC", "ETH"):
         hosts = ("https://api.deribit.com/api/v2/public/", "https://www.deribit.com/api/v2/public/")
         instruments = summaries = None
