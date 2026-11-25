@@ -1,5 +1,10 @@
 name: Seven Coin 15m Confirmed CALL PUT Direction Signals
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'options_strong_signals.py'
+      - '.github/workflows/options-strong-signals.yml'
   schedule:
     # Run shortly after each 15-minute candle closes (UTC).
     - cron: "2,17,32,47 * * * *"
