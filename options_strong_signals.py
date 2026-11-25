@@ -155,7 +155,7 @@ def best_option(coin, signal, underlying, payload):
             continue
         mid = (bid + ask) / 2.0
         spread = (ask - bid) / mid if mid > 0 else 999
-        if spread > 0.02:
+        if spread > 0.10:
             continue
         # Deribit BTC/ETH premiums are coin-denominated. Paradex ZEC and
         # Bybit/Binance DOGE option premiums are already USD/USDT-denominated.
@@ -237,7 +237,7 @@ def main():
                 f"🛑 SL (-25%): {option['sl']:.4f} USD\n"
                 f"🎯 TP1 (+25%): {option['tp1']:.4f} USD\n"
                 f"🎯 TP2 (+50%): {option['tp2']:.4f} USD\n"
-                f"Spread: {option['spread']*100:.2f}% (max 2%) | {cost_line}\n"
+                f"Spread: {option['spread']*100:.2f}% (max 10%) | {cost_line}\n"
                 f"RSI 14: {signal['rsi']:.1f} | EMA9: {signal['ema9']:.2f} | EMA21: {signal['ema21']:.2f}\n"
                 f"15m closed-candle source: {signal['source']}\n"
                 "LIMIT price is a suggestion at current ASK; quote may change. Signal only — कोई order अपने-आप place नहीं होगा।"
