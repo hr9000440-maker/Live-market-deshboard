@@ -340,7 +340,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 <div class="grid" style="margin-top:12px"><div class="result"><small>Contract</small><strong id="csManualContract">—</strong></div><div class="result"><small>Latest Premium</small><strong id="csManualLatest">—</strong></div><div class="result"><small>Snapshots</small><strong id="csManualCount">0</strong></div><div class="result"><small>Last Updated</small><strong id="csManualUpdated">—</strong></div></div>
 <p id="csManualStatus" class="note" aria-live="polite">CoinSwitch से premium देखकर दर्ज करें।</p>
 <canvas id="csManualPremiumCanvas" style="width:100%;height:340px;background:#09192b;border:1px solid var(--line);border-radius:8px;display:block"></canvas>
-<p class="note">5m/15m candles आपके save किए गए snapshots से बनेंगी। पर्याप्त snapshots न होने पर chart में कम candles दिखेंगी। डेटा इसी browser में रहेगा; CSV backup के लिए नीचे Option Movement Tracker का export इस्तेमाल करें।</p>
+<p class="note">यह Line Chart उसी contract के आपके save किए गए वास्तविक CoinSwitch premium snapshots दिखाता है। हर नए snapshot पर अगला point जुड़ेगा; 5m/15m विकल्प chart का चुना हुआ interval संदर्भ है। डेटा इसी browser में रहेगा; CSV backup के लिए Option Movement Tracker का export इस्तेमाल करें।</p>
 </section>
 <section class="panel" id="option-premium-backup">
 <h2>🔄 BTC OPTION PREMIUM CHART — BACKUP</h2>
@@ -1030,6 +1030,30 @@ function saveCoinSwitchManualPremium(){
  renderCoinSwitchManualPremiumChart();
  document.getElementById('csManualStatus').textContent='Snapshot save हुआ। अगली बार CoinSwitch में इसी contract का नया premium देखकर फिर जोड़ें।';
 }
+
+function drawCoinSwitchPremiumLineChart(rows,canvasId='csManualPremiumCanvas'){
+ const canvas=document.getElementById(canvasId);if(!canvas)return;
+ const ctx=canvas.getContext('2d'),w=canvas.clientWidth||600,h=340,dpr=window.devicePixelRatio||1;
+ canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+ const points=rows.map(x=>({time:Number(x.ts),value:Number(x.premium)})).filter(x=>Number.isFinite(x.time)&&Number.isFinite(x.value)&&x.value>0).sort((a,b)=>a.time-b.time).slice(-120);
+ ctx.font='11px Arial';ctx.fillStyle='#9db0c9';ctx.strokeStyle='#29415f';ctx.lineWidth=1;
+ if(!points.length){ctx.fillText('CoinSwitch premium snapshots उपलब्ध नहीं',14,24);return}
+ const left=62,right=16,top=18,bottom=38,plotW=Math.max(20,w-left-right),plotH=Math.max(20,h-top-bottom);
+ let min=Math.min(...points.map(p=>p.value)),max=Math.max(...points.map(p=>p.value));
+ let pad=max===min?Math.max(Math.abs(max)*0.02,0.5):(max-min)*0.12;
+ const lo=Math.max(0,min-pad),hi=max+pad,range=Math.max(hi-lo,0.000001);
+ const xAt=i=>points.length===1?left+plotW/2:left+i*plotW/(points.length-1);
+ const yAt=v=>top+(hi-v)/range*plotH;
+ for(let i=0;i<=4;i++){const y=top+i*plotH/4,v=hi-range*i/4;ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(w-right,y);ctx.stroke();ctx.fillText(v.toFixed(2),4,y+4)}
+ ctx.strokeStyle='#35d6e8';ctx.lineWidth=2.5;ctx.beginPath();
+ points.forEach((p,i)=>{const x=xAt(i),y=yAt(p.value);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)});ctx.stroke();
+ points.forEach((p,i)=>{const x=xAt(i),y=yAt(p.value);ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fillStyle='#35d6e8';ctx.fill();ctx.strokeStyle='#081727';ctx.lineWidth=1.5;ctx.stroke()});
+ const first=new Date(points[0].time),last=new Date(points[points.length-1].time);
+ ctx.fillStyle='#9db0c9';ctx.textAlign='left';ctx.fillText(first.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}),left,h-10);
+ ctx.textAlign='right';ctx.fillText(last.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}),w-right,h-10);ctx.textAlign='left';
+ if(points.length===1){ctx.fillText('अगला CoinSwitch snapshot जोड़ने पर line बनेगी',left,top+16)}
+}
+
 function renderCoinSwitchManualPremiumChart(){
  const coin=document.getElementById('csManualCoin').value,strike=document.getElementById('csManualStrike').value.trim(),side=document.getElementById('csManualSide').value,minutes=Number(document.getElementById('csManualInterval').value),contract=coin+' '+strike+' '+side;
  const rows=getCoinSwitchManualPremiumRows().filter(x=>x.contract===contract).sort((a,b)=>a.ts-b.ts);
@@ -1040,7 +1064,7 @@ function renderCoinSwitchManualPremiumChart(){
  document.getElementById('csManualLatest').textContent=rows.length?Number(rows[rows.length-1].premium).toLocaleString('en-IN',{maximumFractionDigits:8}):'—';
  document.getElementById('csManualCount').textContent=rows.length;
  document.getElementById('csManualUpdated').textContent=rows.length?new Date(rows[rows.length-1].ts).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}):'—';
- drawOptionPremiumChart(candles,'csManualPremiumCanvas');
+ drawCoinSwitchPremiumLineChart(rows,'csManualPremiumCanvas');
  if(!strike)document.getElementById('csManualStatus').textContent='पहले Strike/Contract भरें, फिर premium snapshots जोड़ें।';
  else if(!rows.length)document.getElementById('csManualStatus').textContent='इस contract का कोई CoinSwitch snapshot अभी सेव नहीं है।';
  else document.getElementById('csManualStatus').textContent=rows.length+' वास्तविक CoinSwitch snapshots • '+minutes+'m candles • केवल दर्ज किया गया डेटा।';
