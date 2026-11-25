@@ -178,7 +178,7 @@ def best_option(coin, signal, underlying, payload):
 def telegram(message):
     # Try each configured legacy/current secret alias. A stale first alias must
     # not block delivery when another configured alias contains the active bot token.
-    names = ("TELEGRAM_BOT_TOKEN", "TELEGRAMBOTTOKAN", "TELEGRAM_BOT_TOKAN", "TELEGRAM_BOT_TOKAN")
+    names = ("TELEGRAM_BOT_TOKEN", "TELEGRAMBOTTOKAN", "TELEGRAM_BOT_TOKAN", "TELEGRAM_BOT_FATHER")
     tokens = list(dict.fromkeys(os.getenv(name, "").strip() for name in names if os.getenv(name, "").strip()))
     chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
     if not tokens or not chat_id:
