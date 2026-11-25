@@ -291,6 +291,28 @@ def main():
                 "LIMIT price is a suggestion at current ASK; quote may change. Signal only — कोई order अपने-आप place नहीं होगा।"
             )
             telegram(message)
+            # Persist this exact contract for server-side premium / TP / SL monitoring.
+            positions_path = "state/option_positions.json"
+            try:
+                with open(positions_path, "r", encoding="utf-8") as pf:
+                    positions = json.load(pf)
+                if not isinstance(positions, list):
+                    positions = []
+            except (OSError, ValueError):
+                positions = []
+            if not any(p.get("key") == key for p in positions):
+                positions.append({
+                    "key": key, "coin": coin, "contract": option["name"],
+                    "source": quote_source, "entry": option["entry"],
+                    "sl": option["sl"], "tp1": option["tp1"],
+                    "tp2": option["tp2"], "tp3": option["tp3"],
+                    "peak": option["entry"], "stage": 0,
+                    "status": "ACTIVE", "created_at": datetime.now(timezone.utc).isoformat()
+                })
+                os.makedirs("state", exist_ok=True)
+                with open(positions_path, "w", encoding="utf-8") as pf:
+                    json.dump(positions, pf, ensure_ascii=False, indent=2)
+                    pf.write("\\n")
             state[key] = stamp
             save_state(state)
             sent += 1
