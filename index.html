@@ -397,6 +397,8 @@ function expiryDateValue(v){
  // Deribit contract suffix: 21NOV26
  const m=s.match(/^(\d{1,2})([A-Z]{3})(\d{2,4})$/i);
  if(m){const months={JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11};let y=Number(m[3]);if(y<100)y+=2000;return Date.UTC(y,months[m[2].toUpperCase()],Number(m[1]));}
+ // Gate.io contract expiry: YYYYMMDD
+ if(/^\d{8}$/.test(s)){return Date.UTC(Number(s.slice(0,4)),Number(s.slice(4,6))-1,Number(s.slice(6,8)));}
  // Unix seconds or milliseconds
  if(/^\d{10,13}$/.test(s)){const n=Number(s);return n<1e12?n*1000:n;}
  return Date.parse(s);
