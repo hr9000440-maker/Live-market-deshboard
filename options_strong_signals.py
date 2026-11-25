@@ -176,17 +176,29 @@ def best_option(coin, signal, underlying, payload):
 
 
 def telegram(message):
-    token = (os.getenv("TELEGRAM_BOT_TOKEN") or os.getenv("TELEGRAMBOTTOKAN") or
-             os.getenv("TELEGRAM_BOT_TOKAN") or os.getenv("TELEGRAM_BOT_TOKAN"))
-    chat_id = os.getenv("TELEGRAM_CHAT_ID")
-    if not token or not chat_id:
+    # Try each configured legacy/current secret alias. A stale first alias must
+    # not block delivery when another configured alias contains the active bot token.
+    names = ("TELEGRAM_BOT_TOKEN", "TELEGRAMBOTTOKAN", "TELEGRAM_BOT_TOKAN", "TELEGRAM_BOT_TOKAN")
+    tokens = list(dict.fromkeys(os.getenv(name, "").strip() for name in names if os.getenv(name, "").strip()))
+    chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+    if not tokens or not chat_id:
         raise RuntimeError("Telegram token/chat ID repository secrets missing")
     data = urllib.parse.urlencode({"chat_id": chat_id, "text": message, "disable_web_page_preview": "true"}).encode()
-    req = urllib.request.Request("https://api.telegram.org/bot" + token + "/sendMessage", data=data)
-    with urllib.request.urlopen(req, timeout=20) as response:
-        result = json.loads(response.read().decode())
-    if not result.get("ok"):
-        raise RuntimeError("Telegram API error: " + str(result.get("description", "unknown error")))
+    errors = []
+    for token in tokens:
+        req = urllib.request.Request("https://api.telegram.org/bot" + token + "/sendMessage", data=data)
+        try:
+            with urllib.request.urlopen(req, timeout=20) as response:
+                result = json.loads(response.read().decode())
+            if result.get("ok"):
+                return
+            errors.append(str(result.get("description", "unknown Telegram API error")))
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", "replace")
+            errors.append("HTTP " + str(exc.code) + ": " + detail[:200])
+            if exc.code != 401:
+                break
+    raise RuntimeError("Telegram rejected all configured token aliases: " + " | ".join(errors))
 
 
 def load_state():
