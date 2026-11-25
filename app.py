@@ -319,7 +319,95 @@ def crypto_options(coin):
             except Exception as exc:
                 errors.append("Binance: " + str(exc)[:180])
             if not rows:
-                return jsonify({"error": "DOGE options data unavailable from Bybit and Binance", "details": errors[-4:]}), 502
+                # Gate.io public Options API fallback. Read-only market endpoints;
+                # discover DOGE underlying first so unsupported pairs are never fabricated.
+                try:
+                    gate_underlyings = _fetch_json("https://api.gateio.ws/api/v4/options/underlyings")
+                    gate_underlying = next(
+                        (x for x in gate_underlyings if isinstance(x, dict)
+                         and str(x.get("name", "")).upper() in ("DOGE_USDT", "DOGE_USD")),
+                        None,
+                    ) if isinstance(gate_underlyings, list) else None
+                    if not gate_underlying:
+                        raise RuntimeError("Gate.io does not currently list DOGE options underlying")
+                    gate_pair = str(gate_underlying.get("name")).upper()
+                    contracts = _fetch_json(
+                        "https://api.gateio.ws/api/v4/options/contracts?underlying=" + gate_pair
+                    )
+                    tickers = _fetch_json(
+                        "https://api.gateio.ws/api/v4/options/tickers?underlying=" + gate_pair
+                    )
+                    if not isinstance(contracts, list) or not isinstance(tickers, list):
+                        raise RuntimeError("Gate.io options response format changed")
+                    ticker_map = {
+                        str(x.get("name", "")).upper(): x for x in tickers if isinstance(x, dict)
+                    }
+                    for item in contracts:
+                        if not isinstance(item, dict):
+                            continue
+                        name = str(item.get("name") or "").upper()
+                        parts = name.split("-")
+                        if len(parts) < 4 or not name.startswith("DOGE_"):
+                            continue
+                        try:
+                            strike = float(parts[-2])
+                        except (TypeError, ValueError):
+                            continue
+                        is_call = item.get("is_call")
+                        option_type = "C" if is_call is True else ("P" if is_call is False else "")
+                        if not option_type or strike <= 0:
+                            continue
+                        expiry_ts = int(float(item.get("expiration_time") or 0))
+                        expiry = (
+                            datetime.fromtimestamp(expiry_ts, timezone.utc).strftime("%d%b%y").upper()
+                            if expiry_ts > 0 else (parts[1] if len(parts) > 1 else "")
+                        )
+                        quote = ticker_map.get(name, {})
+                        try:
+                            index_price = float(
+                                quote.get("index_price") or item.get("index_price")
+                                or gate_underlying.get("index_price") or 0
+                            )
+                        except (TypeError, ValueError):
+                            index_price = 0.0
+                        def _gate_num(obj, *keys):
+                            for key in keys:
+                                try:
+                                    value = float(obj.get(key) or 0)
+                                    if value > 0:
+                                        return value
+                                except (TypeError, ValueError):
+                                    pass
+                            return 0.0
+                        bid = _gate_num(quote, "bid1_price")
+                        ask = _gate_num(quote, "ask1_price")
+                        mark = _gate_num(quote, "mark_price", "last_price")
+                        if index_price > 0 and underlying is None:
+                            underlying = index_price
+                        rows.append({
+                            "instrument_name": name,
+                            "exchange_symbol": name,
+                            "strike": strike,
+                            "option_type": option_type,
+                            "expiry": expiry,
+                            # Gate premiums are quoted in USDT/USD; normalize to DOGE
+                            # because the existing chain UI converts mark * underlying.
+                            "bid_price": bid / index_price if bid > 0 and index_price > 0 else 0,
+                            "ask_price": ask / index_price if ask > 0 and index_price > 0 else 0,
+                            "mark_price": mark / index_price if mark > 0 and index_price > 0 else 0,
+                            "open_interest": quote.get("position_size", item.get("position_size", 0)),
+                            "volume": quote.get("volume_24h", quote.get("trade_size", item.get("trade_size", 0))),
+                            "underlying_price": index_price,
+                            "min_trade_amount": item.get("order_size_min", 0),
+                        })
+                    if rows:
+                        source = "Gate.io public options API"
+                    else:
+                        raise RuntimeError("Gate.io lists DOGE underlying but returned no active contracts")
+                except Exception as exc:
+                    errors.append("Gate.io: " + str(exc)[:180])
+            if not rows:
+                return jsonify({"error": "DOGE options data unavailable from Bybit, Binance and Gate.io", "details": errors[-4:]}), 502
     elif coin in ("BTC", "ETH"):
         hosts = ("https://api.deribit.com/api/v2/public/", "https://www.deribit.com/api/v2/public/")
         instruments = summaries = None
