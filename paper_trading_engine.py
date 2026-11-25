@@ -78,6 +78,7 @@ def close_trade(state,t,price,reason,now):
 
 def main():
     state=load(); original=json.dumps(state,sort_keys=True); now=datetime.datetime.now(datetime.timezone.utc).isoformat()
+    data_ok=0
     for coin in COINS:
       try:
         # Check exits using latest completed 5m candle.
@@ -96,6 +97,7 @@ def main():
               t["tp1_hit"]=True; t["tp1_hit_at"]=now
             if lo<=t.get("tp3",t["tp2"]): close_trade(state,t,t.get("tp3",t["tp2"]),"TARGET 3",now); continue
         s15=analyze(coin,"15m")
+        data_ok+=1
         # Open paper trades from a confirmed closed 15m signal; no 5m confirmation gate.
         if s15["side"] not in ("BUY","SELL"):
           state["errors"].pop(coin,None); continue
@@ -117,6 +119,9 @@ def main():
     state["closed_trades"]=state.get("closed_trades",[])[:300]
     if json.dumps(state,sort_keys=True)!=original:
       save(state)
-    print("PAPER SUMMARY",len(state["open_trades"]),"open",len(state["closed_trades"]),"closed")
+    print("PAPER SUMMARY",len(state["open_trades"]),"open",len(state["closed_trades"]),"closed;",data_ok,"/",len(COINS),"coins with usable 5m+15m data")
+    if data_ok==0:
+      print("FATAL: all coin feeds failed; marking this Actions run as failed instead of reporting a false success.")
+      raise SystemExit(1)
 
 if __name__=="__main__": main()
