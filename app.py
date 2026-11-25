@@ -187,7 +187,7 @@ def crypto_options(coin):
                 instruments = (all_payload.get("result") or {}).get("list") or []
             instruments = [x for x in instruments if isinstance(x, dict)
                            and str(x.get("baseCoin", "")).upper() == "DOGE"
-                           and str(x.get("status", "")).upper() == "TRADING"]
+                           and str(x.get("status", "TRADING")).upper() in ("TRADING", "PRELAUNCH", "DELIVERING")]
 
             tickers_payload = _fetch_json("https://api.bybit.com/v5/market/tickers?category=option&baseCoin=DOGE")
             if tickers_payload.get("retCode") != 0:
