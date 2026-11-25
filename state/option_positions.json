@@ -1,0 +1,17 @@
+[
+  {
+    "key": "ETH|ETH-26NOV26-1620-P|STRONG BUY PUT",
+    "coin": "ETH",
+    "contract": "ETH-26NOV26-1620-P",
+    "source": "Deribit public options API",
+    "entry": 15.572305,
+    "sl": 11.67922875,
+    "tp1": 19.46538125,
+    "tp2": 23.3584575,
+    "tp3": 28.808764250000003,
+    "peak": 15.572305,
+    "stage": 0,
+    "status": "ACTIVE",
+    "created_at": "2026-11-25T15:35:34.324187+00:00"
+  }
+]\n
