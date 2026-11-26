@@ -36,8 +36,11 @@ def telegram(msg):
 def main():
     try:
         with open(PATH,encoding="utf-8") as f: positions=json.load(f)
-    except (OSError,ValueError):
+    except FileNotFoundError:
         positions=[]
+    except json.JSONDecodeError as e:
+        print("ERROR option positions ledger is invalid JSON; refusing to overwrite: " + str(e))
+        raise SystemExit(1)
     changed=False
     cache={}
     for p in positions:
