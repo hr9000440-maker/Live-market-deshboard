@@ -13,8 +13,8 @@
     "stage": 0,
     "status": "ACTIVE",
     "created_at": "2026-11-26T11:52:57.701281+00:00",
-    "last_premium": 31.572655,
-    "last_checked": "2026-11-26T12:44:37.692692+00:00"
+    "last_premium": 29.835050000000003,
+    "last_checked": "2026-11-26T13:06:01.013724+00:00"
   },
   {
     "key": "BTC|BTC-27NOV26-62000-P|STRONG BUY PUT",
@@ -30,8 +30,8 @@
     "stage": 0,
     "status": "ACTIVE",
     "created_at": "2026-11-26T12:44:12.147814+00:00",
-    "last_premium": 1247.462925,
-    "last_checked": "2026-11-26T12:44:38.507787+00:00"
+    "last_premium": 1336.5613799999999,
+    "last_checked": "2026-11-26T13:06:01.725706+00:00"
   },
   {
     "key": "ETH|ETH-27NOV26-1700-C|STRONG BUY CALL",
@@ -47,8 +47,8 @@
     "stage": 0,
     "status": "ACTIVE",
     "created_at": "2026-11-26T12:44:13.848934+00:00",
-    "last_premium": 19.626245,
-    "last_checked": "2026-11-26T12:44:38.507823+00:00"
+    "last_premium": 17.90103,
+    "last_checked": "2026-11-26T13:06:01.725736+00:00"
   },
   {
     "key": "BTC|BTC-27NOV26-61000-C|STRONG BUY CALL",
@@ -63,6 +63,8 @@
     "peak": 394.8789,
     "stage": 0,
     "status": "ACTIVE",
-    "created_at": "2026-11-26T13:04:13.887234+00:00"
+    "created_at": "2026-11-26T13:04:13.887234+00:00",
+    "last_premium": 334.14034499999997,
+    "last_checked": "2026-11-26T13:06:01.725742+00:00"
   }
 ]
