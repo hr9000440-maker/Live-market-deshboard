@@ -29,24 +29,32 @@ def check_page(label, url, expected):
         issues.append(label + ": " + str(e))
         print("FAIL " + label + ": " + str(e))
 
+def telegram_tokens():
+    names = ("TELEGRAM_BOT_TOKEN", "TELEGRAMBOTTOKAN",
+             "TELEGRAM_BOT_TOKAN", "TELEGRAM_BOT_FATHER")
+    return list(dict.fromkeys(os.getenv(name, "").strip() for name in names if os.getenv(name, "").strip()))
+
 def check_telegram():
-    token = (os.getenv("TELEGRAM_BOT_TOKEN") or os.getenv("TELEGRAMBOTTOKAN") or
-             os.getenv("TELEGRAM_BOT_TOKAN") or os.getenv("TELEGRAM_BOT_TOKAN") or "")
-    chat = os.getenv("TELEGRAM_CHAT_ID", "")
-    if not token or not chat:
-        issues.append("Telegram secrets: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID missing")
+    tokens = telegram_tokens()
+    chat = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+    if not tokens or not chat:
+        issues.append("Telegram secrets: configured bot token alias or TELEGRAM_CHAT_ID missing")
         print("FAIL Telegram configuration: required secrets missing")
         return
-    try:
-        me = request_json("https://api.telegram.org/bot" + token + "/getMe", timeout=15)
-        if not me.get("ok"): raise RuntimeError(me.get("description", "getMe failed"))
-        chat_info = request_json("https://api.telegram.org/bot" + token + "/getChat?chat_id=" + urllib.parse.quote(chat), timeout=15)
-        if not chat_info.get("ok"): raise RuntimeError(chat_info.get("description", "getChat failed"))
-        print("PASS Telegram bot authentication and target chat lookup")
-    except Exception as e:
-        issues.append("Telegram bot/chat check: " + str(e))
-        print("FAIL Telegram bot/chat check: " + str(e))
-
+    errors = []
+    for index, token in enumerate(tokens, start=1):
+        try:
+            me = request_json("https://api.telegram.org/bot" + token + "/getMe", timeout=15)
+            if not me.get("ok"): raise RuntimeError(me.get("description", "getMe failed"))
+            chat_info = request_json("https://api.telegram.org/bot" + token + "/getChat?chat_id=" + urllib.parse.quote(chat), timeout=15)
+            if not chat_info.get("ok"): raise RuntimeError(chat_info.get("description", "getChat failed"))
+            print("PASS Telegram bot authentication and target chat lookup (configured alias " + str(index) + ")")
+            return
+        except Exception as e:
+            errors.append("alias " + str(index) + ": " + str(e)[:160])
+    message = "all configured token aliases failed: " + " / ".join(errors)
+    issues.append("Telegram bot/chat check: " + message)
+    print("FAIL Telegram bot/chat check: " + message)
 def check_options():
     for coin in COINS:
         try:
@@ -158,21 +166,28 @@ def main():
     for i in issues: print("ISSUE " + i)
 
     if issues:
-        token = (os.getenv("TELEGRAM_BOT_TOKEN") or os.getenv("TELEGRAMBOTTOKAN") or
-                 os.getenv("TELEGRAM_BOT_TOKAN") or os.getenv("TELEGRAM_BOT_TOKAN") or "")
-        chat = os.getenv("TELEGRAM_CHAT_ID", "")
+        tokens = telegram_tokens()
+        chat = os.getenv("TELEGRAM_CHAT_ID", "").strip()
         msg = "⚠️ DASHBOARD HEALTH CHECK\n" + "\n".join(issues) + "\nChecked: " + stamp
-        if token and chat:
-            try:
-                payload = json.dumps({"chat_id": chat, "text": msg}).encode()
-                req = urllib.request.Request("https://api.telegram.org/bot" + token + "/sendMessage",
-                    data=payload, headers={"Content-Type": "application/json"})
-                with urllib.request.urlopen(req, timeout=20) as response:
-                    result = json.loads(response.read().decode())
-                if result.get("ok"): print("PASS Telegram failure alert sent")
-                else: print("FAIL Telegram failure alert: " + str(result.get("description")))
-            except Exception as e: print("FAIL Telegram failure alert: " + str(e))
+        if tokens and chat:
+            errors = []
+            for token in tokens:
+                try:
+                    payload = json.dumps({"chat_id": chat, "text": msg}).encode()
+                    req = urllib.request.Request("https://api.telegram.org/bot" + token + "/sendMessage",
+                        data=payload, headers={"Content-Type": "application/json"})
+                    with urllib.request.urlopen(req, timeout=20) as response:
+                        result = json.loads(response.read().decode())
+                    if result.get("ok"):
+                        print("PASS Telegram failure alert sent")
+                        break
+                    errors.append(str(result.get("description", "Telegram send failed"))[:160])
+                except Exception as e:
+                    errors.append(str(e)[:160])
+            else:
+                print("FAIL Telegram failure alert: all configured token aliases failed: " + " / ".join(errors))
         sys.exit(1)
+
     print("All critical checks passed. Notes are informational; no trading actions were taken.")
 
 if __name__ == "__main__":
