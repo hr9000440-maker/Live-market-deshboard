@@ -21,7 +21,7 @@ def save_jackpot_state(state):
     os.makedirs(os.path.dirname(STATE_PATH), exist_ok=True)
     with open(STATE_PATH, "w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False, indent=2, sort_keys=True)
-        f.write("\\n")
+        f.write("\n")
 
 
 def strict_jackpot_signal(coin):
