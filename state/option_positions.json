@@ -11,10 +11,10 @@
     "tp3": 55.014837500000006,
     "peak": 31.572655,
     "stage": 0,
-    "status": "ACTIVE",
+    "status": "STOPPED",
     "created_at": "2026-11-26T11:52:57.701281+00:00",
-    "last_premium": 25.50975,
-    "last_checked": "2026-11-26T14:23:52.877178+00:00"
+    "last_premium": 15.139079999999998,
+    "last_checked": "2026-11-26T15:26:07.898725+00:00"
   },
   {
     "key": "BTC|BTC-27NOV26-62000-P|STRONG BUY PUT",
@@ -26,12 +26,13 @@
     "tp1": 1673.4475999999997,
     "tp2": 2008.1371199999999,
     "tp3": 2476.702448,
-    "peak": 1338.7580799999998,
-    "stage": 0,
+    "peak": 1718.0355749999999,
+    "stage": 1,
     "status": "ACTIVE",
     "created_at": "2026-11-26T12:44:12.147814+00:00",
-    "last_premium": 1336.07496,
-    "last_checked": "2026-11-26T14:23:53.958102+00:00"
+    "last_premium": 1718.0355749999999,
+    "last_checked": "2026-11-26T15:26:09.011414+00:00",
+    "trail": 1338.7580799999998
   },
   {
     "key": "ETH|ETH-27NOV26-1700-C|STRONG BUY CALL",
@@ -62,10 +63,10 @@
     "tp3": 730.525965,
     "peak": 394.8789,
     "stage": 0,
-    "status": "ACTIVE",
+    "status": "STOPPED",
     "created_at": "2026-11-26T13:04:13.887234+00:00",
-    "last_premium": 334.01874,
-    "last_checked": "2026-11-26T14:23:54.287459+00:00"
+    "last_premium": 198.930435,
+    "last_checked": "2026-11-26T15:26:09.298316+00:00"
   },
   {
     "key": "BTC|BTC-27NOV26-59500-C|STRONG BUY CALL",
@@ -79,8 +80,10 @@
     "tp3": 2527.1732137500003,
     "peak": 1366.039575,
     "stage": 0,
-    "status": "ACTIVE",
-    "created_at": "2026-11-26T14:28:46.821712+00:00"
+    "status": "STOPPED",
+    "created_at": "2026-11-26T14:28:46.821712+00:00",
+    "last_premium": 904.22925,
+    "last_checked": "2026-11-26T15:26:09.700550+00:00"
   },
   {
     "key": "ETH|ETH-27NOV26-1720-C|STRONG BUY CALL",
@@ -94,7 +97,9 @@
     "tp3": 15.4106813,
     "peak": 8.330098,
     "stage": 0,
-    "status": "ACTIVE",
-    "created_at": "2026-11-26T14:28:48.799883+00:00"
+    "status": "STOPPED",
+    "created_at": "2026-11-26T14:28:48.799883+00:00",
+    "last_premium": 3.8688759999999998,
+    "last_checked": "2026-11-26T15:26:09.971249+00:00"
   }
 ]
