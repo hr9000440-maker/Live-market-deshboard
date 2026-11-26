@@ -76,10 +76,10 @@ def check_options():
             if not rows: notes.append(coin + " options: API works but no listed contracts returned")
             elif live == 0:
                 message = coin + " options: " + str(len(rows)) + " contracts but no valid live bid/ask quotes"
-                if coin == "ZEC":
-                    issues.append(message)
-                else:
-                    notes.append(message)
+                # Some exchanges list ZEC option instruments without executable
+                # two-sided quotes. Keep this visible as a warning, but do not
+                # mark the whole dashboard unhealthy or permit a synthetic quote.
+                notes.append(message + " — safely unavailable; no ZEC option alert will be generated")
             print("PASS " + coin + " options gateway: rows=" + str(len(rows)) + ", live bid/ask=" + str(live) + ", expiries=" + str(len(expiries)) + ", source=" + str(data.get("source")))
         except Exception as e:
             issues.append(coin + " options gateway: " + str(e))
