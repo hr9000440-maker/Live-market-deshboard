@@ -5,6 +5,7 @@ on:
       - main
     paths:
       - jackpot_early_option_signals.py
+      - options_strong_signals.py
       - .github/workflows/jackpot-early-option-signals.yml
   schedule:
     - cron: "*/5 * * * *"
