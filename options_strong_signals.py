@@ -301,9 +301,14 @@ def main():
                     positions = []
             except (OSError, ValueError):
                 positions = []
-            if not any(p.get("key") == key for p in positions):
+            # Track every distinct confirmed-candle signal separately.
+            # The Telegram dedupe key remains contract+direction, but re-signals
+            # on later candles must never inherit an older entry/SL/TP record.
+            position_id = key + "|" + stamp
+            if not any(p.get("key") == position_id for p in positions):
                 positions.append({
-                    "key": key, "coin": coin, "contract": option["name"],
+                    "key": position_id, "signal_key": key, "signal_candle_time": stamp,
+                    "coin": coin, "contract": option["name"],
                     "source": quote_source, "entry": option["entry"],
                     "sl": option["sl"], "tp1": option["tp1"],
                     "tp2": option["tp2"], "tp3": option["tp3"],
