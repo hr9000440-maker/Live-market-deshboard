@@ -66,5 +66,35 @@
     "created_at": "2026-11-26T13:04:13.887234+00:00",
     "last_premium": 334.01874,
     "last_checked": "2026-11-26T14:23:54.287459+00:00"
+  },
+  {
+    "key": "BTC|BTC-27NOV26-59500-C|STRONG BUY CALL",
+    "coin": "BTC",
+    "contract": "BTC-27NOV26-59500-C",
+    "source": "Deribit public options API",
+    "entry": 1366.039575,
+    "sl": 1024.52968125,
+    "tp1": 1707.54946875,
+    "tp2": 2049.0593625,
+    "tp3": 2527.1732137500003,
+    "peak": 1366.039575,
+    "stage": 0,
+    "status": "ACTIVE",
+    "created_at": "2026-11-26T14:28:46.821712+00:00"
+  },
+  {
+    "key": "ETH|ETH-27NOV26-1720-C|STRONG BUY CALL",
+    "coin": "ETH",
+    "contract": "ETH-27NOV26-1720-C",
+    "source": "Deribit public options API",
+    "entry": 8.330098,
+    "sl": 6.2475735,
+    "tp1": 10.4126225,
+    "tp2": 12.495147,
+    "tp3": 15.4106813,
+    "peak": 8.330098,
+    "stage": 0,
+    "status": "ACTIVE",
+    "created_at": "2026-11-26T14:28:48.799883+00:00"
   }
 ]
