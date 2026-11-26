@@ -65,21 +65,25 @@ def main():
             stage=int(p.get("stage",0)); p["peak"]=peak
             sl=float(p["sl"]); tp1=float(p["tp1"]); tp2=float(p["tp2"]); tp3=float(p["tp3"])
             msg=None
+            jackpot = p.get("signal_type") == "JACKPOT"
+            tp1_label = "2x premium" if jackpot else "+25%"
+            tp2_label = "5x premium" if jackpot else "+50%"
+            tp3_label = "10x premium" if jackpot else "+85%"
             if premium<=sl:
                 msg=f"🛑 OPTION STOP LOSS HIT\n{coin} {p['contract']}\nEntry: {entry:.4f} USD | Current bid/mark: {premium:.4f} USD\nInitial SL (-25%): {sl:.4f} USD\nSignal closed for tracking. No order was placed."
                 p["status"]="STOPPED"
             elif premium>=tp3:
-                msg=f"🏁 FINAL TARGET HIT (+85%)\n{coin} {p['contract']}\nEntry: {entry:.4f} USD | Current: {premium:.4f} USD\nFinal target: {tp3:.4f} USD\nProfit-book alert. No order was placed."
+                msg=f"🏁 FINAL TARGET HIT ({tp3_label})\n{coin} {p['contract']}\nEntry: {entry:.4f} USD | Current: {premium:.4f} USD\nFinal target: {tp3:.4f} USD\nProfit-book alert. No order was placed."
                 p["status"]="TARGET_HIT"
             elif stage<2 and premium>=tp2:
                 p["stage"]=2
                 trail=max(entry,tp1,peak*0.85)
                 p["trail"]=trail
-                msg=f"🎯 TP2 HIT (+50%)\n{coin} {p['contract']}\nEntry: {entry:.4f} | Current: {premium:.4f} USD\nTP1: {tp1:.4f} | TP2: {tp2:.4f}\nTrailing SL activated: {trail:.4f} USD\nSignal only — no order placed."
+                msg=f"🎯 TP2 HIT ({tp2_label})\n{coin} {p['contract']}\nEntry: {entry:.4f} | Current: {premium:.4f} USD\nTP1: {tp1:.4f} | TP2: {tp2:.4f}\nTrailing SL activated: {trail:.4f} USD\nSignal only — no order placed."
             elif stage<1 and premium>=tp1:
                 p["stage"]=1
                 p["trail"]=entry
-                msg=f"🎯 TP1 HIT (+25%)\n{coin} {p['contract']}\nEntry: {entry:.4f} | Current: {premium:.4f} USD\nMove SL to break-even: {entry:.4f} USD\nSignal only — no order placed."
+                msg=f"🎯 TP1 HIT ({tp1_label})\n{coin} {p['contract']}\nEntry: {entry:.4f} | Current: {premium:.4f} USD\nMove SL to break-even: {entry:.4f} USD\nSignal only — no order placed."
             elif stage>=1:
                 trail=max(float(p.get("trail",entry)), entry if stage==1 else max(entry,tp1,peak*0.85))
                 p["trail"]=trail

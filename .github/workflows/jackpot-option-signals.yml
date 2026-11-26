@@ -1,0 +1,37 @@
+name: BTC ETH Jackpot 10x Option Signals
+on:
+  schedule:
+    - cron: "2,17,32,47 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: options-strong-signals
+  cancel-in-progress: false
+jobs:
+  jackpot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Send independent BTC ETH Jackpot alerts
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAMBOTTOKAN: ${{ secrets.TELEGRAMBOTTOKAN }}
+          TELEGRAM_BOT_TOKAN: ${{ secrets.TELEGRAM_BOT_TOKAN }}
+          TELEGRAM_BOT_FATHER: ${{ secrets.TELEGRAM_BOT_FATHER }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python3 jackpot_option_signals.py
+      - name: Save Jackpot duplicate and position state
+        if: always()
+        run: |
+          if [[ -n "$(git status --porcelain state/jackpot_option_signals.json state/option_positions.json)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add state/jackpot_option_signals.json state/option_positions.json
+            git commit -m "Save BTC ETH Jackpot option signal state"
+            git push
+          fi
