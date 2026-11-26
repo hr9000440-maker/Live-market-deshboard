@@ -6,7 +6,7 @@ import sys
 from datetime import datetime, timezone
 
 from options_strong_signals import (
-    COINS, OPTION_API, best_option, candles, ema, get_json, rsi, save_state, telegram
+    OPTION_API, best_option, candles, ema, get_json, rsi, telegram
 )
 
 JACKPOT_COINS = ("BTC", "ETH")
@@ -15,6 +15,13 @@ SL_MULTIPLIER = 0.75
 TP1_MULTIPLIER = 2.0
 TP2_MULTIPLIER = 5.0
 TP3_MULTIPLIER = 10.0
+
+
+def save_jackpot_state(state):
+    os.makedirs(os.path.dirname(STATE_PATH), exist_ok=True)
+    with open(STATE_PATH, "w", encoding="utf-8") as f:
+        json.dump(state, f, ensure_ascii=False, indent=2, sort_keys=True)
+        f.write("\\n")
 
 
 def strict_jackpot_signal(coin):
@@ -195,7 +202,7 @@ def main():
                     pf.write("\n")
 
             state[key] = stamp
-            save_state(state)
+            save_jackpot_state(state)
             sent += 1
             print(coin + ": JACKPOT alert sent " + option["name"])
         except Exception as exc:
