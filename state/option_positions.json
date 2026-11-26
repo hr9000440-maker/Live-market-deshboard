@@ -205,5 +205,31 @@
     "created_at": "2026-11-26T17:35:26.977644+00:00",
     "last_premium": 1245.1501150000001,
     "last_checked": "2026-11-26T21:07:58.318099+00:00"
+  },
+  {
+    "key": "BTC|BTC-27NOV26-61000-C|STRONG BUY CALL|1795727700000",
+    "signal_key": "BTC|BTC-27NOV26-61000-C|STRONG BUY CALL",
+    "signal_candle_time": "1795727700000",
+    "coin": "BTC",
+    "contract": "BTC-27NOV26-61000-C",
+    "signal_type": "NORMAL",
+    "market_signal": "STRONG BUY CALL",
+    "market_candle_time": 1795727700000,
+    "signal_rsi": 61.92708913691215,
+    "signal_ema9": 60759.00010795148,
+    "signal_ema21": 60691.07683325681,
+    "signal_volume_ratio": 1.5292119138010352,
+    "signal_body_ratio": 0.8196457326892536,
+    "market_data_source": "KuCoin Spot",
+    "source": "Deribit public options API",
+    "entry": 255.49624799999998,
+    "sl": 191.622186,
+    "tp1": 319.37030999999996,
+    "tp2": 383.244372,
+    "tp3": 472.6680588,
+    "peak": 255.49624799999998,
+    "stage": 0,
+    "status": "ACTIVE",
+    "created_at": "2026-11-26T21:38:06.253874+00:00"
   }
 ]
