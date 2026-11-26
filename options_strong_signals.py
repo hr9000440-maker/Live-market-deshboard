@@ -253,6 +253,7 @@ def main():
     state = load_state()
     sent = 0
     errors = 0
+    skipped = 0
     for coin in COINS:
         try:
             signal = confirmed_signal(coin)
@@ -318,9 +319,17 @@ def main():
             sent += 1
             print(coin + ": Telegram sent " + signal["direction"] + " " + option["name"])
         except Exception as exc:
+            message = str(exc)
+            # A listed options market can have no executable live quote for the
+            # current direction/expiry. This is a safe skip, not a scanner crash:
+            # never fabricate a bid/ask or block valid signals for other coins.
+            if "eligible" in message and "contract नहीं मिला" in message:
+                skipped += 1
+                print(coin + ": SKIPPED — no eligible live option quote; no alert sent: " + message)
+                continue
             errors += 1
-            print(coin + ": ERROR: " + str(exc), file=sys.stderr)
-    print(f"Completed. Telegram alerts sent: {sent}; coin errors: {errors}")
+            print(coin + ": ERROR: " + message, file=sys.stderr)
+    print(f"Completed. Telegram alerts sent: {sent}; safely skipped: {skipped}; coin errors: {errors}")
     if errors:
         raise SystemExit(1)
 
