@@ -1,5 +1,11 @@
 name: BTC ETH Jackpot 10x Option Signals
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - jackpot_option_signals.py
+      - .github/workflows/jackpot-option-signals.yml
   schedule:
     - cron: "2,17,32,47 * * * *"
   workflow_dispatch:
