@@ -316,6 +316,7 @@ def main():
                 f"Spread: {option['spread']*100:.2f}% (max 10%) | {cost_line}\n"
                 f"Option quote source: {quote_source} (CoinSwitch price not live-verified)\n"
                 f"RSI 14: {signal['rsi']:.1f} | EMA9: {signal['ema9']:.2f} | EMA21: {signal['ema21']:.2f}\n"
+                f"Quality: volume {signal['volume_ratio']:.2f}x average | candle body {signal['body_ratio']*100:.0f}%\n"
                 f"15m closed-candle source: {signal['source']}\n"
                 "LIMIT price is a suggestion at current ASK; quote may change. Signal only — कोई order अपने-आप place नहीं होगा।"
             )
@@ -337,6 +338,13 @@ def main():
                 positions.append({
                     "key": position_id, "signal_key": key, "signal_candle_time": stamp,
                     "coin": coin, "contract": option["name"],
+                    "signal_type": "NORMAL", "market_signal": signal["direction"],
+                    "market_candle_time": signal["candle_time"],
+                    "signal_rsi": signal["rsi"], "signal_ema9": signal["ema9"],
+                    "signal_ema21": signal["ema21"],
+                    "signal_volume_ratio": signal["volume_ratio"],
+                    "signal_body_ratio": signal["body_ratio"],
+                    "market_data_source": signal["source"],
                     "source": quote_source, "entry": option["entry"],
                     "sl": option["sl"], "tp1": option["tp1"],
                     "tp2": option["tp2"], "tp3": option["tp3"],
