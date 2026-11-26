@@ -7,7 +7,7 @@ import time
 import urllib.parse
 from datetime import datetime, timezone
 
-from options_strong_signals import OPTION_API, best_option, ema, get_json, rsi, telegram
+from options_strong_signals import OPTION_API, choose_expiry, ema, get_json, rsi, telegram
 
 COINS = ("BTC", "ETH")
 STATE_PATH = "state/jackpot_early_signals.json"
@@ -53,6 +53,55 @@ def five_minute_candles(coin):
             errors.append(name + ": " + str(exc)[:100])
     raise RuntimeError("5m market data unavailable: " + " | ".join(errors))
 
+
+
+def best_zero_hero_option(coin, direction, underlying, payload):
+    """Choose a liquid, low-premium OTM contract; avoid ultra-far lottery strikes."""
+    rows = payload.get("rows")
+    if not isinstance(rows, list):
+        raise RuntimeError("Options gateway response में rows नहीं हैं")
+    expiry = choose_expiry(rows)
+    wanted = "C" if "CALL" in direction else "P"
+    source = str(payload.get("source") or "").lower()
+    quote_is_usd = any(x in source for x in ("paradex", "bybit", "binance"))
+    candidates = []
+    for row in rows:
+        name = str(row.get("instrument_name") or "")
+        parts = name.split("-")
+        row_expiry = str(row.get("expiry") or (parts[1] if len(parts) > 1 else ""))
+        if not name or row_expiry != expiry:
+            continue
+        typ = str(row.get("option_type") or "").upper()
+        is_side = (typ in (wanted, "CALL" if wanted == "C" else "PUT")
+                   or name.endswith("-" + wanted)
+                   or name.endswith("-" + ("CALL" if wanted == "C" else "PUT")))
+        if not is_side:
+            continue
+        try:
+            strike = float(row.get("strike") or (parts[2] if len(parts) > 2 else 0))
+            bid, ask = float(row.get("bid_price") or 0), float(row.get("ask_price") or 0)
+            oi, vol = float(row.get("open_interest") or 0), float(row.get("volume") or 0)
+        except (TypeError, ValueError):
+            continue
+        if strike <= 0 or bid <= 0 or ask < bid or ask <= 0 or (oi <= 0 and vol <= 0):
+            continue
+        otm_pct = ((strike - underlying) / underlying * 100) if wanted == "C" else ((underlying - strike) / underlying * 100)
+        if not 0.5 <= otm_pct <= 3.0:
+            continue
+        mid = (bid + ask) / 2
+        spread = (ask - bid) / mid if mid > 0 else 999
+        if spread > 0.10:
+            continue
+        bid_usd = bid if quote_is_usd else bid * underlying
+        ask_usd = ask if quote_is_usd else ask * underlying
+        liquidity = min(oi + vol, 1000000.0)
+        score = (ask_usd / underlying) + (abs(otm_pct - 1.5) * 0.0008) + (spread * 0.001) - (min(liquidity, 10000.0) * 1e-10)
+        candidates.append({"name": name, "strike": strike, "expiry": expiry, "bid": bid_usd,
+                           "ask": ask_usd, "entry": ask_usd, "spread": spread,
+                           "otm_pct": otm_pct, "score": score})
+    if not candidates:
+        raise RuntimeError("0.5%-3% OTM में 10% तक spread और live liquidity वाला Zero Hero contract नहीं मिला")
+    return min(candidates, key=lambda x: x["score"])
 
 def early_signal(coin):
     rows, source = five_minute_candles(coin)
@@ -114,7 +163,7 @@ def main():
             underlying = float(payload.get("underlying") or 0)
             if underlying <= 0:
                 raise RuntimeError("Options underlying unavailable")
-            option = best_option(coin, sig["direction"], underlying, payload)
+            option = best_zero_hero_option(coin, sig["direction"], underlying, payload)
             key = coin + "|" + option["name"] + "|" + sig["direction"]
             stamp = str(sig["candle_time"])
             if state.get(key) == stamp:
