@@ -13,5 +13,35 @@
     "stage": 0,
     "status": "ACTIVE",
     "created_at": "2026-11-26T11:52:57.701281+00:00"
+  },
+  {
+    "key": "BTC|BTC-27NOV26-62000-P|STRONG BUY PUT",
+    "coin": "BTC",
+    "contract": "BTC-27NOV26-62000-P",
+    "source": "Deribit public options API",
+    "entry": 1338.7580799999998,
+    "sl": 1004.0685599999999,
+    "tp1": 1673.4475999999997,
+    "tp2": 2008.1371199999999,
+    "tp3": 2476.702448,
+    "peak": 1338.7580799999998,
+    "stage": 0,
+    "status": "ACTIVE",
+    "created_at": "2026-11-26T12:44:12.147814+00:00"
+  },
+  {
+    "key": "ETH|ETH-27NOV26-1700-C|STRONG BUY CALL",
+    "coin": "ETH",
+    "contract": "ETH-27NOV26-1700-C",
+    "source": "Deribit public options API",
+    "entry": 21.333000000000002,
+    "sl": 15.999750000000002,
+    "tp1": 26.66625,
+    "tp2": 31.999500000000005,
+    "tp3": 39.46605,
+    "peak": 21.333000000000002,
+    "stage": 0,
+    "status": "ACTIVE",
+    "created_at": "2026-11-26T12:44:13.848934+00:00"
   }
 ]
