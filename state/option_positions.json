@@ -150,8 +150,8 @@
     "stage": 0,
     "status": "ACTIVE",
     "created_at": "2026-11-26T16:01:39.750438+00:00",
-    "last_premium": 91.17363,
-    "last_checked": "2026-11-26T21:58:51.873219+00:00"
+    "last_premium": 99.26631,
+    "last_checked": "2026-11-26T22:48:01.741839+00:00"
   },
   {
     "key": "BTC|BTC-27NOV26-60000-P|STRONG BUY PUT",
@@ -229,9 +229,9 @@
     "tp3": 472.6680588,
     "peak": 255.49624799999998,
     "stage": 0,
-    "status": "ACTIVE",
+    "status": "STOPPED",
     "created_at": "2026-11-26T21:38:06.253874+00:00",
-    "last_premium": 218.80004399999999,
-    "last_checked": "2026-11-26T21:58:53.044581+00:00"
+    "last_premium": 151.462175,
+    "last_checked": "2026-11-26T22:48:02.439853+00:00"
   }
 ]
