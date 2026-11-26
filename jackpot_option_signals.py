@@ -214,9 +214,14 @@ def main():
             except json.JSONDecodeError as exc:
                 raise RuntimeError("Option positions ledger invalid JSON; not overwritten: " + str(exc))
 
-            if not any(p.get("key") == key for p in positions):
+            # Each fresh confirmed candle gets its own tracking record.
+            # Keep the signal dedupe key separate so an old entry cannot be reused.
+            position_id = key + "|" + stamp
+            if not any(p.get("key") == position_id for p in positions):
                 positions.append({
-                    "key": key,
+                    "key": position_id,
+                    "signal_key": key,
+                    "signal_candle_time": stamp,
                     "signal_type": "JACKPOT",
                     "coin": coin,
                     "contract": option["name"],
