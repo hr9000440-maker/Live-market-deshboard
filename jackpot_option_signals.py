@@ -25,7 +25,7 @@ def save_jackpot_state(state):
 
 
 def strict_jackpot_signal(coin):
-    """Require a closed-candle breakout, strong momentum and volume expansion."""
+    """Catch the first confirmed 15m ignition candle, with a stricter fallback."""
     rows, source = candles(coin)
     latest_open = int(float(rows[-1][0]))
     age = int(datetime.now(timezone.utc).timestamp() * 1000) - latest_open
@@ -59,11 +59,38 @@ def strict_jackpot_signal(coin):
     prev_close = float(previous[4])
     prev2_close = float(previous2[4])
 
-    # Breakout must close beyond the previous five completed candles.
+    # EARLY IGNITION: first completed candle breaking a short 3-candle base.
+    # EMA9 may be just crossing EMA21; this avoids waiting for a multi-candle run.
+    early_high = max(highs[-4:-1])
+    early_low = min(lows[-4:-1])
+    early_bull = (
+        close > early_high
+        and close > op
+        and close > e9
+        and e9 >= e21 * 0.999
+        and 52 <= rv <= 70
+        and body_ratio >= 0.55
+        and close_location >= 0.78
+        and close > prev_close
+        and volume_ratio >= 1.30
+    )
+    early_bear = (
+        close < early_low
+        and close < op
+        and close < e9
+        and e9 <= e21 * 1.001
+        and 30 <= rv <= 48
+        and body_ratio >= 0.55
+        and close_location <= 0.22
+        and close < prev_close
+        and volume_ratio >= 1.30
+    )
+
+    # CONFIRMED BREAKOUT: stronger follow-through if the first ignition filter
+    # did not trigger. Existing normal signal logic is completely separate.
     prior_high = max(highs[-6:-1])
     prior_low = min(lows[-6:-1])
-
-    bullish = (
+    confirmed_bull = (
         close > e9 > e21
         and 58 <= rv <= 72
         and spread_pct >= 0.002
@@ -74,7 +101,7 @@ def strict_jackpot_signal(coin):
         and close > prev_close > prev2_close
         and volume_ratio >= 1.50
     )
-    bearish = (
+    confirmed_bear = (
         close < e9 < e21
         and 28 <= rv <= 42
         and spread_pct >= 0.002
@@ -86,11 +113,20 @@ def strict_jackpot_signal(coin):
         and volume_ratio >= 1.50
     )
 
-    if not bullish and not bearish:
+    if early_bull:
+        direction, phase = "STRONG BUY CALL", "EARLY IGNITION"
+    elif early_bear:
+        direction, phase = "STRONG BUY PUT", "EARLY IGNITION"
+    elif confirmed_bull:
+        direction, phase = "STRONG BUY CALL", "CONFIRMED BREAKOUT"
+    elif confirmed_bear:
+        direction, phase = "STRONG BUY PUT", "CONFIRMED BREAKOUT"
+    else:
         return None
-    direction = "STRONG BUY CALL" if bullish else "STRONG BUY PUT"
+
     return {
         "direction": direction,
+        "phase": phase,
         "price": close,
         "rsi": rv,
         "ema9": e9,
@@ -101,7 +137,6 @@ def strict_jackpot_signal(coin):
         "spread_pct": spread_pct * 100,
         "body_ratio": body_ratio,
     }
-
 
 def main():
     state = {}
@@ -145,7 +180,7 @@ def main():
             quote_source = str(payload.get("source") or "unknown")
             side = "BUY CALL" if "CALL" in signal["direction"] else "BUY PUT"
             message = (
-                "💎 JACKPOT " + coin + " — STRICT 15m BREAKOUT\n"
+                "💎 JACKPOT " + coin + " — " + signal["phase"] + " (15m)\n"
                 + side + "\n"
                 + "Contract: " + option["name"] + "\n"
                 + f"Strike: {option['strike']:,.2f} | Expiry: {option['expiry']}\n"
