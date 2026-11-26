@@ -1,0 +1,29 @@
+name: Read-only Option Signal Audit
+on:
+  schedule:
+    - cron: "15 18 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: option-signal-audit
+  cancel-in-progress: false
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Build read-only audit report
+        run: python3 signal_audit_checker.py
+      - name: Save latest report
+        run: |
+          if [[ -n "$(git status --porcelain reports/signal-audit-latest.md reports/signal-audit-latest.json)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add reports/signal-audit-latest.md reports/signal-audit-latest.json
+            git commit -m "Update read-only option signal audit report"
+            git push
+          fi
