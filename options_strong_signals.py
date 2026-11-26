@@ -111,16 +111,44 @@ def confirmed_signal(coin):
     if age < -60000 or age > 30 * 60 * 1000:
         raise RuntimeError("15m candle data पुराना है; सुरक्षित रूप से signal रोका गया")
     closed = rows[:-1]
+    if len(closed) < 31:
+        raise RuntimeError("दो-candle quality confirmation के लिए closed candles कम हैं")
     closes = [float(x[4]) for x in closed]
-    close = closes[-1]
+    highs = [float(x[2]) for x in closed]
+    lows = [float(x[3]) for x in closed]
+    volumes = [float(x[5]) for x in closed]
+    close, previous_close = closes[-1], closes[-2]
     e9, e21 = ema(closes[-30:], 9), ema(closes[-50:], 21)
+    previous_e9 = ema(closes[:-1][-30:], 9)
+    previous_e21 = ema(closes[:-1][-50:], 21)
     rv = rsi(closes, 14)
-    direction = None
-    if close > e9 > e21 and 45 <= rv <= 75:
-        direction = "STRONG BUY CALL"
-    elif close < e9 < e21 and 25 <= rv <= 55:
-        direction = "STRONG BUY PUT"
+    op, high, low, volume = (float(closed[-1][i]) for i in (1, 2, 3, 5))
+    candle_range = max(high - low, 1e-12)
+    body_ratio = abs(close - op) / candle_range
+    close_location = (close - low) / candle_range
+    avg_volume = sum(volumes[-21:-1]) / 20.0
+    volume_ratio = volume / avg_volume if avg_volume > 0 else 0.0
+    # Quality gate: two consecutive closed candles, EMA21 slope, participation,
+    # and a decisive candle close. Keep the original RSI bands and 25% option SL.
+    bullish = (
+        previous_close > previous_e9 > previous_e21
+        and close > e9 > e21 > previous_e21
+        and 45 <= rv <= 75
+        and volume_ratio >= 1.0
+        and body_ratio >= 0.40
+        and close_location >= 0.65
+    )
+    bearish = (
+        previous_close < previous_e9 < previous_e21
+        and close < e9 < e21 < previous_e21
+        and 25 <= rv <= 55
+        and volume_ratio >= 1.0
+        and body_ratio >= 0.40
+        and close_location <= 0.35
+    )
+    direction = "STRONG BUY CALL" if bullish else "STRONG BUY PUT" if bearish else None
     return {"direction": direction, "price": close, "rsi": rv, "ema9": e9, "ema21": e21,
+            "volume_ratio": volume_ratio, "body_ratio": body_ratio,
             "candle_time": int(float(closed[-1][0])), "source": source}
 
 
