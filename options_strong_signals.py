@@ -312,7 +312,7 @@ def main():
                 os.makedirs("state", exist_ok=True)
                 with open(positions_path, "w", encoding="utf-8") as pf:
                     json.dump(positions, pf, ensure_ascii=False, indent=2)
-                    pf.write("\\n")
+                    pf.write("\n")
             state[key] = stamp
             save_state(state)
             sent += 1
