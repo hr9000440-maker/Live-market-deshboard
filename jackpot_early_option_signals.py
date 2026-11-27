@@ -248,7 +248,24 @@ def confirm_15m(coin, direction):
     else:
         ok = close < e9 and close <= previous_close and rv <= 60
     if not ok:
+        if coin == "ETH":
+            checks = {
+                "close_vs_ema9": close > e9 if "CALL" in direction else close < e9,
+                "close_vs_previous": close >= previous_close if "CALL" in direction else close <= previous_close,
+                "rsi_gate": rv >= 40 if "CALL" in direction else rv <= 60,
+            }
+            failed = [name for name, passed in checks.items() if not passed]
+            print(
+                f"ETH: 15m confirmation rejected {direction} | "
+                f"close={close:.6f} | EMA9={e9:.6f} | previous_close={previous_close:.6f} "
+                f"| RSI14={rv:.1f} | failed={','.join(failed) or 'unknown'} | source={source}"
+            )
         return None
+    if coin == "ETH":
+        print(
+            f"ETH: 15m confirmation passed {direction} | "
+            f"close={close:.6f} | EMA9={e9:.6f} | RSI14={rv:.1f} | source={source}"
+        )
     return {"close": close, "ema9": e9, "ema21": e21, "rsi": rv, "source": source}
 
 
