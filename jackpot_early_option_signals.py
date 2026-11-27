@@ -255,7 +255,17 @@ def monitor_positions(coin, payload, underlying, sig, state):
 def main():
     try:
         with open(STATE_PATH, "r", encoding="utf-8") as f:
-            state = json.load(f)
+            raw_state = f.read()
+        try:
+            state = json.loads(raw_state)
+        except json.JSONDecodeError as parse_error:
+            # Recover only the known legacy corruption: literal backslash-n
+            # text appended after an otherwise complete JSON document.
+            cleaned = raw_state.rstrip()
+            while cleaned.endswith("\\n"):
+                cleaned = cleaned[:-2].rstrip()
+            state = json.loads(cleaned)
+            print("Recovered legacy state file trailing literal \\n")
         if not isinstance(state, dict):
             raise RuntimeError("Zero Hero state format गलत है")
     except FileNotFoundError:
