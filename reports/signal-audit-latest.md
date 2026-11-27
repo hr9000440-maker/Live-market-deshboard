@@ -1,23 +1,23 @@
 # Option Signal Checker — latest audit
 
-Generated (UTC): 2026-11-27T12:41:51.999260+00:00
+Generated (UTC): 2026-11-27T12:42:39.382149+00:00
 
 ## Summary
-- Total tracked signals: **17**
-- Active: **3**
+- Total tracked signals: **19**
+- Active: **5**
 - STOPPED: **13**
 - Trailing SL stopped: **1**
 - Final target hit: **0**
 - Other statuses: **0**
-- Records with quality metrics: **5/17**
+- Records with quality metrics: **7/19**
 - Records missing a valid entry: **0**
 
 ## By coin
 
 | Coin | Active | SL stopped | Trailing SL | Target hit | Other |
 |---|---:|---:|---:|---:|---:|
-| BTC | 1 | 7 | 1 | 0 | 0 |
-| ETH | 2 | 6 | 0 | 0 | 0 |
+| BTC | 2 | 7 | 1 | 0 | 0 |
+| ETH | 3 | 6 | 0 | 0 | 0 |
 
 ## Per-signal detail
 
@@ -40,6 +40,8 @@ Generated (UTC): 2026-11-27T12:41:51.999260+00:00
 | ETH | ETH-28NOV26-1720-P | ACTIVE | 0 | +0.00% | n/a | 38.6 | 1.62 | 57% | missing | missing | missing | missing |
 | ETH | ETH-28NOV26-1720-P | ACTIVE | 0 | +0.00% | n/a | 37.8 | 0.59 | 17% | 18.5 | -1.49779 | 0.27% | missing |
 | BTC | BTC-28NOV26-61000-P | ACTIVE | 0 | +0.00% | n/a | 47.7 | 0.58 | 45% | 16.7 | -30.06589 | 0.22% | missing |
+| BTC | BTC-28NOV26-61500-P | ACTIVE | 0 | +0.00% | n/a | 47.7 | 0.58 | 45% | 16.7 | -30.06589 | 0.22% | CAUTION — ADX 20 से कम: trend कमजोर; Volume average से कम: participation कमजोर |
+| ETH | ETH-28NOV26-1680-P | ACTIVE | 0 | +0.00% | n/a | 37.8 | 0.59 | 17% | 18.5 | -1.49779 | 0.27% | CAUTION — ADX 20 से कम: trend कमजोर; Volume average से कम: participation कमजोर |
 
 ## Audit limitations
 
