@@ -233,8 +233,7 @@ def best_option(coin, signal, underlying, payload):
 
 
 def telegram(message):
-    # Try each configured legacy/current secret alias. A stale first alias must
-    # not block delivery when another configured alias contains the active bot token.
+    # Try configured token aliases and retry transient network / server failures.
     names = ("TELEGRAM_BOT_TOKEN", "TELEGRAMBOTTOKAN", "TELEGRAM_BOT_TOKAN", "TELEGRAM_BOT_FATHER")
     tokens = list(dict.fromkeys(os.getenv(name, "").strip() for name in names if os.getenv(name, "").strip()))
     chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
@@ -243,19 +242,35 @@ def telegram(message):
     data = urllib.parse.urlencode({"chat_id": chat_id, "text": message, "disable_web_page_preview": "true"}).encode()
     errors = []
     for token in tokens:
-        req = urllib.request.Request("https://api.telegram.org/bot" + token + "/sendMessage", data=data)
-        try:
-            with urllib.request.urlopen(req, timeout=20) as response:
-                result = json.loads(response.read().decode())
-            if result.get("ok"):
-                return
-            errors.append(str(result.get("description", "unknown Telegram API error")))
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", "replace")
-            errors.append("HTTP " + str(exc.code) + ": " + detail[:200])
-            if exc.code != 401:
+        for attempt in range(3):
+            req = urllib.request.Request("https://api.telegram.org/bot" + token + "/sendMessage", data=data)
+            try:
+                with urllib.request.urlopen(req, timeout=25) as response:
+                    result = json.loads(response.read().decode())
+                if result.get("ok"):
+                    return
+                detail = str(result.get("description", "unknown Telegram API error"))
+                errors.append(detail)
+                if "retry" in detail.lower() or "timeout" in detail.lower():
+                    time.sleep(2 ** attempt)
+                    continue
                 break
-    raise RuntimeError("Telegram rejected all configured token aliases: " + " | ".join(errors))
+            except urllib.error.HTTPError as exc:
+                detail = exc.read().decode("utf-8", "replace")
+                errors.append("HTTP " + str(exc.code) + ": " + detail[:200])
+                if exc.code == 401:
+                    break
+                if exc.code == 429 or exc.code >= 500:
+                    time.sleep(2 ** attempt)
+                    continue
+                break
+            except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as exc:
+                errors.append(type(exc).__name__ + ": " + str(exc)[:160])
+                if attempt < 2:
+                    time.sleep(2 ** attempt)
+                    continue
+                break
+    raise RuntimeError("Telegram delivery failed after retries: " + " | ".join(errors))
 
 
 def load_state():
