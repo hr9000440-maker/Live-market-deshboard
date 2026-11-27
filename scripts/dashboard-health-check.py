@@ -145,13 +145,14 @@ def check_option_level_math():
         return
 
     # Known-value regression: entry 5 must produce SL 3.75 and rising targets.
-    fixture = {"sl": 3.75, "tp1": 6.25, "tp2": 7.50, "tp3": 9.25}
-    expected_fixture = (5.0 * 0.75, 5.0 * 1.25, 5.0 * 1.50, 5.0 * 1.85)
+    fixture = {"sl": 3.75, "tp1": 6.25, "tp2": 7.50, "tp3": 8.75}
+    expected_fixture = (5.0 * 0.75, 5.0 * 1.25, 5.0 * 1.50, 5.0 * 1.75)
     if any(abs(a-b) > 1e-9 for a, b in zip(
             (fixture["sl"], fixture["tp1"], fixture["tp2"], fixture["tp3"]), expected_fixture)):
         issues.append("Option SL/TP arithmetic regression fixture failed")
 
     checked = 0
+    legacy_closed = 0
     bad = []
     for index, position in enumerate(positions, start=1):
         try:
@@ -165,9 +166,15 @@ def check_option_level_math():
             if not (sl < entry < tp1 < tp2 < tp3):
                 raise ValueError("expected BUY option order SL < Entry < TP1 < TP2 < TP3")
             ratios = (sl/entry, tp1/entry, tp2/entry, tp3/entry)
-            expected = (0.75, 1.25, 1.50, 1.85)
+            status = str(position.get("status") or "").upper()
+            # Preserve closed historical records created under the previous +85% TP3 rule.
+            # New/open positions must follow the current +75% TP3 policy.
+            if status in ("STOPPED", "TRAIL_STOPPED", "CLOSED", "TP3_HIT", "FINAL_TARGET") and abs(ratios[3] - 1.85) <= 0.002:
+                legacy_closed += 1
+                continue
+            expected = (0.75, 1.25, 1.50, 1.75)
             if any(abs(a-b) > 0.002 for a, b in zip(ratios, expected)):
-                raise ValueError("levels do not match configured -25% / +25% / +50% / +85%")
+                raise ValueError("levels do not match configured -25% / +25% / +50% / +75%")
             checked += 1
         except Exception as exc:
             bad.append(str(position.get("contract") or position.get("key") or index) + ": " + str(exc))
@@ -179,11 +186,11 @@ def check_option_level_math():
         with open("options_strong_signals.py", "r", encoding="utf-8") as handle:
             scanner = handle.read()
         page_ok = all(token in page for token in (
-            "let entryUsd=askUsd;", "entryUsd*0.75", "entryUsd*1.25",
-            "entryUsd*1.50", "entryUsd*1.85", "suggestedEntry",
+            "const entryUsd=askUsd;", "entryUsd*0.75", "entryUsd*1.25",
+            "entryUsd*1.50", "entryUsd*1.75", "suggestedEntry",
             "const initialEntry=Number(suggestedEntry)>0?Number(suggestedEntry):current"))
         scanner_ok = all(token in scanner for token in (
-            "limit_usd * 0.75", "limit_usd * 1.25", "limit_usd * 1.50", "limit_usd * 1.85"))
+            "limit_usd * 0.75", "limit_usd * 1.25", "limit_usd * 1.50", "limit_usd * 1.75"))
         if not page_ok or not scanner_ok:
             bad.append("dashboard/scanner Entry ASK basis or SL/TP calculation source differs from the configured levels")
     except Exception as exc:
@@ -195,7 +202,7 @@ def check_option_level_math():
         print("FAIL " + message)
     else:
         print("PASS Option SL/TP math: entry=5 fixture; " + str(checked) +
-              " saved signals; SL -25%, TP1 +25%, TP2 +50%, TP3 +85%")
+              " current signals; " + str(legacy_closed) + " closed legacy records preserved; SL -25%, TP1 +25%, TP2 +50%, TP3 +75%")
 
 def main():
     check_page("GitHub Pages dashboard", PAGES, "LIVE MARKET DASHBOARD")
