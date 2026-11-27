@@ -179,11 +179,13 @@ def check_option_level_math():
         with open("options_strong_signals.py", "r", encoding="utf-8") as handle:
             scanner = handle.read()
         page_ok = all(token in page for token in (
-            "entryUsd*0.75", "entryUsd*1.25", "entryUsd*1.50", "entryUsd*1.85"))
+            "let entryUsd=askUsd;", "entryUsd*0.75", "entryUsd*1.25",
+            "entryUsd*1.50", "entryUsd*1.85", "suggestedEntry",
+            "const initialEntry=Number(suggestedEntry)>0?Number(suggestedEntry):current"))
         scanner_ok = all(token in scanner for token in (
             "limit_usd * 0.75", "limit_usd * 1.25", "limit_usd * 1.50", "limit_usd * 1.85"))
         if not page_ok or not scanner_ok:
-            bad.append("dashboard/scanner calculation source differs from the configured option levels")
+            bad.append("dashboard/scanner Entry ASK basis or SL/TP calculation source differs from the configured levels")
     except Exception as exc:
         bad.append("could not inspect calculation source: " + str(exc))
 
