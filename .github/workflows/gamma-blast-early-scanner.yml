@@ -1,0 +1,44 @@
+name: Gamma Blast Early Movement Alerts
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - gamma_blast_early_scanner.py
+      - options_strong_signals.py
+      - .github/workflows/gamma-blast-early-scanner.yml
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: gamma-blast-early-scanner
+  cancel-in-progress: false
+jobs:
+  gamma-blast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Scan early gamma expansion
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAMBOTTOKAN: ${{ secrets.TELEGRAMBOTTOKAN }}
+          TELEGRAM_BOT_TOKAN: ${{ secrets.TELEGRAM_BOT_TOKAN }}
+          TELEGRAM_BOT_FATHER: ${{ secrets.TELEGRAM_BOT_FATHER }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python3 gamma_blast_early_scanner.py
+      - name: Persist Gamma snapshots and duplicate protection
+        if: always()
+        run: |
+          if [[ -n "$(git status --porcelain state/gamma_blast_snapshots.json)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add state/gamma_blast_snapshots.json
+            git commit -m "Save Gamma Blast option market snapshots"
+            git push
+          fi
