@@ -20,10 +20,11 @@
       "ema21": 743.9176489302273,
       "opened_at": "2026-11-27T21:03:42.694144+00:00",
       "status": "OPEN",
-      "tp1_hit": false,
+      "tp1_hit": true,
       "tp2_hit": false,
       "tp3_hit": false,
-      "signal_candle": 1795812300000
+      "signal_candle": 1795812300000,
+      "tp1_hit_at": "2026-11-27T22:48:13.808592+00:00"
     },
     {
       "id": "BNB:SELL:1795795200000",
@@ -66,10 +67,11 @@
       "ema21": 1698.4386003420382,
       "opened_at": "2026-11-27T16:26:00.568308+00:00",
       "status": "OPEN",
-      "tp1_hit": false,
+      "tp1_hit": true,
       "tp2_hit": false,
       "tp3_hit": false,
-      "signal_candle": 1795795200000
+      "signal_candle": 1795795200000,
+      "tp1_hit_at": "2026-11-27T22:48:13.808592+00:00"
     },
     {
       "id": "BTC:SELL:1795795200000",
@@ -237,7 +239,7 @@
       "pnl_inr": 12.36
     }
   ],
-  "last_update": "2026-11-27T21:03:44.336756+00:00",
+  "last_update": "2026-11-27T22:48:14.966166+00:00",
   "errors": {},
   "last_signal": {
     "ZEC": "ZEC:SELL:1795812300000",
