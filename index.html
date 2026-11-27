@@ -802,17 +802,21 @@ async function analyzeCryptoCoin(coin){
  let confirmedSide='WAIT',confirmationReason='एक बंद 15m candle में EMA/RSI/close-position की पुष्टि अधूरी';
  if(bullishQuality){confirmedSide='BUY / LONG';confirmationReason='CONFIRMED: बंद 15m candle EMA9 और EMA21 के ऊपर, EMA9>EMA21, EMA21 ऊपर/स्थिर, RSI '+confirmedRsi.toFixed(1)+' और close ऊपरी 45% में';}
  else if(bearishQuality){confirmedSide='SELL / SHORT';confirmationReason='CONFIRMED: बंद 15m candle EMA9 और EMA21 के नीचे, EMA9<EMA21, EMA21 नीचे/स्थिर, RSI '+confirmedRsi.toFixed(1)+' और close निचले 45% में';}
- // Multi-timeframe confirmation: 15m trend + 5m setup + 1m trigger.
- const [fiveCandles,oneCandles]=await Promise.all([fetchSignalTimeframe(symbol,'5m',60),fetchSignalTimeframe(symbol,'1m',60)]);
- const fiveClose=fiveCandles.map(x=>Number(x[4])),fiveHigh=fiveCandles.map(x=>Number(x[2])),fiveLow=fiveCandles.map(x=>Number(x[3])),fiveVolume=fiveCandles.map(x=>Number(x[5]));
- const fiveLast=fiveCandles.at(-1),fivePrev=fiveCandles.at(-2),fiveE9=ema(fiveClose.slice(-30),9),fiveE21=ema(fiveClose.slice(-50),21),fiveRsi=rsi(fiveClose,14);
- const oneLast=oneCandles.at(-1),onePrev=oneCandles.at(-2),oneClose=Number(oneLast[4]),oneOpen=Number(oneLast[1]),oneHigh=Number(oneLast[2]),oneLow=Number(oneLast[3]),onePrevHigh=Number(onePrev[2]),onePrevLow=Number(onePrev[3]);
- const fiveBull=fiveClose.at(-1)>fiveE9&&fiveE9>fiveE21&&fiveRsi>=42&&fiveRsi<=78;
- const fiveBear=fiveClose.at(-1)<fiveE9&&fiveE9<fiveE21&&fiveRsi>=22&&fiveRsi<=58;
- const oneBull=oneClose>onePrevHigh&&oneClose>oneOpen;
- const oneBear=oneClose<onePrevLow&&oneClose<oneOpen;
- const multiSide=confirmedSide==='BUY / LONG'&&fiveBull&&oneBull?'BUY / LONG':confirmedSide==='SELL / SHORT'&&fiveBear&&oneBear?'SELL / SHORT':'WAIT';
- const multiReason=multiSide!=='WAIT'?'1m trigger + 5m entry + 15m trend aligned':('Multi-timeframe confirmation pending • 15m '+confirmedSide+' • 5m '+(fiveBull?'BUY':fiveBear?'SELL':'WAIT')+' • 1m '+(oneBull?'breakout BUY':oneBear?'breakdown SELL':'trigger pending'));
+ // 1m/5m are supplementary early-movement context only. They must never block the
+ // existing confirmed 15m signal, especially the user's established option alerts.
+ let fiveRsi=NaN,oneClose=confirmedClose,multiReason='15m confirmation is primary; 1m/5m are supplementary';
+ try{
+  const [fiveCandles,oneCandles]=await Promise.all([fetchSignalTimeframe(symbol,'5m',60),fetchSignalTimeframe(symbol,'1m',60)]);
+  const fiveClose=fiveCandles.map(x=>Number(x[4])),fiveE9=ema(fiveClose.slice(-30),9),fiveE21=ema(fiveClose.slice(-50),21);
+  fiveRsi=rsi(fiveClose,14);
+  const oneLast=oneCandles.at(-1);
+  oneClose=Number(oneLast[4]);
+  const fiveBull=fiveClose.at(-1)>fiveE9&&fiveE9>fiveE21&&fiveRsi>=42&&fiveRsi<=78;
+  const fiveBear=fiveClose.at(-1)<fiveE9&&fiveE9<fiveE21&&fiveRsi>=22&&fiveRsi<=58;
+  multiReason='15m '+confirmedSide+' • 5m '+(fiveBull?'BUY':fiveBear?'SELL':'WAIT')+' • 1m latest close '+oneClose;
+ }catch(e){
+  multiReason='15m '+confirmedSide+' कायम • 1m/5m extra data unavailable; original signal not blocked';
+ }
  const closes=candles.map(x=>Number(x[4])),highs=candles.map(x=>Number(x[2])),lows=candles.map(x=>Number(x[3])),volumes=candles.map(x=>Number(x[5]));
  const close=closes.at(-1),open=Number(candles.at(-1)[1]),high=highs.at(-1),low=lows.at(-1),volume=volumes.at(-1);
  const e9=ema(closes.slice(-30),9),e21=ema(closes.slice(-50),21),rv=rsi(closes,14);
@@ -826,8 +830,8 @@ async function analyzeCryptoCoin(coin){
  const buyChecks={priceAboveEMA9:close>e9,emaBullish:e9>e21,breakout:breakUp,rsiInRange:rv>=30&&rv<=90};
  const sellChecks={priceBelowEMA9:close<e9,emaBearish:e9<e21,breakdown:breakDown,rsiInRange:rv>=10&&rv<=70};
  // केवल पिछली पूरी बंद 15m candle की पुष्टि मान्य है; live/incomplete candle से EARLY signal नहीं बनेगा.
- side=multiSide;
- reason=multiReason;
+ side=confirmedSide;
+ reason=confirmationReason;
  // Signal identity और duplicate रोकने के लिए बंद 15m candle का timestamp उपयोग करें.
  const thisCandle=Number(closedCandles.at(-1)[0]);
  const lockedSnapshot=null;
@@ -851,12 +855,12 @@ async function analyzeCryptoCoin(coin){
  const h1Info='1h filter disabled';
  const prevSide=null;
  const strong=side!=='WAIT'&&confirmedSide===side,signalType=side==='WAIT'?'WAIT':(strong?'CONFIRMED':'EARLY');
- const entry=oneClose;
+ const entry=confirmedClose;
  const sl=side==='BUY / LONG'?entry-1.2*atr:side==='SELL / SHORT'?entry+1.2*atr:null;
  const risk=sl===null?null:Math.abs(entry-sl),t1=sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk),t2=sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk),t3=sl===null?null:(side==='BUY / LONG'?entry+3*risk:entry-3*risk);
  const previous=prevSide||'कोई पिछला सिग्नल नहीं',changeReason=previous===side?'सिग्नल वही रहा':('सिग्नल बदला: '+previous+' → '+side);
- const quality='DATA: '+usedFeed+' • 1m trigger + 5m entry + 15m trend • 5m RSI '+fiveRsi.toFixed(1)+' • Volume informational: '+(volOk?'औसत से अधिक':'औसत से कम')+' • Candle body informational: '+(candleOk?'strong':'weak');
- const signal={coin,side,strong,baseSide:side,signalType,reason,diagnostic,quality,changeReason,previous,entry,sl,t1,t2,t3,rv:fiveRsi,e9:fiveE9,e21:fiveE21,volume,avgVol,open,high,low,confirmedSide,confirmedClose,confirmedE9,confirmedE21,confirmedRsi,confirmationReason,fiveRsi,oneClose,multiReason,time:new Date(Number(closedCandles.at(-1)[0])).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),candleTime:thisCandle};
+ const quality='DATA: '+usedFeed+' • 15m primary signal • 1m/5m supplementary • 5m RSI '+(Number.isFinite(fiveRsi)?fiveRsi.toFixed(1):'N/A')+' • Volume informational: '+(volOk?'औसत से अधिक':'औसत से कम')+' • Candle body informational: '+(candleOk?'strong':'weak');
+ const signal={coin,side,strong,baseSide:side,signalType,reason,diagnostic,quality,changeReason,previous,entry,sl,t1,t2,t3,rv:confirmedRsi,e9:confirmedE9,e21:confirmedE21,volume,avgVol,open,high,low,confirmedSide,confirmedClose,confirmedE9,confirmedE21,confirmedRsi,confirmationReason,fiveRsi,oneClose,multiReason,time:new Date(Number(closedCandles.at(-1)[0])).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),candleTime:thisCandle};
  cryptoSignalLock[coin]={candleTime:thisCandle,signal};
  return signal;
 }
