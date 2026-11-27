@@ -266,6 +266,9 @@ def main():
 
     sent = errors = 0
     for coin in COINS:
+        # Reset per-coin values so a prior coin's signal cannot leak into this coin.
+        sig = None
+        underlying = 0.0
         try:
             sig = five_minute_signal(coin)
             # Fetch fresh option quotes every 5m cycle to monitor open positions.
@@ -336,39 +339,38 @@ def main():
                     "atr": sig["atr"], "trail_underlying": stop_underlying,
                     "targets": [sig["price"] + sign * sig["atr"] * m for m in (1.5, 3.0, 5.0)],
                     "target_stage": 0, "entry_premium": entry, "status": "ACTIVE"
-                })
-            state[key] = stamp
-            sent += 1
-            print(coin + ": Zero Hero alert sent " + option["name"])
-        except Exception as exc:
-            errors += 1
+                    except Exception as exc:
             reason = str(exc)
-            # Never hide a detected market impulse merely because no option
-            # contract passes the strict premium/spread/liquidity filters.
-            # Send a movement-only alert with underlying levels; do NOT present
-            # it as an option entry or imply that a valid contract was found.
-            if "sig" in locals() and sig and "underlying" in locals() and underlying > 0 and "contract" in reason.lower():
+            # Missing eligible contracts are safe skips; strict filters remain unchanged.
+            if sig and underlying > 0 and ("contract" in reason.lower() or "eligible" in reason.lower()):
                 movement_key = "MOVEMENT|" + coin + "|" + sig["direction"]
                 movement_stamp = str(sig["candle_time"])
-                if state.get(movement_key) != movement_stamp:
-                    is_call = "CALL" in sig["direction"]
-                    sign = 1 if is_call else -1
-                    stop = min(sig["swing_low"], sig["price"] - 1.2 * sig["atr"]) if is_call else max(sig["swing_high"], sig["price"] + 1.2 * sig["atr"])
-                    tps = [sig["price"] + sign * sig["atr"] * m for m in (1.5, 3.0, 5.0)]
-                    movement_msg = (
-                        "⚡ ZERO HERO MARKET MOVEMENT — " + coin + "\\n"
-                        + sig["direction"] + " (1m early movement)\\n"
-                        + f"Underlying reference: {underlying:.4f} USD\\n"
-                        + f"Underlying SL / invalidation: {stop:.4f} USD\\n"
-                        + "Underlying targets: " + " / ".join(f"{x:.4f}" for x in tps) + " USD\\n"
-                        + f"1m move: {sig['move_pct']:.3f}% | RSI14: {sig['rsi']:.1f} | ATR: {sig['atr']:.4f}\\n"
-                        + "⚠️ NO OPTION ENTRY: कोई contract ₹5–₹30 premium, <=10% spread और liquidity filter पास नहीं कर पाया। यह underlying movement alert है, option buy recommendation नहीं।"
-                    )
-                    telegram(movement_msg)
-                    state[movement_key] = movement_stamp
-                    print(coin + ": movement alert sent; option contract filter blocked entry")
-                else:
-                    print(coin + ": repeated movement alert suppressed; option contract unavailable")
+                try:
+                    if state.get(movement_key) != movement_stamp:
+                        is_call = "CALL" in sig["direction"]
+                        sign = 1 if is_call else -1
+                        stop = min(sig["swing_low"], sig["price"] - 1.2 * sig["atr"]) if is_call else max(sig["swing_high"], sig["price"] + 1.2 * sig["atr"])
+                        tps = [sig["price"] + sign * sig["atr"] * m for m in (1.5, 3.0, 5.0)]
+                        movement_msg = (
+                            "⚡ ZERO HERO MARKET MOVEMENT — " + coin + "\\n"
+                            + sig["direction"] + " (1m early movement)\\n"
+                            + f"Underlying reference: {underlying:.4f} USD\\n"
+                            + f"Underlying SL / invalidation: {stop:.4f} USD\\n"
+                            + "Underlying targets: " + " / ".join(f"{x:.4f}" for x in tps) + " USD\\n"
+                            + f"1m move: {sig['move_pct']:.3f}% | RSI14: {sig['rsi']:.1f} | ATR: {sig['atr']:.4f}\\n"
+                            + "⚠️ NO OPTION ENTRY: कोई contract ₹5–₹30 premium, <=10% spread और liquidity filter पास नहीं कर पाया। यह underlying movement alert है, option buy recommendation नहीं।"
+                        )
+                        telegram(movement_msg)
+                        state[movement_key] = movement_stamp
+                        print(coin + ": movement alert sent; strict option filters blocked entry")
+                    else:
+                        print(coin + ": repeated movement alert suppressed; eligible option unavailable")
+                except Exception as send_exc:
+                    errors += 1
+                    print(coin + ": movement Telegram delivery failed: " + str(send_exc), file=sys.stderr)
+                continue
+            errors += 1
+            print(coin + ": ZERO HERO ERROR: " + reason, file=sys.stderr)ovement alert suppressed; option contract unavailable")
             print(coin + ": ZERO HERO ERROR: " + reason, file=sys.stderr)
 
     os.makedirs("state", exist_ok=True)
