@@ -601,6 +601,21 @@ def crypto_options(coin):
                 if strike <= 0:
                     continue
                 exp = item.get("expiry_date") or item.get("expiration_date") or item.get("expiry") or item.get("expiration") or ""
+                if not exp and item.get("expiry_at"):
+                    try:
+                        exp = datetime.fromtimestamp(float(item["expiry_at"]) / 1000, timezone.utc).strftime("%d%b%y").upper()
+                    except (TypeError, ValueError, OverflowError, OSError):
+                        exp = ""
+                if not exp and item.get("expiry_timestamp"):
+                    try:
+                        expiry_stamp = float(item["expiry_timestamp"])
+                        if expiry_stamp > 10_000_000_000:
+                            expiry_stamp /= 1000
+                        exp = datetime.fromtimestamp(expiry_stamp, timezone.utc).strftime("%d%b%y").upper()
+                    except (TypeError, ValueError, OverflowError, OSError):
+                        exp = ""
+                if not exp:
+                    exp = next((part for part in name.replace("_", "-").split("-") if len(part) in (6, 8) and part.isdigit()), "")
                 typ = str(item.get("option_type") or item.get("option_side") or item.get("type") or name.split("-")[-1]).upper()
                 # Paradex ZEC options are quoted in USD, while this dashboard's
                 # shared option-chain renderer expects premiums in underlying-coin
@@ -641,7 +656,95 @@ def crypto_options(coin):
                     "min_trade_amount": item.get("min_trade_amount", item.get("order_size_increment", item.get("min_order_size", 0))),
                 })
             underlying = next((float(x.get("underlying_price") or 0) for x in rows if float(x.get("underlying_price") or 0) > 0), None)
-            source = "Paradex public options API (USD quotes normalized)"
+            # If Paradex publishes contracts without live quotes, query the
+            # public Derive ticker API before declaring ZEC unavailable.
+            if not any(
+                float(row.get("bid_price") or 0) > 0
+                or float(row.get("ask_price") or 0) > 0
+                or float(row.get("mark_price") or 0) > 0
+                for row in rows
+            ):
+                base = "https://api.lyra.finance/public/"
+                def _post_public(path, payload):
+                    import json
+                    from urllib.request import Request, urlopen
+                    req = Request(
+                        base + path, data=json.dumps(payload).encode("utf-8"),
+                        headers={"Accept": "application/json", "Content-Type": "application/json",
+                                 "User-Agent": "LiveMarketDashboard/1.0"},
+                    )
+                    with urlopen(req, timeout=15) as response:
+                        return json.loads(response.read().decode("utf-8"))
+                instruments_response = _post_public(
+                    "get_instruments",
+                    {"currency": "ZEC", "instrument_type": "option", "expired": False},
+                )
+                instruments = instruments_response.get("result") or instruments_response.get("instruments") or []
+                if not isinstance(instruments, list) or not instruments:
+                    raise RuntimeError("Paradex quotes empty; Derive has no active ZEC instruments")
+                expiry_dates = sorted({
+                    str(x.get("expiry_date") or x.get("expiryDate"))
+                    for x in instruments if isinstance(x, dict)
+                    and (x.get("expiry_date") or x.get("expiryDate"))
+                })
+                derive_rows = []
+                for expiry_date in expiry_dates:
+                    ticker_response = _post_public(
+                        "get_tickers",
+                        {"currency": "ZEC", "instrument_type": "option", "expiry_date": expiry_date},
+                    )
+                    tickers = ticker_response.get("result") or ticker_response.get("tickers") or []
+                    for ticker in tickers if isinstance(tickers, list) else []:
+                        if not isinstance(ticker, dict):
+                            continue
+                        name = str(ticker.get("instrument_name") or ticker.get("instrumentName") or ticker.get("symbol") or "")
+                        instrument = next((x for x in instruments if isinstance(x, dict)
+                                           and str(x.get("instrument_name") or x.get("instrumentName") or "") == name), {})
+                        try:
+                            strike = float(instrument.get("strike") or instrument.get("strike_price") or ticker.get("strike") or 0)
+                        except (TypeError, ValueError):
+                            strike = 0
+                        if not name or strike <= 0:
+                            continue
+                        raw_type = str(instrument.get("option_type") or instrument.get("optionType") or name.split("-")[-1]).upper()
+                        option_type = "C" if raw_type in ("C", "CALL") else ("P" if raw_type in ("P", "PUT") else "")
+                        if not option_type:
+                            continue
+                        pricing = ticker.get("option_pricing") or ticker.get("optionPricing") or {}
+                        def _positive(*values):
+                            for value in values:
+                                try:
+                                    number = float(value or 0)
+                                    if number > 0:
+                                        return number
+                                except (TypeError, ValueError):
+                                    pass
+                            return 0.0
+                        index_price = _positive(ticker.get("index_price"), ticker.get("indexPrice"))
+                        bid_usd = _positive(ticker.get("best_bid_price"), ticker.get("bid_price"), ticker.get("bidPrice"))
+                        ask_usd = _positive(ticker.get("best_ask_price"), ticker.get("ask_price"), ticker.get("askPrice"))
+                        mark_usd = _positive(ticker.get("mark_price"), ticker.get("markPrice"), pricing.get("mark_price"), pricing.get("markPrice"))
+                        exp = str(instrument.get("expiry_date") or instrument.get("expiryDate") or expiry_date)
+                        if exp.isdigit() and len(exp) == 8:
+                            exp = datetime.strptime(exp, "%Y%m%d").strftime("%d%b%y").upper()
+                        derive_rows.append({
+                            "instrument_name": name, "exchange_symbol": name,
+                            "strike": strike, "option_type": option_type, "expiry": exp,
+                            "bid_price": bid_usd / index_price if bid_usd and index_price else 0,
+                            "ask_price": ask_usd / index_price if ask_usd and index_price else 0,
+                            "mark_price": mark_usd / index_price if mark_usd and index_price else 0,
+                            "open_interest": ticker.get("open_interest", ticker.get("openInterest", 0)),
+                            "volume": ticker.get("volume_24h", ticker.get("volume", 0)),
+                            "underlying_price": index_price,
+                            "min_trade_amount": instrument.get("minimum_amount", instrument.get("amount_step", 0)),
+                        })
+                if not any(float(x.get("bid_price") or 0) > 0 or float(x.get("ask_price") or 0) > 0 or float(x.get("mark_price") or 0) > 0 for x in derive_rows):
+                    raise RuntimeError("Derive returned no live ZEC option quotes")
+                rows = derive_rows
+                underlying = next((float(x.get("underlying_price") or 0) for x in rows if float(x.get("underlying_price") or 0) > 0), underlying)
+                source = "Derive public options API (USD quotes normalized)"
+            else:
+                source = "Paradex public options API (USD quotes normalized)"
         except Exception as exc:
             errors.append("Paradex: " + str(exc)[:180])
             return jsonify({"error": "ZEC option API unavailable or no listed ZEC options", "details": errors}), 502
