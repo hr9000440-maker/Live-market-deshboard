@@ -18,8 +18,21 @@ STATE_PATH = "state/option_telegram_signals.json"
 
 def get_json(url, timeout=20):
     req = urllib.request.Request(url, headers={"User-Agent": "live-market-dashboard/1.0", "Accept": "application/json"})
-    with urllib.request.urlopen(req, timeout=timeout) as response:
-        return json.loads(response.read().decode("utf-8"))
+    errors = []
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", "replace")
+            errors.append("HTTP " + str(exc.code) + ": " + detail[:120])
+            if exc.code not in (408, 425, 429) and exc.code < 500:
+                raise
+        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as exc:
+            errors.append(type(exc).__name__ + ": " + str(exc)[:120])
+        if attempt < 2:
+            time.sleep(2 ** attempt)
+    raise RuntimeError("Public data request failed after retries: " + " | ".join(errors))
 
 
 def ema(values, period):
