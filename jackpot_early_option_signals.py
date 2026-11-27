@@ -279,10 +279,10 @@ def main():
             stop_move = stop_underlying - sig["price"]
             if delta != 0:
                 sl = projected_premium(stop_move)
-                sl_method = "5m swing + ATR + option Greeks"
+                sl_line = f"🛑 Dynamic option SL: {sl:.6f} USD — 5m swing + ATR + option Greeks\\n"
             else:
-                sl = entry * 0.75
-                sl_method = "fallback 25% (Greeks unavailable)"
+                sl = None
+                sl_line = f"🛑 Underlying invalidation SL: {stop_underlying:.4f} USD — option premium SL not estimated because Greeks are unavailable\\n"
             sign = 1 if is_call else -1
             target_underlyings = [sig["price"] + sign * sig["atr"] * multiple for multiple in (1.5, 3.0, 5.0)]
             if delta != 0:
@@ -297,18 +297,17 @@ def main():
                                + " / ".join(f"{x:.2f}" for x in target_underlyings) + " USD\\n")
                 target_method = "Option premium target not estimated without Greeks"
             side = "BUY CALL" if is_call else "BUY PUT"
-            sl_pct = (sl / entry - 1) * 100
             msg = (
                 "⚡ ZERO HERO JACKPOT — " + coin + " (EARLY 5m MOVEMENT)\\n"
                 + side + "\\nContract: " + option["name"] + "\\n"
                 + f"Underlying: {underlying:,.2f} USD | Suggested LIMIT BUY: {entry:.6f} USD (≈ ₹{option['premium_inr']:.2f})\\n"
                 + f"Bid: {option['bid']:.6f} | Ask: {option['ask']:.6f} | Spread: {option['spread']*100:.2f}%\\n"
-                + f"🛑 Dynamic SL: {sl:.6f} USD ({sl_pct:+.1f}%) — {sl_method}\\n"
+                + sl_line
                 + target_text
                 + f"5m RSI14: {sig['rsi']:.1f} | EMA9: {sig['ema9']:.2f} | EMA21: {sig['ema21']:.2f}\\n"
                 + f"5m move: {sig['move_pct']:.3f}% | ATR: {sig['atr']:.4f} | Volume: {sig['volume_ratio']:.2f}x\\n"
                 + f"Market data: {sig['source']} | Option source: {payload.get('source', 'unknown')}\\n"
-                + target_method + ". Premium ₹5–₹30 filter and <=10% spread retained. If Greeks are absent, SL falls back to 25%. Signal only — no automatic order."
+                + target_method + ". Targets and trailing SL follow underlying movement; SL only tightens. Premium ₹5–₹30 filter and <=10% spread retained. Signal only — no automatic order."
             )
             telegram(msg)
             # Persist the market structure so following runs can trail the stop.
