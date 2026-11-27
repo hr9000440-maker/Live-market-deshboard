@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-11-27T12:40:03.237541+00:00",
+  "generated_at_utc": "2026-11-27T12:41:51.999260+00:00",
   "total_signals": 17,
   "status_counts": {
     "STOPPED": 13,
@@ -45,6 +45,7 @@
       "adx": null,
       "atr": null,
       "atr_pct": null,
+      "confirmation": null,
       "market_data_source": "",
       "option_quote_source": "Deribit public options API"
     },
@@ -70,6 +71,7 @@
       "adx": null,
       "atr": null,
       "atr_pct": null,
+      "confirmation": null,
       "market_data_source": "",
       "option_quote_source": "Deribit public options API"
     },
@@ -95,6 +97,7 @@
       "adx": null,
       "atr": null,
       "atr_pct": null,
+      "confirmation": null,
       "market_data_source": "",
       "option_quote_source": "Deribit public options API"
     },
@@ -120,6 +123,7 @@
       "adx": null,
       "atr": null,
       "atr_pct": null,
+      "confirmation": null,
       "market_data_source": "",
       "option_quote_source": "Deribit public options API"
     },
@@ -145,6 +149,7 @@
       "adx": null,
       "atr": null,
       "atr_pct": null,
+      "confirmation": null,
       "market_data_source": "",
       "option_quote_source": "Deribit public options API"
     },
@@ -170,6 +175,7 @@
       "adx": null,
       "atr": null,
       "atr_pct": null,
+      "confirmation": null,
       "market_data_source": "",
       "option_quote_source": "Deribit public options API"
     },
@@ -195,6 +201,7 @@
       "adx": null,
       "atr": null,
       "atr_pct": null,
+      "confirmation": null,
       "market_data_source": "",
       "option_quote_source": "Deribit public options API"
     },
@@ -220,6 +227,7 @@
       "adx": null,
       "atr": null,
       "atr_pct": null,
+      "confirmation": null,
       "market_data_source": "",
       "option_quote_source": "Deribit public options API"
     },
@@ -245,6 +253,7 @@
       "adx": null,
       "atr": null,
       "atr_pct": null,
+      "confirmation": null,
       "market_data_source": "",
       "option_quote_source": "Deribit public options API"
     },
@@ -270,6 +279,7 @@
       "adx": null,
       "atr": null,
       "atr_pct": null,
+      "confirmation": null,
       "market_data_source": "",
       "option_quote_source": "Deribit public options API"
     },
@@ -295,6 +305,7 @@
       "adx": null,
       "atr": null,
       "atr_pct": null,
+      "confirmation": null,
       "market_data_source": "",
       "option_quote_source": "Deribit public options API"
     },
@@ -320,6 +331,7 @@
       "adx": null,
       "atr": null,
       "atr_pct": null,
+      "confirmation": null,
       "market_data_source": "",
       "option_quote_source": "Deribit public options API"
     },
@@ -345,6 +357,7 @@
       "adx": null,
       "atr": null,
       "atr_pct": null,
+      "confirmation": null,
       "market_data_source": "KuCoin Spot",
       "option_quote_source": "Deribit public options API"
     },
@@ -370,6 +383,7 @@
       "adx": null,
       "atr": null,
       "atr_pct": null,
+      "confirmation": null,
       "market_data_source": "KuCoin Spot",
       "option_quote_source": "Deribit public options API"
     },
@@ -395,6 +409,7 @@
       "adx": null,
       "atr": null,
       "atr_pct": null,
+      "confirmation": null,
       "market_data_source": "KuCoin Spot",
       "option_quote_source": "Deribit public options API"
     },
@@ -420,6 +435,7 @@
       "adx": 18.53501468468695,
       "atr": 4.703571428571455,
       "atr_pct": 0.27325374878415726,
+      "confirmation": null,
       "market_data_source": "KuCoin Spot",
       "option_quote_source": "Deribit public options API"
     },
@@ -445,6 +461,7 @@
       "adx": 16.70853149528133,
       "atr": 134.50714285714224,
       "atr_pct": 0.218396168864274,
+      "confirmation": null,
       "market_data_source": "KuCoin Spot",
       "option_quote_source": "Deribit public options API"
     }
