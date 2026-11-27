@@ -12,7 +12,7 @@ def get_json(url):
     with urllib.request.urlopen(req,timeout=15) as r: return json.loads(r.read())
 
 def candles(symbol, interval, limit=80):
-    # Primary: Bybit public linear candles. Fallback: Binance USD-M.
+    # Use multiple public feeds; spot candles are a safe fallback for paper-only direction testing.
     errors=[]
     try:
         payload=get_json(f"https://api.bybit.com/v5/market/kline?category=linear&symbol={symbol}USDT&interval={interval}&limit={limit}")
@@ -24,15 +24,41 @@ def candles(symbol, interval, limit=80):
         candles.last_source="Bybit linear"
         return data[:-1]
     except Exception as e:
-        errors.append(str(e))
+        errors.append("Bybit: "+str(e)[:120])
     try:
         data=get_json(f"https://fapi.binance.com/fapi/v1/klines?symbol={symbol}USDT&interval={interval}&limit={limit}")
-        if not isinstance(data,list) or len(data)<35: raise RuntimeError("Binance: insufficient candle data")
+        if not isinstance(data,list) or len(data)<35: raise RuntimeError("Binance USD-M: insufficient candle data")
         candles.last_source="Binance USD-M"
         return data[:-1]
     except Exception as e:
-        errors.append(str(e))
-    raise RuntimeError("All market-data sources failed: " + " | ".join(errors)[:180])
+        errors.append("Binance: "+str(e)[:120])
+    # KuCoin public spot fallback: [time, open, close, high, low, volume, turnover].
+    try:
+        ktype={"5m":"5min","15m":"15min"}.get(interval,interval)
+        payload=get_json("https://api.kucoin.com/api/v1/market/candles?symbol="+symbol+"-USDT&type="+ktype)
+        if not isinstance(payload,dict) or payload.get("code")!="200000" or not isinstance(payload.get("data"),list):
+            raise RuntimeError("KuCoin response unavailable")
+        data=[]
+        for x in payload["data"]:
+            if len(x)<6: continue
+            data.append([int(float(x[0])*1000),x[1],x[3],x[4],x[2],x[5]])
+        data.sort(key=lambda x:int(x[0]))
+        if len(data)<35: raise RuntimeError("KuCoin: insufficient candle data")
+        candles.last_source="KuCoin spot fallback"
+        return data[:-1]
+    except Exception as e:
+        errors.append("KuCoin: "+str(e)[:120])
+    # Gate.io public spot fallback: [timestamp, volume, close, high, low, open].
+    try:
+        data=get_json("https://api.gateio.ws/api/v4/spot/candlesticks?currency_pair="+symbol.replace("USDT","_USDT")+"&interval="+interval+"&limit="+str(limit))
+        rows=[[int(float(x[0])*1000),x[5],x[3],x[4],x[2],x[1]] for x in data if len(x)>=6]
+        rows.sort(key=lambda x:int(x[0]))
+        if len(rows)<35: raise RuntimeError("Gate.io: insufficient candle data")
+        candles.last_source="Gate.io spot fallback"
+        return rows[:-1]
+    except Exception as e:
+        errors.append("Gate.io: "+str(e)[:120])
+    raise RuntimeError("All market-data sources failed: " + " | ".join(errors)[:260])
 
 def ema(v,n):
     a=v[0]; k=2/(n+1)
