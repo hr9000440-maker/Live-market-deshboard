@@ -129,7 +129,12 @@ def one_minute_early_signal(coin):
 
 
 def five_minute_signal(coin):
-    """Use a completed 5m breakout candle as the actual entry trigger."""
+    """Use the most recent fresh completed 5m breakout candle as the entry trigger.
+
+    Inspect the last three completed candles so a delayed GitHub Actions start
+    does not silently discard a still-fresh breakout. All original breakout
+    thresholds remain unchanged.
+    """
     symbol = coin + "USDT"
     errors = []
     rows = None
@@ -165,45 +170,62 @@ def five_minute_signal(coin):
             errors.append(name + ": " + str(exc)[:100])
     if not rows or len(rows) < 35:
         raise RuntimeError("5m market data unavailable: " + " | ".join(errors))
+
     now_ms = int(time.time() * 1000)
     closed = [x for x in rows if int(float(x[0])) + 300000 <= now_ms]
     if len(closed) < 30:
         raise RuntimeError("5m closed candles कम हैं")
-    last = closed[-1]
-    if now_ms - (int(float(last[0])) + 300000) > 600000:
-        raise RuntimeError("5m entry candle ताज़ा नहीं है")
+
     closes = [float(x[4]) for x in closed]
     highs = [float(x[2]) for x in closed]
     lows = [float(x[3]) for x in closed]
     volumes = [float(x[5]) for x in closed]
-    op, high, low, close, volume = (float(last[i]) for i in (1, 2, 3, 4, 5))
-    candle_range = high - low
-    if candle_range <= 0 or volume <= 0:
-        return None
-    body = abs(close - op) / candle_range
-    location = (close - low) / candle_range
-    prior_high, prior_low = max(highs[-4:-1]), min(lows[-4:-1])
-    bull = close > op and body >= 0.50 and location >= 0.65 and close > prior_high
-    bear = close < op and body >= 0.50 and location <= 0.35 and close < prior_low
-    if not (bull or bear):
-        print(f"{coin}: no 5m entry trigger | source={source} | body={body:.2f} | close-location={location:.2f}")
-        return None
-    true_ranges = []
-    for j in range(max(1, len(closes) - 14), len(closes)):
-        prev_close = closes[j - 1]
-        true_ranges.append(max(highs[j] - lows[j], abs(highs[j] - prev_close), abs(lows[j] - prev_close)))
-    atr = sum(true_ranges) / max(1, len(true_ranges))
-    avg_vol = sum(volumes[-21:-1]) / 20.0
-    direction = "STRONG BUY CALL" if bull else "STRONG BUY PUT"
-    return {
-        "direction": direction, "price": close, "rsi": rsi(closes, 14),
-        "ema9": ema(closes[-30:], 9), "ema21": ema(closes[-50:], 21),
-        "candle_time": int(float(last[0])), "source": source,
-        "volume_ratio": volume / avg_vol if avg_vol > 0 else 0.0,
-        "body_ratio": body, "atr": atr,
-        "move_pct": abs(close - closes[-2]) / closes[-2] * 100,
-        "swing_low": min(lows[-6:]), "swing_high": max(highs[-6:])
-    }
+
+    # Check up to three latest completed bars, but never use a stale trigger.
+    for idx in range(len(closed) - 1, max(28, len(closed) - 4), -1):
+        last = closed[idx]
+        candle_close_ms = int(float(last[0])) + 300000
+        if now_ms - candle_close_ms > 10 * 60 * 1000:
+            continue
+        op, high, low, close, volume = (float(last[i]) for i in (1, 2, 3, 4, 5))
+        candle_range = high - low
+        if candle_range <= 0 or volume <= 0:
+            continue
+        body = abs(close - op) / candle_range
+        location = (close - low) / candle_range
+        prior_high, prior_low = max(highs[idx - 3:idx]), min(lows[idx - 3:idx])
+        bull = close > op and body >= 0.50 and location >= 0.65 and close > prior_high
+        bear = close < op and body >= 0.50 and location <= 0.35 and close < prior_low
+        if not (bull or bear):
+            continue
+
+        true_ranges = []
+        for j in range(max(1, idx - 13), idx + 1):
+            prev_close = closes[j - 1]
+            true_ranges.append(max(highs[j] - lows[j], abs(highs[j] - prev_close), abs(lows[j] - prev_close)))
+        atr = sum(true_ranges) / max(1, len(true_ranges))
+        avg_vol = sum(volumes[max(0, idx - 20):idx]) / max(1, len(volumes[max(0, idx - 20):idx]))
+        direction = "STRONG BUY CALL" if bull else "STRONG BUY PUT"
+        result = {
+            "direction": direction, "price": close, "rsi": rsi(closes[:idx + 1], 14),
+            "ema9": ema(closes[max(0, idx - 29):idx + 1], 9),
+            "ema21": ema(closes[max(0, idx - 49):idx + 1], 21),
+            "candle_time": int(float(last[0])), "source": source,
+            "volume_ratio": volume / avg_vol if avg_vol > 0 else 0.0,
+            "body_ratio": body, "atr": atr,
+            "move_pct": abs(close - closes[idx - 1]) / closes[idx - 1] * 100,
+            "swing_low": min(lows[max(0, idx - 5):idx + 1]),
+            "swing_high": max(highs[max(0, idx - 5):idx + 1])
+        }
+        print(f"{coin}: fresh 5m entry trigger found | source={source} | {direction} | candle={result['candle_time']}")
+        return result
+
+    last = closed[-1]
+    candle_range = float(last[2]) - float(last[3])
+    body = abs(float(last[4]) - float(last[1])) / candle_range if candle_range > 0 else 0.0
+    location = (float(last[4]) - float(last[3])) / candle_range if candle_range > 0 else 0.0
+    print(f"{coin}: no fresh 5m entry trigger | source={source} | body={body:.2f} | close-location={location:.2f}")
+    return None
 
 def confirm_15m(coin, direction):
     rows, source = candles(coin)
