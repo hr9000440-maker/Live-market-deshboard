@@ -602,22 +602,46 @@ def crypto_options(coin):
                     continue
                 exp = item.get("expiry_date") or item.get("expiration_date") or item.get("expiry") or item.get("expiration") or ""
                 typ = str(item.get("option_type") or item.get("option_side") or item.get("type") or name.split("-")[-1]).upper()
+                # Paradex ZEC options are quoted in USD, while this dashboard's
+                # shared option-chain renderer expects premiums in underlying-coin
+                # units and converts them back to USD with premium * underlying.
+                # Normalize each quote using that contract's own underlying price.
+                try:
+                    index_price = float(
+                        quote.get("underlying_price") or item.get("underlying_price") or 0
+                    )
+                except (TypeError, ValueError):
+                    index_price = 0.0
+                def _paradex_price(*values):
+                    for value in values:
+                        try:
+                            number = float(value or 0)
+                            if number > 0:
+                                return number
+                        except (TypeError, ValueError):
+                            pass
+                    return 0.0
+                bid_usd = _paradex_price(quote.get("bid"), quote.get("bid_price"), item.get("bid"), item.get("bid_price"))
+                ask_usd = _paradex_price(quote.get("ask"), quote.get("ask_price"), item.get("ask"), item.get("ask_price"))
+                mark_usd = _paradex_price(quote.get("mark_price"), quote.get("mark"), item.get("mark_price"), item.get("mark"))
+                # Never invent a quote or divide by a missing/invalid index price.
+                bid_coin = bid_usd / index_price if bid_usd > 0 and index_price > 0 else 0
+                ask_coin = ask_usd / index_price if ask_usd > 0 and index_price > 0 else 0
+                mark_coin = mark_usd / index_price if mark_usd > 0 and index_price > 0 else 0
                 rows.append({
                     "instrument_name": name, "strike": strike,
                     "option_type": "C" if "CALL" in typ or typ == "C" else ("P" if "PUT" in typ or typ == "P" else typ),
                     "expiry": exp,
-                    # Paradex market summaries use bid/ask/mark_price; tolerate
-                    # alternate documented/legacy aliases without inventing quotes.
-                    "bid_price": quote.get("bid_price") or quote.get("bid") or item.get("bid_price") or item.get("bid") or 0,
-                    "ask_price": quote.get("ask_price") or quote.get("ask") or item.get("ask_price") or item.get("ask") or 0,
-                    "mark_price": quote.get("mark_price") or quote.get("mark") or item.get("mark_price") or item.get("mark") or 0,
+                    "bid_price": bid_coin,
+                    "ask_price": ask_coin,
+                    "mark_price": mark_coin,
                     "open_interest": quote.get("open_interest", item.get("open_interest", 0)),
                     "volume": quote.get("volume_24h") or quote.get("volume") or quote.get("total_volume") or item.get("volume_24h") or item.get("volume") or 0,
-                    "underlying_price": quote.get("underlying_price", item.get("underlying_price", 0)),
-                    "min_trade_amount": quote.get("min_trade_amount", item.get("min_trade_amount", item.get("min_order_size", item.get("order_size_increment", 0)))),
+                    "underlying_price": index_price,
+                    "min_trade_amount": item.get("min_trade_amount", item.get("order_size_increment", item.get("min_order_size", 0))),
                 })
             underlying = next((float(x.get("underlying_price") or 0) for x in rows if float(x.get("underlying_price") or 0) > 0), None)
-            source = "Paradex public options API"
+            source = "Paradex public options API (USD quotes normalized)"
         except Exception as exc:
             errors.append("Paradex: " + str(exc)[:180])
             return jsonify({"error": "ZEC option API unavailable or no listed ZEC options", "details": errors}), 502
