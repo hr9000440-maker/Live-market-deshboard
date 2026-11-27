@@ -261,17 +261,22 @@ def best_zero_hero_option(coin, direction, underlying, payload):
     source = str(payload.get("source") or "").lower()
     quote_is_usd = any(x in source for x in ("paradex", "bybit", "binance"))
     candidates = []
+    # ETH-only diagnostics: count the exact filter that rejects contracts.
+    # This is logging only; it does not change eligibility or any coin's signals.
+    eth_rejects = {"expiry": 0, "side": 0, "quote_or_liquidity": 0, "otm": 0, "spread": 0, "premium": 0}
     for row in rows:
         name = str(row.get("instrument_name") or "")
         parts = name.split("-")
         row_expiry = str(row.get("expiry") or (parts[1] if len(parts) > 1 else ""))
         if not name or row_expiry != expiry:
+            if coin == "ETH": eth_rejects["expiry"] += 1
             continue
         typ = str(row.get("option_type") or "").upper()
         is_side = (typ in (wanted, "CALL" if wanted == "C" else "PUT")
                    or name.endswith("-" + wanted)
                    or name.endswith("-" + ("CALL" if wanted == "C" else "PUT")))
         if not is_side:
+            if coin == "ETH": eth_rejects["side"] += 1
             continue
         try:
             strike = float(row.get("strike") or (parts[2] if len(parts) > 2 else 0))
@@ -282,18 +287,22 @@ def best_zero_hero_option(coin, direction, underlying, payload):
         except (TypeError, ValueError):
             continue
         if strike <= 0 or bid <= 0 or ask < bid or ask <= 0 or (oi <= 0 and vol <= 0):
+            if coin == "ETH": eth_rejects["quote_or_liquidity"] += 1
             continue
         otm_pct = ((strike - underlying) / underlying * 100) if wanted == "C" else ((underlying - strike) / underlying * 100)
         if not 0.5 <= otm_pct <= 3.0:
+            if coin == "ETH": eth_rejects["otm"] += 1
             continue
         mid = (bid + ask) / 2.0
         spread = (ask - bid) / mid if mid > 0 else 999
         if spread > MAX_SPREAD:
+            if coin == "ETH": eth_rejects["spread"] += 1
             continue
         bid_usd = bid if quote_is_usd else bid * underlying
         ask_usd = ask if quote_is_usd else ask * underlying
         ask_inr = ask_usd * USD_INR
         if not MIN_PREMIUM_INR <= ask_inr <= MAX_PREMIUM_INR:
+            if coin == "ETH": eth_rejects["premium"] += 1
             continue
         liquidity = min(oi + vol, 1000000.0)
         score = abs(otm_pct - 1.5) * 0.001 + spread * 0.01 - min(liquidity, 10000.0) * 1e-9
@@ -305,7 +314,8 @@ def best_zero_hero_option(coin, direction, underlying, payload):
                            "premium_inr": ask_inr, "spread": spread, "score": score,
                            "delta": delta, "gamma": gamma})
     if not candidates:
-        raise RuntimeError("live " + wanted + " contract ₹5–₹30 premium, <=10% spread और OI/volume के साथ नहीं मिला")
+        detail = " | ETH filter counts: " + ", ".join(f"{k}={v}" for k, v in eth_rejects.items()) if coin == "ETH" else ""
+        raise RuntimeError("live " + wanted + " contract ₹5–₹30 premium, <=10% spread और OI/volume के साथ नहीं मिला" + detail)
     return min(candidates, key=lambda x: x["score"])
 
 
