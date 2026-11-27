@@ -248,7 +248,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 </section>
 <section class="panel" id="crypto-signals">
 <h2>🚦 CRYPTO 15 MIN SIGNALS — BTC / ETH OPTIONS + BNB / ZEC FUTURES</h2>
-<p class="note">LIVE MARKET TRADE SIGNAL MODE — BTC/ETH/BNB/ZEC के public market data पर signals refresh होंगे। लगातार 2 बंद 15m candles, EMA21 slope, volume (कम-से-कम 20-candle average का 0.8x), candle body कम-से-कम 35% और मजबूत close और RSI14 की पुष्टि पर ही signal बनेगा; अधूरी candle पर WAIT रहेगा। BTC/ETH के लिए STRONG BUY CALL / STRONG BUY PUT option direction; BNB/ZEC के लिए confirmed BUY/LONG या SELL/SHORT। Bullish RSI 45–75 और bearish RSI 25–55। EARLY signal बंद; कमजोर signal Telegram पर नहीं जाएगा। Underlying Entry/SL/TP1/TP2/TP3 ATR-based हैं; option premium पर अलग 25% SL और 25%/50%/75% TP levels हैं। BNB/ZEC futures signals भी नीचे जारी हैं। TRADE SIGNAL MODE: BUY/SELL संकेत, Entry, SL और TP1/TP2/TP3 दिखेंगे। यह signal-only dashboard है; अपने-आप order place नहीं होगा।</p>
+<p class="note">LIVE MARKET TRADE SIGNAL MODE — BTC/ETH/BNB/ZEC के public market data पर signals refresh होंगे। Signal के लिए एक पूरी बंद 15m candle में EMA9/EMA21 की दिशा, EMA21 slope, RSI और candle close की position जाँची जाती है। Volume और candle-body quality जानकारी हैं, signal रोकने वाली अनिवार्य शर्तें नहीं। अधूरी 15m candle से signal नहीं बनेगा। Bullish नियम: Close > EMA9 > EMA21, EMA21 ऊपर/स्थिर, RSI 42–78 और candle close range के ऊपरी 45% में। Bearish नियम: Close < EMA9 < EMA21, EMA21 नीचे/स्थिर, RSI 22–58 और candle close range के निचले 45% में। BTC/ETH के लिए BUY CALL / BUY PUT option direction; BNB/ZEC के लिए BUY/LONG या SELL/SHORT। अभी अलग 5m Early Entry trigger सक्रिय नहीं है। Underlying Entry/SL/TP ATR-based हैं; option premium पर ASK entry के आधार पर 25% SL और 25%/50%/75% TP levels सुरक्षित हैं। यह signal-only dashboard है; अपने-आप order place नहीं होगा।</p>
 <div class="grid">
 <div class="result"><small>BTCUSDT • 15m OPTION SIGNAL</small><strong id="sig-BTC">लोड हो रहा है…</strong><p class="note" id="siginfo-BTC">कैंडल डेटा जाँचा जा रहा है</p></div>
 <div class="result"><small>ETHUSDT • 15m OPTION SIGNAL</small><strong id="sig-ETH">लोड हो रहा है…</strong><p class="note" id="siginfo-ETH">कैंडल डेटा जाँचा जा रहा है</p></div>
@@ -770,9 +770,9 @@ async function analyzeCryptoCoin(coin){
  // Volume and candle-body remain quality diagnostics, not hard blockers; avoid waiting for two fully stacked candles.
  const bullishQuality=confirmedClose>confirmedE9&&confirmedClose>confirmedE21&&confirmedE9>confirmedE21&&confirmedE21>=previousE21&&confirmedRsi>=42&&confirmedRsi<=78&&confirmedLocation>=0.55;
  const bearishQuality=confirmedClose<confirmedE9&&confirmedClose<confirmedE21&&confirmedE9<confirmedE21&&confirmedE21<=previousE21&&confirmedRsi>=22&&confirmedRsi<=58&&confirmedLocation<=0.45;
- let confirmedSide='WAIT',confirmationReason='दो बंद 15m candles, EMA21 slope, volume और candle strength की पूरी पुष्टि नहीं';
- if(bullishQuality){confirmedSide='BUY / LONG';confirmationReason='QUALITY CONFIRMED: लगातार 2 बंद candles bullish, EMA21 ऊपर, volume '+confirmedVolumeRatio.toFixed(2)+'x और मजबूत close';}
- else if(bearishQuality){confirmedSide='SELL / SHORT';confirmationReason='QUALITY CONFIRMED: लगातार 2 बंद candles bearish, EMA21 नीचे, volume '+confirmedVolumeRatio.toFixed(2)+'x और मजबूत close';}
+ let confirmedSide='WAIT',confirmationReason='एक बंद 15m candle में EMA/RSI/close-position की पुष्टि अधूरी';
+ if(bullishQuality){confirmedSide='BUY / LONG';confirmationReason='CONFIRMED: बंद 15m candle EMA9 और EMA21 के ऊपर, EMA9>EMA21, EMA21 ऊपर/स्थिर, RSI '+confirmedRsi.toFixed(1)+' और close ऊपरी 45% में';}
+ else if(bearishQuality){confirmedSide='SELL / SHORT';confirmationReason='CONFIRMED: बंद 15m candle EMA9 और EMA21 के नीचे, EMA9<EMA21, EMA21 नीचे/स्थिर, RSI '+confirmedRsi.toFixed(1)+' और close निचले 45% में';}
  const closes=candles.map(x=>Number(x[4])),highs=candles.map(x=>Number(x[2])),lows=candles.map(x=>Number(x[3])),volumes=candles.map(x=>Number(x[5]));
  const close=closes.at(-1),open=Number(candles.at(-1)[1]),high=highs.at(-1),low=lows.at(-1),volume=volumes.at(-1);
  const e9=ema(closes.slice(-30),9),e21=ema(closes.slice(-50),21),rv=rsi(closes,14);
@@ -792,14 +792,19 @@ async function analyzeCryptoCoin(coin){
  const thisCandle=Number(closedCandles.at(-1)[0]);
  const lockedSnapshot=null;
  if(side==='WAIT'){
-  const failed=[];
-  if(!(close>e9))failed.push('BUY: Price EMA9 के ऊपर नहीं');
-  if(!(e9>e21)&&!breakUp)failed.push('BUY: EMA9>EMA21 या breakout नहीं');
-  if(!(rv>=30&&rv<=90))failed.push('BUY: RSI 30–90 सीमा से बाहर');
-  if(!(close<e9))failed.push('SELL: Price EMA9 के नीचे नहीं');
-  if(!(e9<e21)&&!breakDown)failed.push('SELL: EMA9<EMA21 या breakdown नहीं');
-  if(!(rv>=10&&rv<=70))failed.push('SELL: RSI 10–70 सीमा से बाहर');
-  diagnostic=failed.join(' | ')||'BUY/SELL की पूरी शर्त नहीं बनी';
+  const buyFailed=[];
+  if(!(confirmedClose>confirmedE9))buyFailed.push('बंद candle EMA9 के ऊपर नहीं');
+  if(!(confirmedE9>confirmedE21))buyFailed.push('EMA9, EMA21 के ऊपर नहीं');
+  if(!(confirmedE21>=previousE21))buyFailed.push('EMA21 ऊपर/स्थिर नहीं');
+  if(!(confirmedRsi>=42&&confirmedRsi<=78))buyFailed.push('RSI 42–78 के बाहर');
+  if(!(confirmedLocation>=0.55))buyFailed.push('close candle के ऊपरी 45% में नहीं');
+  const sellFailed=[];
+  if(!(confirmedClose<confirmedE9))sellFailed.push('बंद candle EMA9 के नीचे नहीं');
+  if(!(confirmedE9<confirmedE21))sellFailed.push('EMA9, EMA21 के नीचे नहीं');
+  if(!(confirmedE21<=previousE21))sellFailed.push('EMA21 नीचे/स्थिर नहीं');
+  if(!(confirmedRsi>=22&&confirmedRsi<=58))sellFailed.push('RSI 22–58 के बाहर');
+  if(!(confirmedLocation<=0.45))sellFailed.push('close candle के निचले 45% में नहीं');
+  diagnostic=buyFailed.length<=sellFailed.length?'BUY की शर्तें: '+buyFailed.join(' • '):'SELL की शर्तें: '+sellFailed.join(' • ');
  }else diagnostic='Signal trigger confirmed: '+reason;
  // 15m EMA/RSI direction is the signal trigger. Higher-timeframe, volume and candle-body
  // filters are informational only, so they cannot silently suppress a valid directional signal.
