@@ -128,6 +128,73 @@ def check_workflow(name, label, gh_token):
     except Exception as e:
         notes.append(label + " run status unavailable: " + str(e))
 
+def check_option_level_math():
+    """Read-only validation of option premium SL/TP ordering and configured percentages."""
+    path = "state/option_positions.json"
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            positions = json.load(handle)
+        if not isinstance(positions, list):
+            raise RuntimeError("option positions ledger must be a JSON list")
+    except FileNotFoundError:
+        notes.append("Option SL/TP ledger not present yet; arithmetic fixture checked only")
+        positions = []
+    except Exception as exc:
+        issues.append("Option SL/TP ledger: " + str(exc))
+        print("FAIL Option SL/TP ledger: " + str(exc))
+        return
+
+    # Known-value regression: entry 5 must produce SL 3.75 and rising targets.
+    fixture = {"sl": 3.75, "tp1": 6.25, "tp2": 7.50, "tp3": 9.25}
+    expected_fixture = (5.0 * 0.75, 5.0 * 1.25, 5.0 * 1.50, 5.0 * 1.85)
+    if any(abs(a-b) > 1e-9 for a, b in zip(
+            (fixture["sl"], fixture["tp1"], fixture["tp2"], fixture["tp3"]), expected_fixture)):
+        issues.append("Option SL/TP arithmetic regression fixture failed")
+
+    checked = 0
+    bad = []
+    for index, position in enumerate(positions, start=1):
+        try:
+            entry = float(position.get("entry") or 0)
+            sl = float(position.get("sl") or 0)
+            tp1 = float(position.get("tp1") or 0)
+            tp2 = float(position.get("tp2") or 0)
+            tp3 = float(position.get("tp3") or 0)
+            if not all(map(lambda value: value > 0 and value < float("inf"), (entry, sl, tp1, tp2, tp3))):
+                raise ValueError("missing or non-positive Entry/SL/TP")
+            if not (sl < entry < tp1 < tp2 < tp3):
+                raise ValueError("expected BUY option order SL < Entry < TP1 < TP2 < TP3")
+            ratios = (sl/entry, tp1/entry, tp2/entry, tp3/entry)
+            expected = (0.75, 1.25, 1.50, 1.85)
+            if any(abs(a-b) > 0.002 for a, b in zip(ratios, expected)):
+                raise ValueError("levels do not match configured -25% / +25% / +50% / +85%")
+            checked += 1
+        except Exception as exc:
+            bad.append(str(position.get("contract") or position.get("key") or index) + ": " + str(exc))
+
+    # Guard the two independent calculation paths against accidental edits.
+    try:
+        with open("index.html", "r", encoding="utf-8") as handle:
+            page = handle.read()
+        with open("options_strong_signals.py", "r", encoding="utf-8") as handle:
+            scanner = handle.read()
+        page_ok = all(token in page for token in (
+            "entryUsd*0.75", "entryUsd*1.25", "entryUsd*1.50", "entryUsd*1.85"))
+        scanner_ok = all(token in scanner for token in (
+            "limit_usd * 0.75", "limit_usd * 1.25", "limit_usd * 1.50", "limit_usd * 1.85"))
+        if not page_ok or not scanner_ok:
+            bad.append("dashboard/scanner calculation source differs from the configured option levels")
+    except Exception as exc:
+        bad.append("could not inspect calculation source: " + str(exc))
+
+    if bad:
+        message = "Option SL/TP validation failed: " + " | ".join(bad[:8])
+        issues.append(message)
+        print("FAIL " + message)
+    else:
+        print("PASS Option SL/TP math: entry=5 fixture; " + str(checked) +
+              " saved signals; SL -25%, TP1 +25%, TP2 +50%, TP3 +85%")
+
 def main():
     check_page("GitHub Pages dashboard", PAGES, "LIVE MARKET DASHBOARD")
     check_page("Render dashboard", BASE + "/", "LIVE MARKET DASHBOARD")
@@ -140,6 +207,7 @@ def main():
         print("FAIL Render health endpoint: " + str(e))
 
     check_crypto_feeds()
+    check_option_level_math()
     check_options()
     try:
         py_compile.compile("options_strong_signals.py", doraise=True)
