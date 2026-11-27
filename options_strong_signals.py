@@ -230,7 +230,7 @@ def best_option(coin, signal, underlying, payload):
         candidates.append({"name": name, "strike": strike, "expiry": expiry, "bid": bid_usd,
                            "ask": ask_usd, "entry": limit_usd, "spread": spread,
                            "sl": limit_usd * 0.75, "tp1": limit_usd * 1.25, "tp2": limit_usd * 1.50,
-                           "tp3": limit_usd * 1.85, "cost": estimated_inr})
+                           "tp3": limit_usd * 1.75, "cost": estimated_inr})
     if not candidates:
         raise RuntimeError("इस expiry में 10% तक spread, live quote और OI/volume वाला eligible " + wanted_side + " contract नहीं मिला")
     return min(candidates, key=lambda x: (abs(x["strike"] - underlying), x["spread"]))
@@ -312,7 +312,7 @@ def main():
                 f"🛑 SL (-25%): {option['sl']:.4f} USD\n"
                 f"🎯 TP1 (+25%): {option['tp1']:.4f} USD\n"
                 f"🎯 TP2 (+50%): {option['tp2']:.4f} USD\n"
-                f"🏁 Final target (+85%): {option['tp3']:.4f} USD\n"
+                f"🏁 Final target (+75%): {option['tp3']:.4f} USD\n"
                 f"Spread: {option['spread']*100:.2f}% (max 10%) | {cost_line}\n"
                 f"Option quote source: {quote_source} (CoinSwitch price not live-verified)\n"
                 f"RSI 14: {signal['rsi']:.1f} | EMA9: {signal['ema9']:.2f} | EMA21: {signal['ema21']:.2f}\n"
