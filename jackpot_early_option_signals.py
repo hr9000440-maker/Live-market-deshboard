@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Independent four-coin Zero Hero scanner. Alert-only; never places orders.
 
-A 5m breakout must agree with a completed 15m trend candle. Option ask premium
+Uses fresh completed 1m impulse candles for earlier movement capture; scans run on the GitHub schedule. Option ask premium
 must be INR 5-30 equivalent, with live bid/ask, OI/volume and <=10% spread.
 """
 import json
@@ -24,13 +24,14 @@ MAX_SPREAD = 0.10
 
 
 def five_minute_candles(coin):
+    """Fetch 1m candles for early movement capture; keep function name for compatibility."""
     symbol = coin + "USDT"
     errors = []
     sources = [
-        ("KuCoin", "https://api.kucoin.com/api/v1/market/candles?" + urllib.parse.urlencode({"symbol": coin + "-USDT", "type": "5min"})),
-        ("Binance", BINANCE + "?" + urllib.parse.urlencode({"symbol": symbol, "interval": "5m", "limit": 80})),
-        ("Binance data-api", "https://data-api.binance.vision/api/v3/klines?" + urllib.parse.urlencode({"symbol": symbol, "interval": "5m", "limit": 80})),
-        ("Gate.io", GATE + "?" + urllib.parse.urlencode({"currency_pair": coin + "_USDT", "interval": "5m", "limit": 80})),
+        ("KuCoin", "https://api.kucoin.com/api/v1/market/candles?" + urllib.parse.urlencode({"symbol": coin + "-USDT", "type": "1min"})),
+        ("Binance", BINANCE + "?" + urllib.parse.urlencode({"symbol": symbol, "interval": "1m", "limit": 100})),
+        ("Binance data-api", "https://data-api.binance.vision/api/v3/klines?" + urllib.parse.urlencode({"symbol": symbol, "interval": "1m", "limit": 100})),
+        ("Gate.io", GATE + "?" + urllib.parse.urlencode({"currency_pair": coin + "_USDT", "interval": "1m", "limit": 100})),
     ]
     for name, url in sources:
         try:
@@ -45,10 +46,10 @@ def five_minute_candles(coin):
                         continue
                     ts = int(float(x[0])) * 1000
                     op, close, high, low, vol = map(float, (x[1], x[2], x[3], x[4], x[5]))
-                    rows.append([ts, str(op), str(high), str(low), str(close), str(vol), ts + 299999])
+                    rows.append([ts, str(op), str(high), str(low), str(close), str(vol), ts + 59999])
                 rows.sort(key=lambda x: x[0])
             elif name == "Gate.io":
-                rows = [[int(float(x[0]) * 1000), x[5], x[3], x[4], x[2], x[1], int(float(x[0]) * 1000 + 299999)] for x in payload]
+                rows = [[int(float(x[0]) * 1000), x[5], x[3], x[4], x[2], x[1], int(float(x[0]) * 1000 + 59999)] for x in payload]
                 rows.sort(key=lambda x: int(x[0]))
             else:
                 rows = payload
@@ -58,65 +59,72 @@ def five_minute_candles(coin):
             errors.append(name + ": candles कम")
         except Exception as exc:
             errors.append(name + ": " + str(exc)[:100])
-    raise RuntimeError("5m market data unavailable: " + " | ".join(errors))
+    raise RuntimeError("1m market data unavailable: " + " | ".join(errors))
 
 
 def five_minute_signal(coin):
+    """Use the freshest completed 1m impulse candle, not a delayed 5m close."""
     rows, source = five_minute_candles(coin)
     now_ms = int(time.time() * 1000)
-    latest_open = int(float(rows[-1][0]))
-    if now_ms - latest_open > 11 * 60 * 1000 or latest_open > now_ms + 60000:
-        raise RuntimeError("5m candle data पुराना है")
-    closed = rows[:-1]
+    closed = [x for x in rows if int(float(x[0])) + 60000 <= now_ms]
     if len(closed) < 30:
-        raise RuntimeError("5m closed candles कम हैं")
-    last = closed[-1]
-    op, high, low, close, volume = (float(last[i]) for i in (1, 2, 3, 4, 5))
-    candle_range = high - low
-    if candle_range <= 0 or volume <= 0:
-        return None
-    closes = [float(x[4]) for x in closed]
-    highs = [float(x[2]) for x in closed]
-    lows = [float(x[3]) for x in closed]
-    volumes = [float(x[5]) for x in closed]
-    e9, e21 = ema(closes[-30:], 9), ema(closes[-50:], 21)
-    rv = rsi(closes, 14)
-    avg_vol = sum(volumes[-21:-1]) / 20.0
-    vol_ratio = volume / avg_vol if avg_vol > 0 else 0.0
-    body = abs(close - op) / candle_range
-    location = (close - low) / candle_range
-    prior_high, prior_low = max(highs[-4:-1]), min(lows[-4:-1])
-
-    # Early-movement trigger: closed 5m breakout OR decisive impulse candle.
-    # RSI, EMA and volume are context, not hard gates that delay a move.
-    true_ranges = []
-    for j in range(max(1, len(closed) - 14), len(closed)):
-        prev_close = float(closed[j - 1][4])
-        hj, lj = float(closed[j][2]), float(closed[j][3])
-        true_ranges.append(max(hj - lj, abs(hj - prev_close), abs(lj - prev_close)))
-    atr = sum(true_ranges) / max(1, len(true_ranges))
-    move_pct = abs(close - float(closed[-2][4])) / float(closed[-2][4]) * 100
-    impulse = body >= 0.55 and move_pct >= 0.12
-    bull = close > op and location >= 0.60 and (close > prior_high or impulse)
-    bear = close < op and location <= 0.40 and (close < prior_low or impulse)
-    if bull:
-        direction = "STRONG BUY CALL"
-    elif bear:
-        direction = "STRONG BUY PUT"
-    else:
-        print(
-            f"{coin}: no 5m trigger | source={source} | close={close:.6f} "
-            f"| prior_high={prior_high:.6f} | prior_low={prior_low:.6f} "
-            f"| body={body:.2f} | move={move_pct:.3f}% "
-            f"| volume={vol_ratio:.2f}x | RSI={rv:.1f}"
-        )
-        return None
-    return {"direction": direction, "price": close, "rsi": rv, "ema9": e9,
-            "ema21": e21, "candle_time": int(float(last[0])),
-            "source": source, "volume_ratio": vol_ratio, "body_ratio": body,
-            "atr": atr, "move_pct": move_pct,
-            "swing_low": min(float(x[3]) for x in closed[-6:]),
-            "swing_high": max(float(x[2]) for x in closed[-6:])}
+        raise RuntimeError("1m closed candles कम हैं")
+    # Inspect up to the latest five completed minutes. Ignore older triggers.
+    fresh = [x for x in closed[-5:] if now_ms - (int(float(x[0])) + 60000) <= 5 * 60 * 1000]
+    if not fresh:
+        raise RuntimeError("1m trigger candle ताज़ा नहीं है")
+    closes_all = [float(x[4]) for x in closed]
+    highs_all = [float(x[2]) for x in closed]
+    lows_all = [float(x[3]) for x in closed]
+    volumes_all = [float(x[5]) for x in closed]
+    chosen = None
+    diagnostics = ""
+    for last in reversed(fresh):
+        idx = closed.index(last)
+        if idx < 25:
+            continue
+        op, high, low, close, volume = (float(last[i]) for i in (1, 2, 3, 4, 5))
+        candle_range = high - low
+        if candle_range <= 0 or volume <= 0:
+            continue
+        closes = closes_all[:idx + 1]
+        highs = highs_all[:idx + 1]
+        lows = lows_all[:idx + 1]
+        volumes = volumes_all[:idx + 1]
+        e9, e21 = ema(closes[-30:], 9), ema(closes[-50:], 21)
+        rv = rsi(closes, 14)
+        avg_vol = sum(volumes[-21:-1]) / 20.0
+        vol_ratio = volume / avg_vol if avg_vol > 0 else 0.0
+        body = abs(close - op) / candle_range
+        location = (close - low) / candle_range
+        prior_high, prior_low = max(highs[-4:-1]), min(lows[-4:-1])
+        true_ranges = []
+        for j in range(max(1, len(closes) - 14), len(closes)):
+            prev_close = closes[j - 1]
+            hj, lj = highs[j], lows[j]
+            true_ranges.append(max(hj - lj, abs(hj - prev_close), abs(lj - prev_close)))
+        # Scale 1m ATR to a practical 5m-equivalent movement estimate.
+        atr = (sum(true_ranges) / max(1, len(true_ranges))) * 2.2
+        move_pct = abs(close - closes[-2]) / closes[-2] * 100
+        impulse = body >= 0.55 and move_pct >= 0.08
+        bull = close > op and location >= 0.60 and (close > prior_high or impulse)
+        bear = close < op and location <= 0.40 and (close < prior_low or impulse)
+        if bull or bear:
+            direction = "STRONG BUY CALL" if bull else "STRONG BUY PUT"
+            chosen = {"direction": direction, "price": close, "rsi": rv, "ema9": e9,
+                      "ema21": e21, "candle_time": int(float(last[0])),
+                      "source": source, "volume_ratio": vol_ratio, "body_ratio": body,
+                      "atr": atr, "move_pct": move_pct,
+                      "swing_low": min(lows[-6:]), "swing_high": max(highs[-6:])}
+            break
+        diagnostics = (f"{coin}: no 1m trigger | source={source} | close={close:.6f} "
+                       f"| body={body:.2f} | move={move_pct:.3f}% | volume={vol_ratio:.2f}x | RSI={rv:.1f}")
+    if chosen:
+        print(f"{coin}: fresh 1m movement captured | source={source} | {chosen['direction']} "
+              f"| move={chosen['move_pct']:.3f}% | candle={chosen['candle_time']}")
+        return chosen
+    print(diagnostics or f"{coin}: no fresh 1m trigger | source={source}")
+    return None
 
 
 def confirm_15m(coin, direction):
