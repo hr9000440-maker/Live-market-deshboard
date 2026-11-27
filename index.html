@@ -404,7 +404,7 @@ function applyCryptoOptionRows(coin,rows,underlying,updatedAt,stale=false){
  renderCryptoOptions();populateOptionChartContracts();
 }
 
-function optionUsd(v,u){return Number.isFinite(Number(v))&&u?Number(v)*u:null}
+function optionUsd(v,u){const price=Number(v),underlying=Number(u);return Number.isFinite(price)&&price>0&&Number.isFinite(underlying)&&underlying>0?price*underlying:null}
 function optionMoney(v){return v==null?'—':Number(v).toLocaleString('en-US',{maximumFractionDigits:2})}
 function optionDate(n){const p=n.split('-');if(p[0]==='ZEC'&&p[1]==='USD'&&p.length>2)return p[2];return p.length>1?p[1]:''}
 function expiryDateValue(v){
