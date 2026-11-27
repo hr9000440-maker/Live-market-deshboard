@@ -271,7 +271,6 @@ def main():
         underlying = 0.0
         try:
             sig = five_minute_signal(coin)
-            # Fetch fresh option quotes every 5m cycle to monitor open positions.
             payload = get_json(OPTION_API.format(coin=coin), timeout=25)
             underlying = float(payload.get("underlying") or 0)
             if underlying <= 0:
@@ -280,7 +279,6 @@ def main():
             if not sig:
                 print(coin + ": no new entry; active positions monitored")
                 continue
-            # Early alert intentionally does not wait for 15m confirmation.
             option = best_zero_hero_option(coin, sig["direction"], underlying, payload)
             key = coin + "|" + option["name"] + "|" + sig["direction"]
             stamp = str(sig["candle_time"])
@@ -319,19 +317,16 @@ def main():
                 + side + "\\nContract: " + option["name"] + "\\n"
                 + f"Underlying: {underlying:,.2f} USD | Suggested LIMIT BUY: {entry:.6f} USD (≈ ₹{option['premium_inr']:.2f})\\n"
                 + f"Bid: {option['bid']:.6f} | Ask: {option['ask']:.6f} | Spread: {option['spread']*100:.2f}%\\n"
-                + sl_line
-                + target_text
+                + sl_line + target_text
                 + f"5m RSI14: {sig['rsi']:.1f} | EMA9: {sig['ema9']:.2f} | EMA21: {sig['ema21']:.2f}\\n"
                 + f"5m move: {sig['move_pct']:.3f}% | ATR: {sig['atr']:.4f} | Volume: {sig['volume_ratio']:.2f}x\\n"
                 + f"Market data: {sig['source']} | Option source: {payload.get('source', 'unknown')}\\n"
                 + target_method + ". Targets and trailing SL follow underlying movement; SL only tightens. Premium ₹5–₹30 filter and <=10% spread retained. Signal only — no automatic order."
             )
             telegram(msg)
-            # Persist the market structure so following runs can trail the stop.
             positions = state.setdefault("__positions__", [])
             position_id = key + "|" + stamp
             if not any(p.get("key") == position_id for p in positions):
-                sign = 1 if is_call else -1
                 positions.append({
                     "key": position_id, "coin": coin, "contract": option["name"],
                     "direction": "CALL" if is_call else "PUT",
@@ -339,9 +334,13 @@ def main():
                     "atr": sig["atr"], "trail_underlying": stop_underlying,
                     "targets": [sig["price"] + sign * sig["atr"] * m for m in (1.5, 3.0, 5.0)],
                     "target_stage": 0, "entry_premium": entry, "status": "ACTIVE"
-                    except Exception as exc:
+                })
+            state[key] = stamp
+            sent += 1
+            print(coin + ": Zero Hero alert sent " + option["name"])
+        except Exception as exc:
             reason = str(exc)
-            # Missing eligible contracts are safe skips; strict filters remain unchanged.
+            # Missing eligible contracts are safe skips; never weaken option filters.
             if sig and underlying > 0 and ("contract" in reason.lower() or "eligible" in reason.lower()):
                 movement_key = "MOVEMENT|" + coin + "|" + sig["direction"]
                 movement_stamp = str(sig["candle_time"])
@@ -370,18 +369,16 @@ def main():
                     print(coin + ": movement Telegram delivery failed: " + str(send_exc), file=sys.stderr)
                 continue
             errors += 1
-            print(coin + ": ZERO HERO ERROR: " + reason, file=sys.stderr)ovement alert suppressed; option contract unavailable")
             print(coin + ": ZERO HERO ERROR: " + reason, file=sys.stderr)
 
     os.makedirs("state", exist_ok=True)
     tmp = STATE_PATH + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False, indent=2, sort_keys=True)
-        f.write("\n")
+        f.write("\\n")
     os.replace(tmp, STATE_PATH)
     print(f"Zero Hero completed. Alerts sent: {sent}; coin errors: {errors}")
-    # A single coin's missing option contract/data must not fail the whole
-    # scheduled scan; errors remain visible in the Actions log per coin.
+    # Per-coin data and Telegram errors remain visible in the Actions log.
 
 
 if __name__ == "__main__":
