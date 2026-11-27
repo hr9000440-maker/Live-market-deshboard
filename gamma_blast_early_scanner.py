@@ -7,7 +7,7 @@ so OI/volume/premium changes can be measured instead of guessed.
 """
 import json, os, time
 from datetime import datetime, timezone
-from options_strong_signals import OPTION_API, get_json, ema, rsi, telegram
+from options_strong_signals import OPTION_API, get_json, ema, rsi, telegram, choose_expiry
 
 COINS = ("BTC", "ETH", "BNB", "ZEC")
 STATE = "state/gamma_blast_snapshots.json"
@@ -81,9 +81,8 @@ def market_trigger(coin):
 
 def pick_contract(payload, side, underlying):
     rows = payload.get("rows") or []
-    expiries = sorted({str(x.get("expiry") or "") for x in rows if x.get("expiry")})
-    if not expiries: raise RuntimeError("listed expiry missing")
-    expiry = expiries[0]
+    expiry = choose_expiry(rows)
+    if not expiry: raise RuntimeError("listed expiry missing")
     candidates = []
     for x in rows:
         name = str(x.get("instrument_name") or "")
