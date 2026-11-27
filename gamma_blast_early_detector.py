@@ -35,14 +35,38 @@ def contract_type(row, name):
     return ""
 
 def underlying_move(coin):
-    rows = get_json("https://api.binance.com/api/v3/klines?symbol="+coin+"USDT&interval=1m&limit=6", timeout=15)
-    if not isinstance(rows, list) or len(rows) < 5:
-        raise RuntimeError("1m underlying candles unavailable")
-    # Compare latest completed 1m close with close five minutes earlier.
-    latest = float(rows[-2][4])
-    base = float(rows[-6][4])
-    if base <= 0: raise RuntimeError("invalid underlying candle")
-    return latest, (latest/base-1.0)*100.0
+    # Try multiple public spot feeds: Binance may return HTTP 451 in some runner regions.
+    sources = [
+        ("KuCoin", "https://api.kucoin.com/api/v1/market/candles?symbol="+coin+"-USDT&type=1min"),
+        ("Binance", "https://api.binance.com/api/v3/klines?symbol="+coin+"USDT&interval=1m&limit=8"),
+        ("Binance data-api", "https://data-api.binance.vision/api/v3/klines?symbol="+coin+"USDT&interval=1m&limit=8"),
+        ("Gate.io", "https://api.gateio.ws/api/v4/spot/candlesticks?currency_pair="+coin+"_USDT&interval=1m&limit=8"),
+    ]
+    errors = []
+    for source, url in sources:
+        try:
+            payload = get_json(url, timeout=15)
+            if source == "KuCoin":
+                if payload.get("code") != "200000" or not isinstance(payload.get("data"), list):
+                    raise RuntimeError("KuCoin candles unavailable")
+                rows = sorted(payload["data"], key=lambda x: int(float(x[0])))
+                closes = [float(x[2]) for x in rows if len(x) >= 3]
+            elif source == "Gate.io":
+                rows = sorted(payload, key=lambda x: int(float(x[0])))
+                closes = [float(x[2]) for x in rows if len(x) >= 3]
+            else:
+                if not isinstance(payload, list):
+                    raise RuntimeError("candle response is not a list")
+                closes = [float(x[4]) for x in payload if isinstance(x, list) and len(x) >= 5]
+            if len(closes) < 6 or closes[-2] <= 0 or closes[-6] <= 0:
+                raise RuntimeError("not enough valid 1m candles")
+            # Compare latest completed 1m close with close five minutes earlier.
+            latest, base = closes[-2], closes[-6]
+            print(coin + ": 1m data source=" + source)
+            return latest, (latest/base-1.0)*100.0
+        except Exception as exc:
+            errors.append(source + ": " + str(exc)[:100])
+    raise RuntimeError("1m underlying candles unavailable: " + " | ".join(errors))
 
 def load_state():
     try:
