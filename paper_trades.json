@@ -1,7 +1,8 @@
 {
   "mode": "PAPER ONLY",
   "budget_inr": 500,
-  "open_trades": [
+  "open_trades": [],
+  "closed_trades": [
     {
       "id": "ETH:SELL:1795781700000",
       "coin": "ETH",
@@ -19,11 +20,16 @@
       "ema9": 1725.5706955063115,
       "ema21": 1727.8440239927472,
       "opened_at": "2026-11-27T12:31:05.581071+00:00",
-      "status": "OPEN",
-      "tp1_hit": false,
+      "status": "CLOSED",
+      "tp1_hit": true,
       "tp2_hit": false,
       "tp3_hit": false,
-      "signal_candle": 1795781700000
+      "signal_candle": 1795781700000,
+      "tp1_hit_at": "2026-11-27T15:20:01.569374+00:00",
+      "exit": 1707.2092857142857,
+      "exit_reason": "TARGET 3",
+      "closed_at": "2026-11-27T15:20:01.569374+00:00",
+      "pnl_inr": 4.1
     },
     {
       "id": "BTC:SELL:1795781700000",
@@ -42,15 +48,17 @@
       "ema9": 61649.92803209342,
       "ema21": 61650.38736961839,
       "opened_at": "2026-11-27T12:31:05.581071+00:00",
-      "status": "OPEN",
+      "status": "CLOSED",
       "tp1_hit": true,
       "tp2_hit": false,
       "tp3_hit": false,
       "signal_candle": 1795781700000,
-      "tp1_hit_at": "2026-11-27T14:20:53.020133+00:00"
-    }
-  ],
-  "closed_trades": [
+      "tp1_hit_at": "2026-11-27T14:20:53.020133+00:00",
+      "exit": 61185.078571428574,
+      "exit_reason": "TARGET 3",
+      "closed_at": "2026-11-27T15:20:01.569374+00:00",
+      "pnl_inr": 3.28
+    },
     {
       "id": "ZEC:BUY:1795783500000",
       "coin": "ZEC",
@@ -109,7 +117,7 @@
       "pnl_inr": 12.36
     }
   ],
-  "last_update": "2026-11-27T14:20:54.103792+00:00",
+  "last_update": "2026-11-27T15:20:02.793081+00:00",
   "errors": {},
   "last_signal": {
     "ZEC": "ZEC:BUY:1795783500000",
