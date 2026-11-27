@@ -117,6 +117,40 @@ def candles(coin):
     raise RuntimeError(coin + " 15m SPOT market data unavailable: " + " | ".join(errors))
 
 
+def macd(values, fast=12, slow=26, signal=9):
+    line = []
+    for i in range(len(values)):
+        sample = values[:i + 1]
+        line.append(ema(sample, fast) - ema(sample, slow))
+    signal_line = ema(line[-signal * 3:], signal)
+    return line[-1], signal_line, line[-1] - signal_line
+
+
+def trend_strength(highs, lows, closes, period=14):
+    trs, plus_dm, minus_dm = [], [], []
+    for i in range(1, len(closes)):
+        up = highs[i] - highs[i - 1]
+        down = lows[i - 1] - lows[i]
+        plus_dm.append(max(up, 0.0) if up > down else 0.0)
+        minus_dm.append(max(down, 0.0) if down > up else 0.0)
+        trs.append(max(highs[i] - lows[i], abs(highs[i] - closes[i - 1]), abs(lows[i] - closes[i - 1])))
+    if len(trs) < period:
+        return 0.0, 0.0
+    dx_values = []
+    for end in range(period, len(trs) + 1):
+        tr_sum = sum(trs[end - period:end])
+        if tr_sum <= 0:
+            dx_values.append(0.0)
+            continue
+        pdi = 100.0 * sum(plus_dm[end - period:end]) / tr_sum
+        mdi = 100.0 * sum(minus_dm[end - period:end]) / tr_sum
+        denom = pdi + mdi
+        dx_values.append(100.0 * abs(pdi - mdi) / denom if denom else 0.0)
+    adx = sum(dx_values[-period:]) / min(period, len(dx_values))
+    atr = sum(trs[-period:]) / period
+    return adx, atr
+
+
 def confirmed_signal(coin):
     rows, source = candles(coin)
     latest_open = int(float(rows[-1][0]))
@@ -141,6 +175,10 @@ def confirmed_signal(coin):
     close_location = (close - low) / candle_range
     avg_volume = sum(volumes[-21:-1]) / 20.0
     volume_ratio = volume / avg_volume if avg_volume > 0 else 0.0
+    macd_line, macd_signal, macd_hist = macd(closes)
+    adx_value, atr_value = trend_strength(highs, lows, closes)
+    atr_pct = (atr_value / close * 100.0) if close else 0.0
+    # ADX, MACD and ATR are diagnostics only; existing signal gates and 25% option SL stay unchanged.
     # Earlier-entry gate: one completed 15m candle can qualify when EMA9/EMA21
     # are aligned and EMA21 is not moving against the trade. Volume/body are
     # diagnostics only, so they cannot suppress a valid directional move.
@@ -158,6 +196,8 @@ def confirmed_signal(coin):
     direction = "STRONG BUY CALL" if bullish else "STRONG BUY PUT" if bearish else None
     return {"direction": direction, "price": close, "rsi": rv, "ema9": e9, "ema21": e21,
             "volume_ratio": volume_ratio, "body_ratio": body_ratio,
+            "macd": macd_line, "macd_signal": macd_signal, "macd_hist": macd_hist,
+            "adx": adx_value, "atr": atr_value, "atr_pct": atr_pct,
             "candle_time": int(float(closed[-1][0])), "source": source}
 
 
@@ -341,6 +381,8 @@ def main():
                 f"Option quote source: {quote_source} (CoinSwitch price not live-verified)\n"
                 f"RSI 14: {signal['rsi']:.1f} | EMA9: {signal['ema9']:.2f} | EMA21: {signal['ema21']:.2f}\n"
                 f"Quality: volume {signal['volume_ratio']:.2f}x average | candle body {signal['body_ratio']*100:.0f}%\n"
+                f"MACD: {signal['macd']:.4f} | Signal: {signal['macd_signal']:.4f} | Histogram: {signal['macd_hist']:.4f}\\n"
+                f"ADX 14: {signal['adx']:.1f} (trend strength) | ATR 14: {signal['atr']:.4f} ({signal['atr_pct']:.2f}% volatility)\\n"
                 f"15m closed-candle source: {signal['source']}\n"
                 "LIMIT price is a suggestion at current ASK; quote may change. Signal only — कोई order अपने-आप place नहीं होगा।"
             )
@@ -368,6 +410,12 @@ def main():
                     "signal_ema21": signal["ema21"],
                     "signal_volume_ratio": signal["volume_ratio"],
                     "signal_body_ratio": signal["body_ratio"],
+                    "signal_macd": signal["macd"],
+                    "signal_macd_signal": signal["macd_signal"],
+                    "signal_macd_hist": signal["macd_hist"],
+                    "signal_adx": signal["adx"],
+                    "signal_atr": signal["atr"],
+                    "signal_atr_pct": signal["atr_pct"],
                     "market_data_source": signal["source"],
                     "source": quote_source, "entry": option["entry"],
                     "sl": option["sl"], "tp1": option["tp1"],
