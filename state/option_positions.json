@@ -287,8 +287,8 @@
     "stage": 0,
     "status": "ACTIVE",
     "created_at": "2026-11-27T12:16:30.643039+00:00",
-    "last_premium": 20.60532,
-    "last_checked": "2026-11-27T12:48:37.991012+00:00"
+    "last_premium": 18.0789,
+    "last_checked": "2026-11-27T14:03:37.066593+00:00"
   },
   {
     "key": "ETH|ETH-28NOV26-1720-P|STRONG BUY PUT|1795781700000",
@@ -321,8 +321,8 @@
     "stage": 0,
     "status": "ACTIVE",
     "created_at": "2026-11-27T12:38:15.625193+00:00",
-    "last_premium": 20.60532,
-    "last_checked": "2026-11-27T12:48:37.991049+00:00"
+    "last_premium": 18.0789,
+    "last_checked": "2026-11-27T14:03:37.066649+00:00"
   },
   {
     "key": "BTC|BTC-28NOV26-61000-P|STRONG BUY PUT|1795781700000",
@@ -355,8 +355,8 @@
     "stage": 0,
     "status": "ACTIVE",
     "created_at": "2026-11-27T12:39:06.601334+00:00",
-    "last_premium": 368.27322000000004,
-    "last_checked": "2026-11-27T12:48:38.701170+00:00"
+    "last_premium": 337.53291,
+    "last_checked": "2026-11-27T14:03:37.862776+00:00"
   },
   {
     "key": "BTC|BTC-28NOV26-61500-P|STRONG BUY PUT|1795781700000",
@@ -390,8 +390,8 @@
     "stage": 0,
     "status": "ACTIVE",
     "created_at": "2026-11-27T12:41:46.139657+00:00",
-    "last_premium": 583.0992650000001,
-    "last_checked": "2026-11-27T12:48:38.701194+00:00"
+    "last_premium": 583.01139,
+    "last_checked": "2026-11-27T14:03:37.862806+00:00"
   },
   {
     "key": "ETH|ETH-28NOV26-1680-P|STRONG BUY PUT|1795781700000",
@@ -425,8 +425,8 @@
     "stage": 0,
     "status": "ACTIVE",
     "created_at": "2026-11-27T12:41:48.691004+00:00",
-    "last_premium": 7.555284,
-    "last_checked": "2026-11-27T12:48:38.701212+00:00"
+    "last_premium": 6.37066,
+    "last_checked": "2026-11-27T14:03:37.862830+00:00"
   },
   {
     "key": "BTC|BTC-28NOV26-61000-P|STRONG BUY PUT|1795786200000",
@@ -459,6 +459,8 @@
     "peak": 368.68284,
     "stage": 0,
     "status": "ACTIVE",
-    "created_at": "2026-11-27T13:48:14.352177+00:00"
+    "created_at": "2026-11-27T13:48:14.352177+00:00",
+    "last_premium": 337.53291,
+    "last_checked": "2026-11-27T14:03:37.862837+00:00"
   }
 ]
