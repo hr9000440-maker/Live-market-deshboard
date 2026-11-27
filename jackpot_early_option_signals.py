@@ -375,7 +375,7 @@ def main():
     tmp = STATE_PATH + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False, indent=2, sort_keys=True)
-        f.write("\\n")
+        f.write("\n")
     os.replace(tmp, STATE_PATH)
     print(f"Zero Hero completed. Alerts sent: {sent}; coin errors: {errors}")
     # Per-coin data and Telegram errors remain visible in the Actions log.
