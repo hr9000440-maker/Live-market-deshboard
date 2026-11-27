@@ -3,6 +3,29 @@
   "budget_inr": 500,
   "open_trades": [
     {
+      "id": "ZEC:BUY:1795783500000",
+      "coin": "ZEC",
+      "side": "BUY",
+      "timeframe": "15m CONFIRMED",
+      "data_source": "KuCoin spot (primary)",
+      "entry": 762.238,
+      "sl": 754.9088285714287,
+      "tp1": 768.3456428571429,
+      "tp2": 774.4532857142858,
+      "tp3": 780.5609285714287,
+      "qty": 0.006904874717262643,
+      "budget_inr": 500,
+      "rsi": 65.05,
+      "ema9": 758.3138155206466,
+      "ema21": 755.412085597567,
+      "opened_at": "2026-11-27T13:00:27.841844+00:00",
+      "status": "OPEN",
+      "tp1_hit": false,
+      "tp2_hit": false,
+      "tp3_hit": false,
+      "signal_candle": 1795783500000
+    },
+    {
       "id": "ETH:SELL:1795781700000",
       "coin": "ETH",
       "side": "SELL",
@@ -81,10 +104,10 @@
       "pnl_inr": 12.36
     }
   ],
-  "last_update": "2026-11-27T12:31:07.251269+00:00",
+  "last_update": "2026-11-27T13:00:29.650485+00:00",
   "errors": {},
   "last_signal": {
-    "ZEC": "ZEC:SELL:1795437900000",
+    "ZEC": "ZEC:BUY:1795783500000",
     "BTC": "BTC:SELL:1795781700000",
     "ETH": "ETH:SELL:1795781700000"
   }
