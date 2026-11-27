@@ -1,13 +1,13 @@
 # Option Signal Checker — latest audit
 
-Generated (UTC): 2026-11-27T14:22:58.008019+00:00
+Generated (UTC): 2026-11-27T15:59:58.496706+00:00
 
 ## Summary
 - Total tracked signals: **20**
-- Active: **6**
+- Active: **0**
 - STOPPED: **13**
 - Trailing SL stopped: **1**
-- Final target hit: **0**
+- Final target hit: **6**
 - Other statuses: **0**
 - Records with quality metrics: **8/20**
 - Records missing a valid entry: **0**
@@ -16,8 +16,8 @@ Generated (UTC): 2026-11-27T14:22:58.008019+00:00
 
 | Coin | Active | SL stopped | Trailing SL | Target hit | Other |
 |---|---:|---:|---:|---:|---:|
-| BTC | 3 | 7 | 1 | 0 | 0 |
-| ETH | 3 | 6 | 0 | 0 | 0 |
+| BTC | 0 | 7 | 1 | 3 | 0 |
+| ETH | 0 | 6 | 0 | 3 | 0 |
 
 ## Per-signal detail
 
@@ -37,12 +37,12 @@ Generated (UTC): 2026-11-27T14:22:58.008019+00:00
 | BTC | BTC-27NOV26-62000-P | STOPPED | 0 | +0.00% | -25.53% | missing | missing | missing | missing | missing | missing | missing |
 | BTC | BTC-27NOV26-61000-C | STOPPED | 0 | +0.00% | -40.72% | 61.9 | 1.53 | 82% | missing | missing | missing | missing |
 | BTC | BTC-28NOV26-61500-C | STOPPED | 0 | +0.00% | -32.22% | 58.5 | 1.18 | 43% | missing | missing | missing | missing |
-| ETH | ETH-28NOV26-1720-P | ACTIVE | 0 | +0.00% | -15.91% | 38.6 | 1.62 | 57% | missing | missing | missing | missing |
-| ETH | ETH-28NOV26-1720-P | ACTIVE | 0 | +0.00% | -12.42% | 37.8 | 0.59 | 17% | 18.5 | -1.49779 | 0.27% | missing |
-| BTC | BTC-28NOV26-61000-P | ACTIVE | 0 | +0.00% | -8.42% | 47.7 | 0.58 | 45% | 16.7 | -30.06589 | 0.22% | missing |
-| BTC | BTC-28NOV26-61500-P | ACTIVE | 0 | +0.00% | -0.14% | 47.7 | 0.58 | 45% | 16.7 | -30.06589 | 0.22% | CAUTION — ADX 20 से कम: trend कमजोर; Volume average से कम: participation कमजोर |
-| ETH | ETH-28NOV26-1680-P | ACTIVE | 0 | +0.00% | -15.82% | 37.8 | 0.59 | 17% | 18.5 | -1.49779 | 0.27% | CAUTION — ADX 20 से कम: trend कमजोर; Volume average से कम: participation कमजोर |
-| BTC | BTC-28NOV26-61000-P | ACTIVE | 0 | +0.00% | -8.45% | 39.9 | 1.67 | 12% | 24.8 | -38.96355 | 0.23% | GOOD — ADX/MACD/Volume aligned |
+| ETH | ETH-28NOV26-1720-P | TARGET_HIT | 0 | +192.75% | +192.75% | 38.6 | 1.62 | 57% | missing | missing | missing | missing |
+| ETH | ETH-28NOV26-1720-P | TARGET_HIT | 0 | +204.90% | +204.90% | 37.8 | 0.59 | 17% | 18.5 | -1.49779 | 0.27% | missing |
+| BTC | BTC-28NOV26-61000-P | TARGET_HIT | 0 | +374.27% | +374.27% | 47.7 | 0.58 | 45% | 16.7 | -30.06589 | 0.22% | missing |
+| BTC | BTC-28NOV26-61500-P | TARGET_HIT | 0 | +275.51% | +275.51% | 47.7 | 0.58 | 45% | 16.7 | -30.06589 | 0.22% | CAUTION — ADX 20 से कम: trend कमजोर; Volume average से कम: participation कमजोर |
+| ETH | ETH-28NOV26-1680-P | TARGET_HIT | 0 | +326.74% | +326.74% | 37.8 | 0.59 | 17% | 18.5 | -1.49779 | 0.27% | CAUTION — ADX 20 से कम: trend कमजोर; Volume average से कम: participation कमजोर |
+| BTC | BTC-28NOV26-61000-P | TARGET_HIT | 0 | +374.13% | +374.13% | 39.9 | 1.67 | 12% | 24.8 | -38.96355 | 0.23% | GOOD — ADX/MACD/Volume aligned |
 
 ## Audit limitations
 
