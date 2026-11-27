@@ -3,6 +3,29 @@
   "budget_inr": 500,
   "open_trades": [
     {
+      "id": "ZEC:SELL:1795812300000",
+      "coin": "ZEC",
+      "side": "SELL",
+      "timeframe": "15m CONFIRMED",
+      "data_source": "KuCoin spot (primary)",
+      "entry": 738.465,
+      "sl": 746.0586857142857,
+      "tp1": 732.1369285714286,
+      "tp2": 725.8088571428572,
+      "tp3": 719.4807857142857,
+      "qty": 0.007127159573895638,
+      "budget_inr": 500,
+      "rsi": 54.29,
+      "ema9": 742.6412597182656,
+      "ema21": 743.9176489302273,
+      "opened_at": "2026-11-27T21:03:42.694144+00:00",
+      "status": "OPEN",
+      "tp1_hit": false,
+      "tp2_hit": false,
+      "tp3_hit": false,
+      "signal_candle": 1795812300000
+    },
+    {
       "id": "BNB:SELL:1795795200000",
       "coin": "BNB",
       "side": "SELL",
@@ -214,10 +237,10 @@
       "pnl_inr": 12.36
     }
   ],
-  "last_update": "2026-11-27T18:14:39.400564+00:00",
+  "last_update": "2026-11-27T21:03:44.336756+00:00",
   "errors": {},
   "last_signal": {
-    "ZEC": "ZEC:SELL:1795795200000",
+    "ZEC": "ZEC:SELL:1795812300000",
     "BTC": "BTC:SELL:1795795200000",
     "ETH": "ETH:SELL:1795795200000",
     "BNB": "BNB:SELL:1795795200000"
