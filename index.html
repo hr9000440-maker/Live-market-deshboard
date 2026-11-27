@@ -31,6 +31,25 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 <body>
 <header><h1>📊 LIVE MARKET DASHBOARD</h1><p>INDEX • FUTURES • OPTIONS • MCX • CRYPTO</p></header>
 <main>
+
+<section class="panel" id="crypto-options">
+<h2>₿ CRYPTO OPTIONS CHAIN — BTC + ETH + BNB + ZEC + DOGE</h2>
+<p class="note">BTC/ETH: Deribit • ZEC: Paradex • DOGE: Gate.io public options data • BNB: Gate.io (if listed) • यहां से order place नहीं होगा। Premium USD में अनुमानित है (mark price × underlying price); OI/Volume exchange की मूल इकाई में हैं।</p>
+<div class="result" id="cryptoSignal" style="margin:12px 0"><p class="note">15m signal लोड हो रहा है…</p></div>
+<div class="option-controls">
+<div><label for="optCurrency">Coin</label><select id="optCurrency" onchange="handleOptionCoinChange();loadCryptoOptions();loadCryptoSignal()"><option value="BTC">BTC — Bitcoin</option><option value="ETH">ETH — Ethereum</option><option value="ZEC">ZEC — Zcash</option><option value="DOGE">DOGE — Dogecoin</option><option value="BNB">BNB — Binance Coin</option></select></div>
+<div><label for="optExpiry">Expiry</label><select id="optExpiry" onchange="renderCryptoOptions()"><option value="">Loading…</option></select><div id="optExpiryStatus" class="note" style="margin-top:6px">Expiry API data जाँच रहा है…</div></div>
+<div><label for="optType">Option Type</label><select id="optType" onchange="renderCryptoOptions()"><option value="ALL">CALL + PUT</option><option value="C">CALL (CE)</option><option value="P">PUT (PE)</option></select></div>
+<div><label for="optMoneyness">Strike Filter</label><select id="optMoneyness" onchange="renderCryptoOptions()"><option value="ALL">ALL strikes</option><option value="ITM">ITM only</option></select></div>
+<div><label for="optSearch">Strike खोजें</label><input id="optSearch" type="number" placeholder="जैसे 90000" oninput="renderCryptoOptions()"></div>
+</div>
+<div class="grid" style="margin-top:12px"><div class="result"><small>Underlying Price</small><strong id="optUnderlying">—</strong></div><div class="result"><small>Listed Contracts</small><strong id="optCount">—</strong></div><div class="result"><small>Data Updated</small><strong id="optUpdated">—</strong></div></div>
+<p id="optStatus" class="note" aria-live="polite">Options data लोड हो रहा है…</p>
+<div class="option-table-wrap"><table class="option-table"><thead><tr><th>Contract</th><th>Strike</th><th>Type</th><th>ITM / OTM</th><th>Bid (USD)</th><th>Ask (USD)</th><th>Mark (USD)</th><th>Spread (%)</th><th>Entry (USD)</th><th>SL (25%)</th><th>TP1</th><th>TP2</th><th>TP3</th><th>OI</th><th>24h Vol</th><th>Trade Signal</th></tr></thead><tbody id="optRows"><tr><td colspan="16">डेटा लोड हो रहा है…</td></tr></tbody></table></div>
+<p class="note">Spread filter सक्रिय: केवल 10% या उससे कम bid-ask midpoint spread वाले matching CALL/PUT contracts को trade signal मिलेगा। 10% से अधिक spread, अधूरा quote या OI और 24h volume दोनों शून्य होने पर WAIT दिखेगा। 15m EMA/RSI direction, volume और OI को देखें; trade signal को live quote से verify करें। Option premium SL = Entry से 25% नीचे; TP1/TP2/TP3 = Entry से 25%/50%/75% ऊपर। ये indicative fixed-premium levels हैं, ATR-based नहीं; expiry, volatility, spread और slippage से वास्तविक कीमत बदल सकती है। कोई automatic order place नहीं होता। Quotes USD equivalent में हैं, INR नहीं।</p>
+</section>
+
+
 <section class="panel">
 <h2>🔴 LIVE MARKET TICKERS</h2>
 <p class="note">हर market group का अपना ticker है। MCX market चालू होने पर उपलब्ध exchange feed के अनुसार भाव update होंगे; कुछ feeds delayed हो सकती हैं।</p>
@@ -269,22 +288,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 <p class="note">Telegram delivery test: ₹500 affordability filter अस्थायी रूप से बंद है ताकि eligible market signals budget के कारण न रुकें; यह केवल alerts के लिए है, कोई order place नहीं होगा। BTC/ETH: BUY CALL या BUY PUT दिशा का संकेत है, option contract/premium का live quote अलग Option Chain से जाँचें। Option premium पर Entry के 25% नीचे SL और 25%/50%/75% ऊपर TP1/TP2/TP3 indicative levels हैं; underlying Entry/SL/TP अलग हैं। BNB/ZEC: Entry, SL और targets underlying USDT price levels हैं। Spot data futures basis, fees, funding और slippage से अलग हो सकता है।</p>
 </section>
 
-<section class="panel" id="crypto-options">
-<h2>₿ CRYPTO OPTIONS CHAIN — BTC + ETH + BNB + ZEC + DOGE</h2>
-<p class="note">BTC/ETH: Deribit • ZEC: Paradex • DOGE: Gate.io public options data • BNB: Gate.io (if listed) • यहां से order place नहीं होगा। Premium USD में अनुमानित है (mark price × underlying price); OI/Volume exchange की मूल इकाई में हैं।</p>
-<div class="result" id="cryptoSignal" style="margin:12px 0"><p class="note">15m signal लोड हो रहा है…</p></div>
-<div class="option-controls">
-<div><label for="optCurrency">Coin</label><select id="optCurrency" onchange="handleOptionCoinChange();loadCryptoOptions();loadCryptoSignal()"><option value="BTC">BTC — Bitcoin</option><option value="ETH">ETH — Ethereum</option><option value="ZEC">ZEC — Zcash</option><option value="DOGE">DOGE — Dogecoin</option><option value="BNB">BNB — Binance Coin</option></select></div>
-<div><label for="optExpiry">Expiry</label><select id="optExpiry" onchange="renderCryptoOptions()"><option value="">Loading…</option></select><div id="optExpiryStatus" class="note" style="margin-top:6px">Expiry API data जाँच रहा है…</div></div>
-<div><label for="optType">Option Type</label><select id="optType" onchange="renderCryptoOptions()"><option value="ALL">CALL + PUT</option><option value="C">CALL (CE)</option><option value="P">PUT (PE)</option></select></div>
-<div><label for="optMoneyness">Strike Filter</label><select id="optMoneyness" onchange="renderCryptoOptions()"><option value="ALL">ALL strikes</option><option value="ITM">ITM only</option></select></div>
-<div><label for="optSearch">Strike खोजें</label><input id="optSearch" type="number" placeholder="जैसे 90000" oninput="renderCryptoOptions()"></div>
-</div>
-<div class="grid" style="margin-top:12px"><div class="result"><small>Underlying Price</small><strong id="optUnderlying">—</strong></div><div class="result"><small>Listed Contracts</small><strong id="optCount">—</strong></div><div class="result"><small>Data Updated</small><strong id="optUpdated">—</strong></div></div>
-<p id="optStatus" class="note" aria-live="polite">Options data लोड हो रहा है…</p>
-<div class="option-table-wrap"><table class="option-table"><thead><tr><th>Contract</th><th>Strike</th><th>Type</th><th>ITM / OTM</th><th>Bid (USD)</th><th>Ask (USD)</th><th>Mark (USD)</th><th>Spread (%)</th><th>Entry (USD)</th><th>SL (25%)</th><th>TP1</th><th>TP2</th><th>TP3</th><th>OI</th><th>24h Vol</th><th>Trade Signal</th></tr></thead><tbody id="optRows"><tr><td colspan="16">डेटा लोड हो रहा है…</td></tr></tbody></table></div>
-<p class="note">Spread filter सक्रिय: केवल 10% या उससे कम bid-ask midpoint spread वाले matching CALL/PUT contracts को trade signal मिलेगा। 10% से अधिक spread, अधूरा quote या OI और 24h volume दोनों शून्य होने पर WAIT दिखेगा। 15m EMA/RSI direction, volume और OI को देखें; trade signal को live quote से verify करें। Option premium SL = Entry से 25% नीचे; TP1/TP2/TP3 = Entry से 25%/50%/75% ऊपर। ये indicative fixed-premium levels हैं, ATR-based नहीं; expiry, volatility, spread और slippage से वास्तविक कीमत बदल सकती है। कोई automatic order place नहीं होता। Quotes USD equivalent में हैं, INR नहीं।</p>
-</section>
+
 
 
 <section class="panel" id="server-option-snapshots">
