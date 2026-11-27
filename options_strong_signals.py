@@ -134,16 +134,16 @@ def confirmed_signal(coin):
         previous_close > previous_e9 > previous_e21
         and close > e9 > e21 > previous_e21
         and 45 <= rv <= 75
-        and volume_ratio >= 1.0
-        and body_ratio >= 0.40
+        and volume_ratio >= 0.80
+        and body_ratio >= 0.35
         and close_location >= 0.65
     )
     bearish = (
         previous_close < previous_e9 < previous_e21
         and close < e9 < e21 < previous_e21
         and 25 <= rv <= 55
-        and volume_ratio >= 1.0
-        and body_ratio >= 0.40
+        and volume_ratio >= 0.80
+        and body_ratio >= 0.35
         and close_location <= 0.35
     )
     direction = "STRONG BUY CALL" if bullish else "STRONG BUY PUT" if bearish else None
