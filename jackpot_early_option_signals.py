@@ -239,24 +239,31 @@ def main():
                 sl = entry * 0.75
                 sl_method = "fallback 25% (Greeks unavailable)"
             sign = 1 if is_call else -1
-            target_values = [projected_premium(sign * sig["atr"] * multiple) for multiple in (1.5, 3.0, 5.0)]
-            tp1, tp2, tp3 = target_values
+            target_underlyings = [sig["price"] + sign * sig["atr"] * multiple for multiple in (1.5, 3.0, 5.0)]
+            if delta != 0:
+                target_values = [projected_premium(x - sig["price"]) for x in target_underlyings]
+                tp_pcts = [(x / entry - 1) * 100 for x in target_values]
+                target_text = (f"🎯 TP1: {target_values[0]:.6f} USD ({tp_pcts[0]:+.1f}%)\\n"
+                               + f"🎯 TP2: {target_values[1]:.6f} USD ({tp_pcts[1]:+.1f}%)\\n"
+                               + f"🚀 TP3: {target_values[2]:.6f} USD ({tp_pcts[2]:+.1f}%) — no fixed % cap\\n")
+                target_method = "Option targets estimated with available delta/gamma"
+            else:
+                target_text = ("Underlying ATR targets (Greeks unavailable): "
+                               + " / ".join(f"{x:.2f}" for x in target_underlyings) + " USD\\n")
+                target_method = "Option premium target not estimated without Greeks"
             side = "BUY CALL" if is_call else "BUY PUT"
             sl_pct = (sl / entry - 1) * 100
-            tp_pcts = [(x / entry - 1) * 100 for x in (tp1, tp2, tp3)]
             msg = (
                 "⚡ ZERO HERO JACKPOT — " + coin + " (EARLY 5m MOVEMENT)\\n"
                 + side + "\\nContract: " + option["name"] + "\\n"
                 + f"Underlying: {underlying:,.2f} USD | Suggested LIMIT BUY: {entry:.6f} USD (≈ ₹{option['premium_inr']:.2f})\\n"
                 + f"Bid: {option['bid']:.6f} | Ask: {option['ask']:.6f} | Spread: {option['spread']*100:.2f}%\\n"
                 + f"🛑 Dynamic SL: {sl:.6f} USD ({sl_pct:+.1f}%) — {sl_method}\\n"
-                + f"🎯 TP1: {tp1:.6f} USD ({tp_pcts[0]:+.1f}%)\\n"
-                + f"🎯 TP2: {tp2:.6f} USD ({tp_pcts[1]:+.1f}%)\\n"
-                + f"🚀 TP3: {tp3:.6f} USD ({tp_pcts[2]:+.1f}%) — no fixed % cap\\n"
+                + target_text
                 + f"5m RSI14: {sig['rsi']:.1f} | EMA9: {sig['ema9']:.2f} | EMA21: {sig['ema21']:.2f}\\n"
                 + f"5m move: {sig['move_pct']:.3f}% | ATR: {sig['atr']:.4f} | Volume: {sig['volume_ratio']:.2f}x\\n"
                 + f"Market data: {sig['source']} | Option source: {payload.get('source', 'unknown')}\\n"
-                + "Premium ₹5–₹30 filter and <=10% spread retained. Targets are estimates from available Greeks; if Greeks are absent, SL falls back to 25%. Signal only — no automatic order."
+                + target_method + ". Premium ₹5–₹30 filter and <=10% spread retained. If Greeks are absent, SL falls back to 25%. Signal only — no automatic order."
             )
             telegram(msg)
             state[key] = stamp
