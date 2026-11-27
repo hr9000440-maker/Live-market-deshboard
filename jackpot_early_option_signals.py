@@ -116,14 +116,16 @@ def confirm_15m(coin, direction):
     if len(closed) < 30:
         raise RuntimeError("15m confirmation candles कम हैं")
     closes = [float(x[4]) for x in closed]
-    close = closes[-1]
+    close, previous_close = closes[-1], closes[-2]
     e9 = ema(closes[-30:], 9)
     e21 = ema(closes[-50:], 21)
     rv = rsi(closes, 14)
+    # The 15m candle confirms direction without requiring a fully mature EMA trend.
+    # The 5m breakout remains the strict trigger; 15m must agree with price/EMA9.
     if "CALL" in direction:
-        ok = close > e21 and e9 >= e21 * 0.995 and rv >= 42
+        ok = close > e9 and close >= previous_close and rv >= 40
     else:
-        ok = close < e21 and e9 <= e21 * 1.005 and rv <= 58
+        ok = close < e9 and close <= previous_close and rv <= 60
     if not ok:
         return None
     return {"close": close, "ema9": e9, "ema21": e21, "rsi": rv, "source": source}
@@ -203,7 +205,7 @@ def main():
                 continue
             confirm = confirm_15m(coin, sig["direction"])
             if not confirm:
-                print(coin + ": 5m move found, but 15m direction confirmation absent")
+                print(coin + ": " + sig["direction"] + " 5m breakout found, but 15m candle has not confirmed it")
                 continue
             payload = get_json(OPTION_API.format(coin=coin), timeout=25)
             underlying = float(payload.get("underlying") or 0)
