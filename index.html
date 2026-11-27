@@ -766,8 +766,10 @@ async function analyzeCryptoCoin(coin){
  const confirmedOpen=Number(closedCandles.at(-1)[1]),confirmedHigh=Number(closedCandles.at(-1)[2]),confirmedLow=Number(closedCandles.at(-1)[3]),confirmedVolume=closedVolumes.at(-1);
  const confirmedRange=Math.max(confirmedHigh-confirmedLow,1e-12),confirmedBody=Math.abs(confirmedClose-confirmedOpen)/confirmedRange,confirmedLocation=(confirmedClose-confirmedLow)/confirmedRange;
  const confirmedAvgVolume=closedVolumes.slice(-21,-1).reduce((a,b)=>a+b,0)/20,confirmedVolumeRatio=confirmedAvgVolume>0?confirmedVolume/confirmedAvgVolume:0;
- const bullishQuality=previousClose>previousE9&&previousE9>previousE21&&confirmedClose>confirmedE9&&confirmedE9>confirmedE21&&confirmedE21>previousE21&&confirmedRsi>=45&&confirmedRsi<=75&&confirmedVolumeRatio>=0.80&&confirmedBody>=0.35&&confirmedLocation>=0.65;
- const bearishQuality=previousClose<previousE9&&previousE9<previousE21&&confirmedClose<confirmedE9&&confirmedE9<confirmedE21&&confirmedE21<previousE21&&confirmedRsi>=25&&confirmedRsi<=55&&confirmedVolumeRatio>=0.80&&confirmedBody>=0.35&&confirmedLocation<=0.35;
+ // Earlier-entry gate: accept either a fresh EMA9 reclaim/breakdown or an already aligned EMA9/EMA21 trend.
+ // Volume and candle-body remain quality diagnostics, not hard blockers; avoid waiting for two fully stacked candles.
+ const bullishQuality=confirmedClose>confirmedE9&&confirmedClose>confirmedE21&&confirmedE9>confirmedE21&&confirmedE21>=previousE21&&confirmedRsi>=42&&confirmedRsi<=78&&confirmedLocation>=0.55;
+ const bearishQuality=confirmedClose<confirmedE9&&confirmedClose<confirmedE21&&confirmedE9<confirmedE21&&confirmedE21<=previousE21&&confirmedRsi>=22&&confirmedRsi<=58&&confirmedLocation<=0.45;
  let confirmedSide='WAIT',confirmationReason='दो बंद 15m candles, EMA21 slope, volume और candle strength की पूरी पुष्टि नहीं';
  if(bullishQuality){confirmedSide='BUY / LONG';confirmationReason='QUALITY CONFIRMED: लगातार 2 बंद candles bullish, EMA21 ऊपर, volume '+confirmedVolumeRatio.toFixed(2)+'x और मजबूत close';}
  else if(bearishQuality){confirmedSide='SELL / SHORT';confirmationReason='QUALITY CONFIRMED: लगातार 2 बंद candles bearish, EMA21 नीचे, volume '+confirmedVolumeRatio.toFixed(2)+'x और मजबूत close';}
