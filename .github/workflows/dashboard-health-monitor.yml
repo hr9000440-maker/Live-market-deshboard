@@ -1,5 +1,13 @@
 name: Dashboard Health Monitor
 on:
+  push:
+    paths:
+      - 'scripts/dashboard-health-check.py'
+      - 'health-monitor.html'
+      - 'index.html'
+      - 'options_strong_signals.py'
+      - 'state/option_positions.json'
+      - '.github/workflows/dashboard-health-monitor.yml'
   schedule:
     - cron: '*/15 * * * *'
   workflow_dispatch:
