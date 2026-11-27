@@ -1,8 +1,10 @@
 name: Crypto Telegram Signals
 
-# Futures alerts paused for now. Keep manual dispatch available for later testing.
+# Automated 15m closed-candle futures direction alerts; signal-only, no orders.
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
 
 permissions:
   contents: write
