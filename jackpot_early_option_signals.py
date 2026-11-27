@@ -212,7 +212,7 @@ def monitor_positions(coin, payload, underlying, sig, state):
             continue
         if bid <= 0 or ask < bid:
             continue
-        market = float(sig["price"]) if sig else underlying
+        market = float(underlying)
         atr = float(sig["atr"]) if sig and float(sig.get("atr") or 0) > 0 else float(pos["atr"])
         call = pos["direction"] == "CALL"
         old_best = float(pos["best_underlying"])
