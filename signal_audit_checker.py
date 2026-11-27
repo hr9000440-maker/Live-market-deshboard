@@ -55,6 +55,9 @@ def main():
                                 "signal_volume_ratio", "signal_body_ratio")),
             "rsi": p.get("signal_rsi"), "volume_ratio": p.get("signal_volume_ratio"),
             "candle_body_ratio": p.get("signal_body_ratio"),
+            "macd": p.get("signal_macd"), "macd_signal": p.get("signal_macd_signal"),
+            "macd_hist": p.get("signal_macd_hist"), "adx": p.get("signal_adx"),
+            "atr": p.get("signal_atr"), "atr_pct": p.get("signal_atr_pct"),
             "market_data_source": p.get("market_data_source", ""),
             "option_quote_source": p.get("source", "")
         })
@@ -104,15 +107,18 @@ def main():
         other = sum(v for k, v in counts.items() if k not in ("ACTIVE","STOPPED","TRAIL_STOPPED","TARGET_HIT"))
         lines.append(f"| {coin} | {counts.get('ACTIVE',0)} | {counts.get('STOPPED',0)} | {counts.get('TRAIL_STOPPED',0)} | {counts.get('TARGET_HIT',0)} | {other} |")
     lines += ["", "## Per-signal detail", "",
-              "| Coin | Contract | Status | TP stage | Peak vs entry | Last vs entry | RSI | Volume x | Body % |",
-              "|---|---|---|---:|---:|---:|---:|---:|---:|"]
+              "| Coin | Contract | Status | TP stage | Peak vs entry | Last vs entry | RSI | Volume x | Body % | ADX | MACD hist | ATR % |",
+              "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
     for r in rows:
         peak = f"{r['max_favorable_pct']:+.2f}%" if r["max_favorable_pct"] is not None else "n/a"
         last = f"{r['last_mark_pct']:+.2f}%" if r["last_mark_pct"] is not None else "n/a"
         rsi = f"{float(r['rsi']):.1f}" if r["rsi"] is not None else "missing"
         vol = f"{float(r['volume_ratio']):.2f}" if r["volume_ratio"] is not None else "missing"
         body = f"{float(r['candle_body_ratio'])*100:.0f}%" if r["candle_body_ratio"] is not None else "missing"
-        lines.append(f"| {r['coin']} | {r['contract']} | {r['status']} | {r['stage']} | {peak} | {last} | {rsi} | {vol} | {body} |")
+        adx = f"{float(r['adx']):.1f}" if r["adx"] is not None else "missing"
+        macd_hist = f"{float(r['macd_hist']):.5f}" if r["macd_hist"] is not None else "missing"
+        atr_pct = f"{float(r['atr_pct']):.2f}%" if r["atr_pct"] is not None else "missing"
+        lines.append(f"| {r['coin']} | {r['contract']} | {r['status']} | {r['stage']} | {peak} | {last} | {rsi} | {vol} | {body} | {adx} | {macd_hist} | {atr_pct} |")
     lines += ["", "## Audit limitations", ""]
     lines.extend(f"- {item}" for item in report["interpretation"])
     lines += ["", "## Improvement gate", "",
