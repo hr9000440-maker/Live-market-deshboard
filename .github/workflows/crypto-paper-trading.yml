@@ -1,5 +1,10 @@
 name: Crypto Paper Trading Engine
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'paper_trading_engine.py'
+      - '.github/workflows/crypto-paper-trading.yml'
   workflow_dispatch:
   schedule:
     - cron: "*/5 * * * *"
