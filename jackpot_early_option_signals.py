@@ -104,6 +104,12 @@ def five_minute_signal(coin):
     elif bear:
         direction = "STRONG BUY PUT"
     else:
+        print(
+            f"{coin}: no 5m trigger | source={source} | close={close:.6f} "
+            f"| prior_high={prior_high:.6f} | prior_low={prior_low:.6f} "
+            f"| body={body:.2f} | move={move_pct:.3f}% "
+            f"| volume={vol_ratio:.2f}x | RSI={rv:.1f}"
+        )
         return None
     return {"direction": direction, "price": close, "rsi": rv, "ema9": e9,
             "ema21": e21, "candle_time": int(float(last[0])),
