@@ -112,7 +112,7 @@ def confirmed_signal(coin):
         raise RuntimeError("15m candle data पुराना है; सुरक्षित रूप से signal रोका गया")
     closed = rows[:-1]
     if len(closed) < 31:
-        raise RuntimeError("दो-candle quality confirmation के लिए closed candles कम हैं")
+        raise RuntimeError("EMA/RSI calculation के लिए पर्याप्त बंद 15m candles उपलब्ध नहीं हैं")
     closes = [float(x[4]) for x in closed]
     highs = [float(x[2]) for x in closed]
     lows = [float(x[3]) for x in closed]
