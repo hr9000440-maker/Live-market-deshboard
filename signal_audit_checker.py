@@ -58,6 +58,7 @@ def main():
             "macd": p.get("signal_macd"), "macd_signal": p.get("signal_macd_signal"),
             "macd_hist": p.get("signal_macd_hist"), "adx": p.get("signal_adx"),
             "atr": p.get("signal_atr"), "atr_pct": p.get("signal_atr_pct"),
+            "confirmation": p.get("signal_confirmation"),
             "market_data_source": p.get("market_data_source", ""),
             "option_quote_source": p.get("source", "")
         })
@@ -107,8 +108,8 @@ def main():
         other = sum(v for k, v in counts.items() if k not in ("ACTIVE","STOPPED","TRAIL_STOPPED","TARGET_HIT"))
         lines.append(f"| {coin} | {counts.get('ACTIVE',0)} | {counts.get('STOPPED',0)} | {counts.get('TRAIL_STOPPED',0)} | {counts.get('TARGET_HIT',0)} | {other} |")
     lines += ["", "## Per-signal detail", "",
-              "| Coin | Contract | Status | TP stage | Peak vs entry | Last vs entry | RSI | Volume x | Body % | ADX | MACD hist | ATR % |",
-              "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
+              "| Coin | Contract | Status | TP stage | Peak vs entry | Last vs entry | RSI | Volume x | Body % | ADX | MACD hist | ATR % | Confirmation |",
+              "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|"]
     for r in rows:
         peak = f"{r['max_favorable_pct']:+.2f}%" if r["max_favorable_pct"] is not None else "n/a"
         last = f"{r['last_mark_pct']:+.2f}%" if r["last_mark_pct"] is not None else "n/a"
@@ -118,7 +119,8 @@ def main():
         adx = f"{float(r['adx']):.1f}" if r["adx"] is not None else "missing"
         macd_hist = f"{float(r['macd_hist']):.5f}" if r["macd_hist"] is not None else "missing"
         atr_pct = f"{float(r['atr_pct']):.2f}%" if r["atr_pct"] is not None else "missing"
-        lines.append(f"| {r['coin']} | {r['contract']} | {r['status']} | {r['stage']} | {peak} | {last} | {rsi} | {vol} | {body} | {adx} | {macd_hist} | {atr_pct} |")
+        confirmation = r["confirmation"] or "missing"
+        lines.append(f"| {r['coin']} | {r['contract']} | {r['status']} | {r['stage']} | {peak} | {last} | {rsi} | {vol} | {body} | {adx} | {macd_hist} | {atr_pct} | {confirmation} |")
     lines += ["", "## Audit limitations", ""]
     lines.extend(f"- {item}" for item in report["interpretation"])
     lines += ["", "## Improvement gate", "",
