@@ -40,6 +40,13 @@ jobs:
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add state/gamma_blast_snapshots.json
             git commit -m "Save Gamma Blast option market snapshots"
-            git pull --rebase origin main
-            git push
+            for attempt in 1 2 3 4 5; do
+              git pull --rebase origin main
+              if git push; then
+                exit 0
+              fi
+              sleep $((attempt * 2))
+            done
+            echo "Could not publish state after 5 retries"
+            exit 1
           fi
