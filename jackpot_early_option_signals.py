@@ -195,6 +195,49 @@ def best_zero_hero_option(coin, direction, underlying, payload):
     return min(candidates, key=lambda x: x["score"])
 
 
+def monitor_positions(coin, payload, underlying, sig, state):
+    positions = state.setdefault("__positions__", [])
+    rows = payload.get("rows") if isinstance(payload.get("rows"), list) else []
+    changed = False
+    for pos in positions:
+        if pos.get("coin") != coin or pos.get("status") != "ACTIVE":
+            continue
+        quote = next((x for x in rows if str(x.get("instrument_name") or "") == pos.get("contract")), None)
+        if not quote:
+            continue
+        try:
+            bid = float(quote.get("bid_price") or 0)
+            ask = float(quote.get("ask_price") or 0)
+        except (TypeError, ValueError):
+            continue
+        if bid <= 0 or ask < bid:
+            continue
+        market = float(sig["price"]) if sig else underlying
+        atr = float(sig["atr"]) if sig and float(sig.get("atr") or 0) > 0 else float(pos["atr"])
+        call = pos["direction"] == "CALL"
+        old_best = float(pos["best_underlying"])
+        old_stop = float(pos["trail_underlying"])
+        best = max(old_best, market) if call else min(old_best, market)
+        candidate = best - 1.2 * atr if call else best + 1.2 * atr
+        stop = max(old_stop, candidate) if call else min(old_stop, candidate)
+        pos.update({"best_underlying": best, "trail_underlying": stop, "atr": atr, "last_bid": bid})
+        targets = pos["targets"]
+        stage = int(pos.get("target_stage", 0))
+        while stage < len(targets) and (market >= targets[stage] if call else market <= targets[stage]):
+            telegram("🚀 ZERO HERO TARGET HIT — " + coin + "\\n" + pos["contract"] + f"\\nUnderlying: {market:.4f} USD | Target {stage + 1} reached\\nOption bid: {bid:.6f} USD\\nNext target remains movement-based. Signal only.")
+            stage += 1
+        pos["target_stage"] = stage
+        if stage >= len(targets):
+            targets.append(best + (5.0 * atr if call else -5.0 * atr))
+        stopped = market <= stop if call else market >= stop
+        if stopped:
+            pos["status"] = "CLOSED"
+            telegram("🛑 ZERO HERO TRAILING SL EXIT — " + coin + "\\n" + pos["contract"] + f"\\nUnderlying: {market:.4f} USD | Trailing SL: {stop:.4f} USD\\nOption bid: {bid:.6f} USD\\nMarket-structure exit alert. Signal only; no order placed.")
+        elif abs(stop - old_stop) > 1e-12:
+            telegram("🔒 ZERO HERO TRAILING SL UPDATED — " + coin + "\\n" + pos["contract"] + f"\\nNew underlying SL: {stop:.4f} USD | Favorable extreme: {best:.4f} | ATR: {atr:.4f}\\nOption bid: {bid:.6f} USD\\nSL only tightens; never widens. Signal only.")
+        changed = True
+    return changed
+
 def main():
     try:
         with open(STATE_PATH, "r", encoding="utf-8") as f:
@@ -211,14 +254,16 @@ def main():
     for coin in COINS:
         try:
             sig = five_minute_signal(coin)
-            if not sig:
-                print(coin + ": 5m breakout not confirmed")
-                continue
-            # Early alert intentionally does not wait for 15m confirmation.
+            # Fetch fresh option quotes every 5m cycle to monitor open positions.
             payload = get_json(OPTION_API.format(coin=coin), timeout=25)
             underlying = float(payload.get("underlying") or 0)
             if underlying <= 0:
                 raise RuntimeError("Options underlying unavailable")
+            monitor_positions(coin, payload, underlying, sig, state)
+            if not sig:
+                print(coin + ": no new entry; active positions monitored")
+                continue
+            # Early alert intentionally does not wait for 15m confirmation.
             option = best_zero_hero_option(coin, sig["direction"], underlying, payload)
             key = coin + "|" + option["name"] + "|" + sig["direction"]
             stamp = str(sig["candle_time"])
@@ -266,6 +311,19 @@ def main():
                 + target_method + ". Premium ₹5–₹30 filter and <=10% spread retained. If Greeks are absent, SL falls back to 25%. Signal only — no automatic order."
             )
             telegram(msg)
+            # Persist the market structure so following runs can trail the stop.
+            positions = state.setdefault("__positions__", [])
+            position_id = key + "|" + stamp
+            if not any(p.get("key") == position_id for p in positions):
+                sign = 1 if is_call else -1
+                positions.append({
+                    "key": position_id, "coin": coin, "contract": option["name"],
+                    "direction": "CALL" if is_call else "PUT",
+                    "entry_underlying": sig["price"], "best_underlying": sig["price"],
+                    "atr": sig["atr"], "trail_underlying": stop_underlying,
+                    "targets": [sig["price"] + sign * sig["atr"] * m for m in (1.5, 3.0, 5.0)],
+                    "target_stage": 0, "entry_premium": entry, "status": "ACTIVE"
+                })
             state[key] = stamp
             sent += 1
             print(coin + ": Zero Hero alert sent " + option["name"])
