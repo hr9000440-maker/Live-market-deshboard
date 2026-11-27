@@ -128,23 +128,19 @@ def confirmed_signal(coin):
     close_location = (close - low) / candle_range
     avg_volume = sum(volumes[-21:-1]) / 20.0
     volume_ratio = volume / avg_volume if avg_volume > 0 else 0.0
-    # Quality gate: two consecutive closed candles, EMA21 slope, participation,
-    # and a decisive candle close. Keep the original RSI bands and 25% option SL.
+    # Earlier-entry gate: one completed 15m candle can qualify when EMA9/EMA21
+    # are aligned and EMA21 is not moving against the trade. Volume/body are
+    # diagnostics only, so they cannot suppress a valid directional move.
+    # Keep the 25% option SL/TP calculation unchanged.
     bullish = (
-        previous_close > previous_e9 > previous_e21
-        and close > e9 > e21 > previous_e21
-        and 45 <= rv <= 75
-        and volume_ratio >= 0.80
-        and body_ratio >= 0.35
-        and close_location >= 0.65
+        close > e9 > e21 >= previous_e21
+        and 42 <= rv <= 78
+        and close_location >= 0.55
     )
     bearish = (
-        previous_close < previous_e9 < previous_e21
-        and close < e9 < e21 < previous_e21
-        and 25 <= rv <= 55
-        and volume_ratio >= 0.80
-        and body_ratio >= 0.35
-        and close_location <= 0.35
+        close < e9 < e21 <= previous_e21
+        and 22 <= rv <= 58
+        and close_location <= 0.45
     )
     direction = "STRONG BUY CALL" if bullish else "STRONG BUY PUT" if bearish else None
     return {"direction": direction, "price": close, "rsi": rv, "ema9": e9, "ema21": e21,
