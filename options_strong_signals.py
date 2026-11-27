@@ -366,6 +366,14 @@ def main():
             cost_line = (f"Estimated premium value (not margin): ₹{option['cost']:.0f}" if option["cost"] is not None
                          else "Estimated premium value: unavailable (lot metadata missing)")
             quote_source = str(payload.get("source") or "unknown")
+            warnings = []
+            if signal["adx"] < 20:
+                warnings.append("ADX 20 से कम: trend कमजोर")
+            if signal["volume_ratio"] < 1:
+                warnings.append("Volume average से कम: participation कमजोर")
+            if ("CALL" in signal["direction"] and signal["macd_hist"] <= 0) or ("PUT" in signal["direction"] and signal["macd_hist"] >= 0):
+                warnings.append("MACD momentum signal की दिशा में confirm नहीं")
+            confirmation = "CAUTION — " + "; ".join(warnings) if warnings else "GOOD — ADX/MACD/Volume aligned"
             message = (
                 "🚨 STRONG OPTION TRADE SIGNAL\n"
                 f"Coin: {coin}\n{side}\nContract: {option['name']}\n"
@@ -383,6 +391,7 @@ def main():
                 f"Quality: volume {signal['volume_ratio']:.2f}x average | candle body {signal['body_ratio']*100:.0f}%\n"
                 f"MACD: {signal['macd']:.4f} | Signal: {signal['macd_signal']:.4f} | Histogram: {signal['macd_hist']:.4f}\\n"
                 f"ADX 14: {signal['adx']:.1f} (trend strength) | ATR 14: {signal['atr']:.4f} ({signal['atr_pct']:.2f}% volatility)\\n"
+                f"Confirmation: {confirmation}\\n"
                 f"15m closed-candle source: {signal['source']}\n"
                 "LIMIT price is a suggestion at current ASK; quote may change. Signal only — कोई order अपने-आप place नहीं होगा।"
             )
@@ -416,6 +425,7 @@ def main():
                     "signal_adx": signal["adx"],
                     "signal_atr": signal["atr"],
                     "signal_atr_pct": signal["atr_pct"],
+                    "signal_confirmation": confirmation,
                     "market_data_source": signal["source"],
                     "source": quote_source, "entry": option["entry"],
                     "sl": option["sl"], "tp1": option["tp1"],
