@@ -178,8 +178,14 @@ def main():
                     alerts+=1
             print(coin+": checked "+str(len(chosen))+" near-ATM contracts")
         except Exception as exc:
+            reason = str(exc)
+            # A coin with no liquid/live option quote is a normal no-signal
+            # outcome, not a broken workflow. Keep strict liquidity filters.
+            if "no liquid CALL/PUT option quotes passed spread/OI/volume checks" in reason:
+                print(coin + ": no eligible liquid option quote; safely skipped")
+                continue
             errors+=1
-            print(coin+": ERROR: "+str(exc),file=sys.stderr)
+            print(coin+": ERROR: "+reason,file=sys.stderr)
     state.update(updates)
     save_state(state)
     print("Gamma Blast complete; alerts="+str(alerts)+" errors="+str(errors))
