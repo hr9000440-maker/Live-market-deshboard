@@ -337,8 +337,8 @@ def main():
         f.write("\n")
     os.replace(tmp, STATE_PATH)
     print(f"Zero Hero completed. Alerts sent: {sent}; coin errors: {errors}")
-    if errors:
-        raise SystemExit(1)
+    # A single coin's missing option contract/data must not fail the whole
+    # scheduled scan; errors remain visible in the Actions log per coin.
 
 
 if __name__ == "__main__":
