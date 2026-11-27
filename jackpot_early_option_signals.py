@@ -358,7 +358,11 @@ def main():
         sig = None
         underlying = 0.0
         try:
-            early = one_minute_early_signal(coin)
+            try:
+                early = one_minute_early_signal(coin)
+            except Exception as early_error:
+                early = None
+                print(coin + ": 1m early detector unavailable; continuing to 5m entry check: " + str(early_error)[:120])
             sig = five_minute_signal(coin)
             if early:
                 print(f"{coin}: 1m early movement {early['direction']} detected; waiting for 5m entry + 15m confirmation")
