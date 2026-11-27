@@ -1,7 +1,13 @@
 name: Read-only Option Signal Audit
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'state/option_positions.json'
+      - 'signal_audit_checker.py'
+      - '.github/workflows/option-signal-audit.yml'
   schedule:
-    - cron: "15 18 * * *"
+    - cron: "7 * * * *"
   workflow_dispatch:
 permissions:
   contents: write
