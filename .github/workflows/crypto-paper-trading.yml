@@ -35,5 +35,6 @@ jobs:
             echo "No paper ledger changes."
           else
             git commit -m "Update crypto paper trading ledger"
+            git pull --rebase origin main
             git push
           fi
