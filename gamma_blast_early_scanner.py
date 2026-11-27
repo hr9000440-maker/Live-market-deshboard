@@ -137,9 +137,15 @@ def main():
             underlying=float(payload.get("underlying") or 0)
             if underlying<=0: raise RuntimeError("underlying quote missing")
             side=trig["side"] if trig else None
-            # Snapshot the most liquid call and put every run, even without a trigger.
+            # Snapshot each side independently; a missing CALL must not block a valid PUT (or vice versa).
+            available_sides=set()
             for s in ("C","P"):
-                opt=pick_contract(payload,s,underlying)
+                try:
+                    opt=pick_contract(payload,s,underlying)
+                except Exception as side_error:
+                    print(coin+": "+("CALL" if s=="C" else "PUT")+" contract unavailable: "+str(side_error)[:180])
+                    continue
+                available_sides.add(s)
                 key=coin+"|"+opt["name"]
                 hist=state["snapshots"].setdefault(key,[])
                 prev=hist[-1] if hist else None
@@ -178,6 +184,8 @@ def main():
                 telegram(message)
                 state["alerts"][alert_key]=candle_stamp
                 sent+=1
+            if trig and side not in available_sides:
+                print(coin+": "+trig["direction"]+" trigger found, but matching option side failed liquidity/quote filters")
             print(coin+": snapshot saved"+(" / trigger "+trig["direction"] if trig else " / no 1m breakout"))
         except Exception as e:
             print(coin+": GAMMA BLAST ERROR: "+str(e)[:220])
