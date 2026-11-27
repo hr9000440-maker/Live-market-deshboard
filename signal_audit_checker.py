@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 
 SOURCE = "state/option_positions.json"
 OUT_DIR = "reports"
+# Rebuild against the latest option-position ledger after signal state commits.
 MD_PATH = os.path.join(OUT_DIR, "signal-audit-latest.md")
 JSON_PATH = os.path.join(OUT_DIR, "signal-audit-latest.json")
 
