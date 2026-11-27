@@ -296,7 +296,7 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 </section>
 <section class="panel" id="manual-option-movement-tracker">
 <h2>📝 OPTION MOVEMENT TRACKER — CHART UNAVAILABLE BACKUP</h2>
-<p class="note">Normal BUY CALL / BUY PUT option signal के matching contract का live Mark Premium अपने-आप track होगा। TP1 (+25%) पर SL Entry पर, TP2 (+50%) पर SL TP1 पर और उसके बाद peak से 15% trailing SL चलेगा। TP3 (+85%) पर FINAL PROFIT BOOK alert; SL hit होने पर EXIT alert। Manual snapshot भी उपलब्ध है।</p>
+<p class="note">Normal BUY CALL / BUY PUT option signal के matching contract का live Mark Premium अपने-आप track होगा। TP1 (+25%) पर SL Entry पर, TP2 (+50%) पर SL TP1 पर और उसके बाद peak से 15% trailing SL चलेगा। TP3 (+75%) पर FINAL PROFIT BOOK alert; SL hit होने पर EXIT alert। Manual snapshot भी उपलब्ध है।</p>
 <div class="option-controls">
 <div><label for="trackContract">Contract / Strike</label><input id="trackContract" value="BTC 50000 CALL" placeholder="BTC 50000 CALL"></div>
 <div><label for="trackEntry">Entry Premium</label><input id="trackEntry" type="number" value="8000" step="any"></div>
@@ -666,9 +666,9 @@ function renderCryptoOptions(){
   else if(!(oi>0||vol>0))why='OI और 24h volume दोनों शून्य';
   else if(coin==='DOGE'&&!cryptoSignalStrength[coin])why='DOGE Telegram के लिए केवल STRONG signal';
   else signal=cryptoSignalStrength[coin]?(trend==='BUY CALL'?'STRONG BUY CALL':'STRONG BUY PUT'):(trend==='BUY CALL'?'EARLY BUY CALL':'EARLY BUY PUT');
-  // Suggested BUY limit uses ASK (same as server Telegram scanner); mark remains the live tracker quote.\n  let entryUsd=askUsd;
+  // Suggested BUY limit uses the executable ASK quote; mark remains the live tracker quote.\n  const askUsd=optionUsd(ask,underlying);\n  let entryUsd=askUsd;
   try{const savedEntries=JSON.parse(localStorage.getItem(AUTO_OPTION_ENTRY_KEY)||'{}'),savedEntry=Number(savedEntries[coin+'|'+x.instrument_name]?.entry);if(savedEntry>0)entryUsd=savedEntry}catch{}
-  const slUsd=entryUsd>0?entryUsd*0.75:null,tp1Usd=entryUsd>0?entryUsd*1.25:null,tp2Usd=entryUsd>0?entryUsd*1.50:null,tp3Usd=entryUsd>0?entryUsd*1.85:null;
+  const slUsd=entryUsd>0?entryUsd*0.75:null,tp1Usd=entryUsd>0?entryUsd*1.25:null,tp2Usd=entryUsd>0?entryUsd*1.50:null,tp3Usd=entryUsd>0?entryUsd*1.75:null;
   if(cryptoOptionDataFresh[coin]&&trend===(side==='CALL'?'BUY CALL':'BUY PUT')&&bid>0&&ask>=bid&&mark>0&&spread!==null&&spread<=0.10)autoTrackOptionPremium(coin,x.instrument_name,markUsd,(signal==='STRONG BUY CALL'||signal==='STRONG BUY PUT')?signal:'EARLY MOVEMENT WATCH',side,strike,contractExpiry,askUsd);
   if((coin==='DOGE'&&(signal==='STRONG BUY CALL'||signal==='STRONG BUY PUT'))||(coin!=='DOGE'&&(signal==='STRONG BUY CALL'||signal==='STRONG BUY PUT'||signal==='EARLY BUY CALL'||signal==='EARLY BUY PUT')))notifyTelegramStrongOption(coin,x.instrument_name,signal,entryUsd,spread,slUsd,tp1Usd,tp2Usd,tp3Usd,optionUsd(bid,underlying),optionUsd(ask,underlying),side,strike,contractExpiry,underlying,why);
   return '<tr><td>'+x.instrument_name+'</td><td>'+strike.toLocaleString('en-US')+'</td><td class="'+(side==='CALL'?'call-text':'put-text')+'">'+side+'</td><td class="'+(itm?'call-text':'')+'">'+moneynessLabel+'</td><td>'+optionMoney(optionUsd(bid,underlying))+'</td><td>'+optionMoney(optionUsd(ask,underlying))+'</td><td>'+optionMoney(markUsd)+'</td><td>'+(spread===null?'—':(spread*100).toFixed(2)+'%')+'</td><td>'+optionMoney(entryUsd)+'</td><td>'+optionMoney(slUsd)+'</td><td>'+optionMoney(tp1Usd)+'</td><td>'+optionMoney(tp2Usd)+'</td><td>'+optionMoney(tp3Usd)+'</td><td>'+oi.toLocaleString('en-US',{maximumFractionDigits:3})+'</td><td>'+vol.toLocaleString('en-US',{maximumFractionDigits:3})+'</td><td class="'+(signal==='WAIT'?'signal-neutral':side==='CALL'?'call-text':'put-text')+'">'+signal+(why?' ('+why+')':'')+'</td></tr>';
@@ -1045,7 +1045,7 @@ function autoTrackOptionPremium(coin,contract,current,signal,side,strike,expiry,
  const initialEntry=Number(suggestedEntry)>0?Number(suggestedEntry):current;
  let entry=entries[key]||{entry:initialEntry,signal,side,coin,contract,strike,expiry,started:Date.now(),peak:current,stage:0,closed:false,trailSL:initialEntry*.75};
  const e=Number(entry.entry);if(!(e>0))return;
- const t1=e*1.25,t2=e*1.50,t3=e*1.85,initialSL=e*.75;
+ const t1=e*1.25,t2=e*1.50,t3=e*1.75,initialSL=e*.75;
  let status='चल रहा',milestone='';
  if(!entry.closed){
   entry.peak=Math.max(Number(entry.peak||e),current);
