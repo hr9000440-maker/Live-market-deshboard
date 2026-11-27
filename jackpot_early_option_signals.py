@@ -87,14 +87,18 @@ def five_minute_signal(coin):
     location = (close - low) / candle_range
     prior_high, prior_low = max(highs[-4:-1]), min(lows[-4:-1])
 
-    # Early breakout trigger: slightly wider than the old strict filter,
-    # but still requires a closed candle, directional EMA structure and volume.
-    bull = (close > prior_high and close > op and close > e9
-            and e9 >= e21 * 0.995 and 48 <= rv <= 76
-            and body >= 0.35 and location >= 0.65 and vol_ratio >= 1.0)
-    bear = (close < prior_low and close < op and close < e9
-            and e9 <= e21 * 1.005 and 24 <= rv <= 52
-            and body >= 0.35 and location <= 0.35 and vol_ratio >= 1.0)
+    # Early-movement trigger: closed 5m breakout OR decisive impulse candle.
+    # RSI, EMA and volume are context, not hard gates that delay a move.
+    true_ranges = []
+    for j in range(max(1, len(closed) - 14), len(closed)):
+        prev_close = float(closed[j - 1][4])
+        hj, lj = float(closed[j][2]), float(closed[j][3])
+        true_ranges.append(max(hj - lj, abs(hj - prev_close), abs(lj - prev_close)))
+    atr = sum(true_ranges) / max(1, len(true_ranges))
+    move_pct = abs(close - float(closed[-2][4])) / float(closed[-2][4]) * 100
+    impulse = body >= 0.55 and move_pct >= 0.12
+    bull = close > op and location >= 0.60 and (close > prior_high or impulse)
+    bear = close < op and location <= 0.40 and (close < prior_low or impulse)
     if bull:
         direction = "STRONG BUY CALL"
     elif bear:
@@ -103,7 +107,10 @@ def five_minute_signal(coin):
         return None
     return {"direction": direction, "price": close, "rsi": rv, "ema9": e9,
             "ema21": e21, "candle_time": int(float(last[0])),
-            "source": source, "volume_ratio": vol_ratio, "body_ratio": body}
+            "source": source, "volume_ratio": vol_ratio, "body_ratio": body,
+            "atr": atr, "move_pct": move_pct,
+            "swing_low": min(float(x[3]) for x in closed[-6:]),
+            "swing_high": max(float(x[2]) for x in closed[-6:])}
 
 
 def confirm_15m(coin, direction):
@@ -176,9 +183,13 @@ def best_zero_hero_option(coin, direction, underlying, payload):
             continue
         liquidity = min(oi + vol, 1000000.0)
         score = abs(otm_pct - 1.5) * 0.001 + spread * 0.01 - min(liquidity, 10000.0) * 1e-9
+        greeks = row.get("greeks") if isinstance(row.get("greeks"), dict) else {}
+        delta = float(row.get("delta") or greeks.get("delta") or 0)
+        gamma = float(row.get("gamma") or greeks.get("gamma") or 0)
         candidates.append({"name": name, "strike": strike, "expiry": expiry,
                            "bid": bid_usd, "ask": ask_usd, "entry": ask_usd,
-                           "premium_inr": ask_inr, "spread": spread, "score": score})
+                           "premium_inr": ask_inr, "spread": spread, "score": score,
+                           "delta": delta, "gamma": gamma})
     if not candidates:
         raise RuntimeError("live " + wanted + " contract ₹5–₹30 premium, <=10% spread और OI/volume के साथ नहीं मिला")
     return min(candidates, key=lambda x: x["score"])
@@ -203,10 +214,7 @@ def main():
             if not sig:
                 print(coin + ": 5m breakout not confirmed")
                 continue
-            confirm = confirm_15m(coin, sig["direction"])
-            if not confirm:
-                print(coin + ": " + sig["direction"] + " 5m breakout found, but 15m candle has not confirmed it")
-                continue
+            # Early alert intentionally does not wait for 15m confirmation.
             payload = get_json(OPTION_API.format(coin=coin), timeout=25)
             underlying = float(payload.get("underlying") or 0)
             if underlying <= 0:
@@ -218,19 +226,37 @@ def main():
                 print(coin + ": duplicate 5m signal suppressed")
                 continue
             entry = float(option["entry"])
-            sl, tp1, tp2, tp3 = entry * 0.75, entry * 2, entry * 5, entry * 10
-            side = "BUY CALL" if "CALL" in sig["direction"] else "BUY PUT"
+            delta, gamma = float(option.get("delta") or 0), float(option.get("gamma") or 0)
+            is_call = "CALL" in sig["direction"]
+            stop_underlying = min(sig["swing_low"], sig["price"] - 1.2 * sig["atr"]) if is_call else max(sig["swing_high"], sig["price"] + 1.2 * sig["atr"])
+            def projected_premium(underlying_move):
+                return max(0.01, entry + delta * underlying_move + 0.5 * gamma * underlying_move * underlying_move)
+            stop_move = stop_underlying - sig["price"]
+            if delta != 0:
+                sl = projected_premium(stop_move)
+                sl_method = "5m swing + ATR + option Greeks"
+            else:
+                sl = entry * 0.75
+                sl_method = "fallback 25% (Greeks unavailable)"
+            sign = 1 if is_call else -1
+            target_values = [projected_premium(sign * sig["atr"] * multiple) for multiple in (1.5, 3.0, 5.0)]
+            tp1, tp2, tp3 = target_values
+            side = "BUY CALL" if is_call else "BUY PUT"
+            sl_pct = (sl / entry - 1) * 100
+            tp_pcts = [(x / entry - 1) * 100 for x in (tp1, tp2, tp3)]
             msg = (
-                "⚡ ZERO HERO — " + coin + " (5m breakout + 15m confirmation)\n"
-                + side + "\nContract: " + option["name"] + "\n"
-                + f"Underlying: {underlying:,.2f} USD | Suggested LIMIT BUY: {entry:.4f} USD (≈ ₹{option['premium_inr']:.2f})\n"
-                + f"Bid: {option['bid']:.4f} | Ask: {option['ask']:.4f} | Spread: {option['spread']*100:.2f}%\n"
-                + f"🛑 SL (-25%): {sl:.4f} USD\n🎯 TP1 (2x): {tp1:.4f} USD\n"
-                + f"🎯 TP2 (5x): {tp2:.4f} USD\n🚀 TP3 (10x): {tp3:.4f} USD\n"
-                + f"5m RSI14: {sig['rsi']:.1f} | EMA9: {sig['ema9']:.2f} | EMA21: {sig['ema21']:.2f}\n"
-                + f"5m volume: {sig['volume_ratio']:.2f}x | 15m RSI: {confirm['rsi']:.1f}\n"
-                + f"Market data: {sig['source']} + {confirm['source']} | Option source: {payload.get('source', 'unknown')}\n"
-                + "Premium ₹5–₹30 filter; live quote and spread checked. 10x target अत्यधिक जोखिम वाला है और guaranteed नहीं। Signal only — कोई order अपने-आप place नहीं होगा।"
+                "⚡ ZERO HERO JACKPOT — " + coin + " (EARLY 5m MOVEMENT)\\n"
+                + side + "\\nContract: " + option["name"] + "\\n"
+                + f"Underlying: {underlying:,.2f} USD | Suggested LIMIT BUY: {entry:.6f} USD (≈ ₹{option['premium_inr']:.2f})\\n"
+                + f"Bid: {option['bid']:.6f} | Ask: {option['ask']:.6f} | Spread: {option['spread']*100:.2f}%\\n"
+                + f"🛑 Dynamic SL: {sl:.6f} USD ({sl_pct:+.1f}%) — {sl_method}\\n"
+                + f"🎯 TP1: {tp1:.6f} USD ({tp_pcts[0]:+.1f}%)\\n"
+                + f"🎯 TP2: {tp2:.6f} USD ({tp_pcts[1]:+.1f}%)\\n"
+                + f"🚀 TP3: {tp3:.6f} USD ({tp_pcts[2]:+.1f}%) — no fixed % cap\\n"
+                + f"5m RSI14: {sig['rsi']:.1f} | EMA9: {sig['ema9']:.2f} | EMA21: {sig['ema21']:.2f}\\n"
+                + f"5m move: {sig['move_pct']:.3f}% | ATR: {sig['atr']:.4f} | Volume: {sig['volume_ratio']:.2f}x\\n"
+                + f"Market data: {sig['source']} | Option source: {payload.get('source', 'unknown')}\\n"
+                + "Premium ₹5–₹30 filter and <=10% spread retained. Targets are estimates from available Greeks; if Greeks are absent, SL falls back to 25%. Signal only — no automatic order."
             )
             telegram(msg)
             state[key] = stamp
