@@ -62,8 +62,8 @@ def five_minute_candles(coin):
     raise RuntimeError("1m market data unavailable: " + " | ".join(errors))
 
 
-def five_minute_signal(coin):
-    """Use the freshest completed 1m impulse candle, not a delayed 5m close."""
+def one_minute_early_signal(coin):
+    """Detect a fresh 1m impulse early; this is not an entry by itself."""
     rows, source = five_minute_candles(coin)
     now_ms = int(time.time() * 1000)
     closed = [x for x in rows if int(float(x[0])) + 60000 <= now_ms]
@@ -126,6 +126,84 @@ def five_minute_signal(coin):
     print(diagnostics or f"{coin}: no fresh 1m trigger | source={source}")
     return None
 
+
+
+def five_minute_signal(coin):
+    """Use a completed 5m breakout candle as the actual entry trigger."""
+    symbol = coin + "USDT"
+    errors = []
+    rows = None
+    source = ""
+    for name, url in [
+        ("Binance", BINANCE + "?" + urllib.parse.urlencode({"symbol": symbol, "interval": "5m", "limit": 100})),
+        ("Binance data-api", "https://data-api.binance.vision/api/v3/klines?" + urllib.parse.urlencode({"symbol": symbol, "interval": "5m", "limit": 100})),
+        ("KuCoin", "https://api.kucoin.com/api/v1/market/candles?" + urllib.parse.urlencode({"symbol": coin + "-USDT", "type": "5min"})),
+        ("Gate.io", GATE + "?" + urllib.parse.urlencode({"currency_pair": coin + "_USDT", "interval": "5m", "limit": 100})),
+    ]:
+        try:
+            payload = get_json(url, timeout=15)
+            if name == "KuCoin":
+                if payload.get("code") != "200000" or not isinstance(payload.get("data"), list):
+                    raise RuntimeError("KuCoin response unavailable")
+                rows = []
+                for x in payload["data"]:
+                    ts = int(float(x[0])) * 1000
+                    op, close, high, low, vol = map(float, (x[1], x[2], x[3], x[4], x[5]))
+                    rows.append([ts, str(op), str(high), str(low), str(close), str(vol), ts + 299999])
+                rows.sort(key=lambda x: x[0])
+            elif name == "Gate.io":
+                rows = [[int(float(x[0]) * 1000), x[5], x[3], x[4], x[2], x[1], int(float(x[0]) * 1000 + 299999)] for x in payload]
+                rows.sort(key=lambda x: int(x[0]))
+            else:
+                rows = payload
+            rows = [x for x in rows if isinstance(x, list) and len(x) >= 7]
+            if len(rows) >= 35:
+                source = name
+                break
+            errors.append(name + ": candles कम")
+        except Exception as exc:
+            errors.append(name + ": " + str(exc)[:100])
+    if not rows or len(rows) < 35:
+        raise RuntimeError("5m market data unavailable: " + " | ".join(errors))
+    now_ms = int(time.time() * 1000)
+    closed = [x for x in rows if int(float(x[0])) + 300000 <= now_ms]
+    if len(closed) < 30:
+        raise RuntimeError("5m closed candles कम हैं")
+    last = closed[-1]
+    if now_ms - (int(float(last[0])) + 300000) > 600000:
+        raise RuntimeError("5m entry candle ताज़ा नहीं है")
+    closes = [float(x[4]) for x in closed]
+    highs = [float(x[2]) for x in closed]
+    lows = [float(x[3]) for x in closed]
+    volumes = [float(x[5]) for x in closed]
+    op, high, low, close, volume = (float(last[i]) for i in (1, 2, 3, 4, 5))
+    candle_range = high - low
+    if candle_range <= 0 or volume <= 0:
+        return None
+    body = abs(close - op) / candle_range
+    location = (close - low) / candle_range
+    prior_high, prior_low = max(highs[-4:-1]), min(lows[-4:-1])
+    bull = close > op and body >= 0.50 and location >= 0.65 and close > prior_high
+    bear = close < op and body >= 0.50 and location <= 0.35 and close < prior_low
+    if not (bull or bear):
+        print(f"{coin}: no 5m entry trigger | source={source} | body={body:.2f} | close-location={location:.2f}")
+        return None
+    true_ranges = []
+    for j in range(max(1, len(closes) - 14), len(closes)):
+        prev_close = closes[j - 1]
+        true_ranges.append(max(highs[j] - lows[j], abs(highs[j] - prev_close), abs(lows[j] - prev_close)))
+    atr = sum(true_ranges) / max(1, len(true_ranges))
+    avg_vol = sum(volumes[-21:-1]) / 20.0
+    direction = "STRONG BUY CALL" if bull else "STRONG BUY PUT"
+    return {
+        "direction": direction, "price": close, "rsi": rsi(closes, 14),
+        "ema9": ema(closes[-30:], 9), "ema21": ema(closes[-50:], 21),
+        "candle_time": int(float(last[0])), "source": source,
+        "volume_ratio": volume / avg_vol if avg_vol > 0 else 0.0,
+        "body_ratio": body, "atr": atr,
+        "move_pct": abs(close - closes[-2]) / closes[-2] * 100,
+        "swing_low": min(lows[-6:]), "swing_high": max(highs[-6:])
+    }
 
 def confirm_15m(coin, direction):
     rows, source = candles(coin)
@@ -280,14 +358,21 @@ def main():
         sig = None
         underlying = 0.0
         try:
+            early = one_minute_early_signal(coin)
             sig = five_minute_signal(coin)
+            if early:
+                print(f"{coin}: 1m early movement {early['direction']} detected; waiting for 5m entry + 15m confirmation")
             payload = get_json(OPTION_API.format(coin=coin), timeout=25)
             underlying = float(payload.get("underlying") or 0)
             if underlying <= 0:
                 raise RuntimeError("Options underlying unavailable")
             monitor_positions(coin, payload, underlying, sig, state)
             if not sig:
-                print(coin + ": no new entry; active positions monitored")
+                print(coin + ": no 5m entry trigger; 1m is early warning only; active positions monitored")
+                continue
+            confirm = confirm_15m(coin, sig["direction"])
+            if not confirm:
+                print(coin + ": 5m trigger found but 15m confirmation failed; no entry")
                 continue
             option = best_zero_hero_option(coin, sig["direction"], underlying, payload)
             key = coin + "|" + option["name"] + "|" + sig["direction"]
@@ -323,12 +408,13 @@ def main():
                 target_method = "Option premium target not estimated without Greeks"
             side = "BUY CALL" if is_call else "BUY PUT"
             msg = (
-                "⚡ ZERO HERO JACKPOT — " + coin + " (EARLY 5m MOVEMENT)\\n"
+                "⚡ ZERO HERO JACKPOT — " + coin + " (1m EARLY → 5m ENTRY → 15m CONFIRM)\\n"
                 + side + "\\nContract: " + option["name"] + "\\n"
                 + f"Underlying: {underlying:,.2f} USD | Suggested LIMIT BUY: {entry:.6f} USD (≈ ₹{option['premium_inr']:.2f})\\n"
                 + f"Bid: {option['bid']:.6f} | Ask: {option['ask']:.6f} | Spread: {option['spread']*100:.2f}%\\n"
                 + sl_line + target_text
                 + f"5m RSI14: {sig['rsi']:.1f} | EMA9: {sig['ema9']:.2f} | EMA21: {sig['ema21']:.2f}\\n"
+                + f"15m confirmation: RSI {confirm['rsi']:.1f} | Close {confirm['close']:.4f} vs EMA9 {confirm['ema9']:.4f}\\n"
                 + f"5m move: {sig['move_pct']:.3f}% | ATR: {sig['atr']:.4f} | Volume: {sig['volume_ratio']:.2f}x\\n"
                 + f"Market data: {sig['source']} | Option source: {payload.get('source', 'unknown')}\\n"
                 + target_method + ". Targets and trailing SL follow underlying movement; SL only tightens. Premium ₹5–₹30 filter and <=10% spread retained. Signal only — no automatic order."
