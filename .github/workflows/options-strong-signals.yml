@@ -6,8 +6,8 @@ on:
       - 'options_strong_signals.py'
       - '.github/workflows/options-strong-signals.yml'
   schedule:
-    # Run shortly after each 15-minute candle closes (UTC).
-    - cron: "2,17,32,47 * * * *"
+    # Scan every five minutes so fresh 1m impulses are checked promptly (UTC).
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 permissions:
   contents: write
