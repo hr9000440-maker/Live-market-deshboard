@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Read-only health checks for dashboard, option gateway, Telegram config and signal workflows."""
-import json, os, sys, datetime, urllib.request, urllib.parse, py_compile
+import json, os, sys, time, datetime, urllib.request, urllib.parse, py_compile
 
 BASE = "https://live-market-deshboard.onrender.com"
 PAGES = "https://hr9000440-maker.github.io/Live-market-deshboard/"
@@ -108,55 +108,65 @@ def check_crypto_feeds():
 
 def check_coinswitch_futures_feed():
     """Validate the Render CoinSwitch Futures V2 feed payload, candle freshness and duplicates."""
-    try:
-        data = request_json(BASE + "/api/coinswitch/futures/klines", timeout=20)
-        coins = data.get("coins")
-        if not isinstance(coins, dict):
-            raise RuntimeError("futures feed coins map missing")
-        connection = str(data.get("connection") or "").lower()
-        if connection != "connected":
-            raise RuntimeError("CoinSwitch futures WebSocket is not connected: " + (connection or "unknown"))
-        now_ms = int(datetime.datetime.now(datetime.timezone.utc).timestamp() * 1000)
-        for coin in ("BTC", "ETH", "BNB", "ZEC"):
-            item = coins.get(coin)
-            if not isinstance(item, dict):
-                raise RuntimeError(coin + " futures payload missing")
-            rows = item.get("candles")
-            if not isinstance(rows, list) or not rows:
-                raise RuntimeError(coin + " futures candles missing")
-            stamps = []
-            for row in rows:
-                if not isinstance(row, dict):
-                    raise RuntimeError(coin + " malformed futures candle")
-                stamp = int(row.get("start_time") or 0)
-                op = float(row.get("open") or 0)
-                high = float(row.get("high") or 0)
-                low = float(row.get("low") or 0)
-                close = float(row.get("close") or 0)
-                volume = float(row.get("volume") or 0)
-                if stamp <= 0 or min(op, high, low, close) <= 0 or volume < 0:
-                    raise RuntimeError(coin + " zero/missing futures candle values")
-                if high < max(op, close, low) or low > min(op, close, high):
-                    raise RuntimeError(coin + " invalid futures OHLC range")
-                stamps.append(stamp)
-            if len(stamps) != len(set(stamps)) or stamps != sorted(stamps):
-                raise RuntimeError(coin + " duplicate or unsorted futures candle timestamps")
-            if float(item.get("last_price") or 0) <= 0:
-                raise RuntimeError(coin + " futures last price missing")
-            age = item.get("age_seconds")
-            if not item.get("fresh") or age is None or float(age) > 120:
-                raise RuntimeError(coin + " futures feed stale (age_seconds=" + str(age) + ")")
-            completed = [row for row in rows if row.get("closed") and int(row.get("close_time") or 0) <= now_ms]
-            if not completed:
-                raise RuntimeError(coin + " no completed 15m futures candle")
-            completed_age = (now_ms - int(completed[-1].get("close_time") or 0)) / 1000.0
-            if completed_age < 0 or completed_age > 1800:
-                raise RuntimeError(coin + " latest completed 15m futures candle stale (" + str(round(completed_age)) + "s)")
-            print("PASS " + coin + " CoinSwitch futures candles: rows=" + str(len(rows)) +
-                  ", latest closed age=" + str(round(completed_age)) + "s, live age=" + str(round(float(age))) + "s")
-    except Exception as e:
-        issues.append("CoinSwitch futures klines feed: " + str(e))
-        print("FAIL CoinSwitch futures klines feed: " + str(e))
+    last_error = "futures feed did not become ready"
+    for attempt in range(4):
+        try:
+            data = request_json(BASE + "/api/coinswitch/futures/klines", timeout=20)
+            coins = data.get("coins")
+            if not isinstance(coins, dict):
+                raise RuntimeError("futures feed coins map missing")
+            connection = str(data.get("connection") or "").lower()
+            if connection != "connected":
+                raise RuntimeError("CoinSwitch futures WebSocket is not connected: " + (connection or "unknown"))
+            now_ms = int(datetime.datetime.now(datetime.timezone.utc).timestamp() * 1000)
+            checked = []
+            for coin in ("BTC", "ETH", "BNB", "ZEC"):
+                item = coins.get(coin)
+                if not isinstance(item, dict):
+                    raise RuntimeError(coin + " futures payload missing")
+                rows = item.get("candles")
+                if not isinstance(rows, list) or not rows:
+                    raise RuntimeError(coin + " futures candles missing")
+                stamps = []
+                for row in rows:
+                    if not isinstance(row, dict):
+                        raise RuntimeError(coin + " malformed futures candle")
+                    stamp = int(row.get("start_time") or 0)
+                    op = float(row.get("open") or 0)
+                    high = float(row.get("high") or 0)
+                    low = float(row.get("low") or 0)
+                    close = float(row.get("close") or 0)
+                    volume = float(row.get("volume") or 0)
+                    if stamp <= 0 or min(op, high, low, close) <= 0 or volume < 0:
+                        raise RuntimeError(coin + " zero/missing futures candle values")
+                    if high < max(op, close, low) or low > min(op, high, close):
+                        raise RuntimeError(coin + " invalid futures OHLC range")
+                    stamps.append(stamp)
+                if len(stamps) != len(set(stamps)) or stamps != sorted(stamps):
+                    raise RuntimeError(coin + " duplicate or unsorted futures candle timestamps")
+                if float(item.get("last_price") or 0) <= 0:
+                    raise RuntimeError(coin + " futures last price missing")
+                age = item.get("age_seconds")
+                if not item.get("fresh") or age is None or float(age) > 120:
+                    raise RuntimeError(coin + " futures feed stale (age_seconds=" + str(age) + ")")
+                completed = [row for row in rows if row.get("closed") and int(row.get("close_time") or 0) <= now_ms]
+                if not completed:
+                    raise RuntimeError(coin + " no completed 15m futures candle")
+                completed_age = (now_ms - int(completed[-1].get("close_time") or 0)) / 1000.0
+                if completed_age < 0 or completed_age > 1800:
+                    raise RuntimeError(coin + " latest completed 15m futures candle stale (" + str(round(completed_age)) + "s)")
+                checked.append((coin, len(rows), round(completed_age), round(float(age))))
+            for coin, count, closed_age, live_age in checked:
+                print("PASS " + coin + " CoinSwitch futures candles: rows=" + str(count) +
+                      ", latest closed age=" + str(closed_age) + "s, live age=" + str(live_age) + "s")
+            return
+        except Exception as e:
+            last_error = str(e)
+            if attempt < 3:
+                time.sleep(3)
+    issues.append("CoinSwitch futures klines feed: " + last_error)
+    print("FAIL CoinSwitch futures klines feed: " + last_error)
+
 
 def check_workflow(name, label, gh_token):
     if not gh_token:
