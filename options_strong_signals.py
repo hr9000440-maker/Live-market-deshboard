@@ -183,14 +183,10 @@ def candles_1m(coin):
     urls = (
         ("https://api.binance.com/api/v3/klines?" + urllib.parse.urlencode({"symbol": symbol, "interval": "1m", "limit": 100}), False),
         ("https://data-api.binance.vision/api/v3/klines?" + urllib.parse.urlencode({"symbol": symbol, "interval": "1m", "limit": 100}), False),
-        ("https://api.gateio.ws/api/v4/spot/candlesticks?" + urllib.parse.urlencode({"currency_pair": coin + "_USDT", "interval": "1m", "limit": 100}), True),
     )
     for url, gate in urls:
         try:
             rows = get_json(url, timeout=15)
-            if gate:
-                rows = [[int(float(x[0]) * 1000), x[5], x[3], x[4], x[2], x[1], int(float(x[0]) * 1000 + 59999)] for x in rows]
-                rows.sort(key=lambda x: int(x[0]))
             rows = [x for x in rows if isinstance(x, list) and len(x) >= 7
                     and all(float(x[i]) > 0 for i in (0, 1, 2, 3, 4))]
             if len(rows) >= 31:
@@ -257,7 +253,7 @@ def confirmed_signal(coin):
                  if now_ms - (int(float(x[0])) + 60000) <= 5 * 60 * 1000]
         for one in reversed(fresh):
             idx = one_closed.index(one)
-            if idx < 25 or int(float(closed[-1][0])) < int(float(one[0])):
+            if idx < 25 or int(float(closed[-1][0])) + 300000 < int(float(one[0])) + 60000:
                 continue
             one_closes = [float(x[4]) for x in one_closed[:idx + 1]]
             one_highs = [float(x[2]) for x in one_closed[:idx + 1]]
