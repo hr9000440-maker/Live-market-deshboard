@@ -176,6 +176,33 @@ def candles_5m(coin):
     raise RuntimeError(coin + " 5m market data unavailable: " + " | ".join(errors))
 
 
+
+def candles_1h(coin):
+    """Fetch closed 1h spot candles; a failed feed must suppress, not weaken, the signal."""
+    symbol = coin + "USDT"
+    urls = (
+        "https://api.binance.com/api/v3/klines?" + urllib.parse.urlencode({"symbol": symbol, "interval": "1h", "limit": 60}),
+        "https://data-api.binance.vision/api/v3/klines?" + urllib.parse.urlencode({"symbol": symbol, "interval": "1h", "limit": 60}),
+    )
+    errors = []
+    for url in urls:
+        try:
+            rows = get_json(url, timeout=15)
+            rows = [x for x in rows if isinstance(x, list) and len(x) >= 7
+                    and all(float(x[i]) > 0 for i in (0, 1, 2, 3, 4))]
+            if len(rows) < 31:
+                errors.append("1h candles कम")
+                continue
+            now_ms = int(time.time() * 1000)
+            closed = [x for x in rows if int(float(x[0])) + 3600000 <= now_ms]
+            if len(closed) >= 31:
+                return closed, "Binance Spot 1h"
+            errors.append("1h closed candles कम")
+        except Exception as exc:
+            errors.append(str(exc)[:140])
+    raise RuntimeError(coin + " 1h trend data unavailable: " + " | ".join(errors))
+
+
 def candles_1m(coin):
     """Fetch public 1m spot candles for fresh impulse detection; options quotes remain unchanged."""
     symbol = coin + "USDT"
@@ -201,6 +228,7 @@ def confirmed_signal(coin):
     # 1m detects a fresh impulse; a completed 5m candle must confirm it;
     # the completed 15m EMA21 trend remains the final safety filter.
     trend_rows, trend_source = candles(coin)
+    hour_rows, hour_source = candles_1h(coin)
     rows, source = candles_5m(coin)
     try:
         one_rows, one_source = candles_1m(coin)
@@ -241,15 +269,23 @@ def confirmed_signal(coin):
     trend_e21 = ema(trend_closes[-50:], 21)
     previous_trend_e21 = ema(trend_closes[:-1][-50:], 21)
     trend_close = trend_closes[-1]
-    trend_bull = trend_close >= trend_e21 and trend_e21 >= previous_trend_e21
-    trend_bear = trend_close <= trend_e21 and trend_e21 <= previous_trend_e21
+    trend_bull_15m = trend_close >= trend_e21 and trend_e21 >= previous_trend_e21
+    trend_bear_15m = trend_close <= trend_e21 and trend_e21 <= previous_trend_e21
+    hour_closes = [float(x[4]) for x in hour_rows]
+    hour_e21 = ema(hour_closes[-50:], 21)
+    previous_hour_e21 = ema(hour_closes[:-1][-50:], 21)
+    hour_close = hour_closes[-1]
+    trend_bull_1h = hour_close > hour_e21 and hour_e21 > previous_hour_e21
+    trend_bear_1h = hour_close < hour_e21 and hour_e21 < previous_hour_e21
+    trend_bull = trend_bull_15m and trend_bull_1h
+    trend_bear = trend_bear_15m and trend_bear_1h
 
     # Keep the original 5m breakout path as first priority.
     bullish = close > e9 > e21 and 42 <= rv <= 78 and close_location >= 0.52 and trend_bull
     bearish = close < e9 < e21 and 22 <= rv <= 58 and close_location <= 0.48 and trend_bear
     direction = "STRONG BUY CALL" if bullish else "STRONG BUY PUT" if bearish else None
     signal_time = int(float(closed[-1][0]))
-    signal_source = source + " 5m / " + trend_source + " 15m"
+    signal_source = source + " 5m / " + trend_source + " 15m / " + hour_source
 
     # Earlier-entry fallback: a fresh 1m impulse must be followed by a completed
     # 5m candle with matching direction and EMA9 slope. 15m trend still must agree.
