@@ -1,23 +1,24 @@
 # Option Signal Checker — latest audit
 
-Generated (UTC): 2026-11-28T12:58:03.595873+00:00
+Generated (UTC): 2026-11-28T14:03:46.967820+00:00
 
 ## Summary
-- Total tracked signals: **31**
-- Active: **9**
+- Total tracked signals: **34**
+- Active: **12**
 - STOPPED: **15**
 - Trailing SL stopped: **1**
 - Final target hit: **6**
 - Other statuses: **0**
-- Records with quality metrics: **19/31**
+- Records with quality metrics: **22/34**
 - Records missing a valid entry: **0**
 
 ## By coin
 
 | Coin | Active | SL stopped | Trailing SL | Target hit | Other |
 |---|---:|---:|---:|---:|---:|
-| BTC | 6 | 8 | 1 | 3 | 0 |
-| ETH | 3 | 7 | 0 | 3 | 0 |
+| BTC | 7 | 8 | 1 | 3 | 0 |
+| DOGE | 1 | 0 | 0 | 0 | 0 |
+| ETH | 4 | 7 | 0 | 3 | 0 |
 
 ## Per-signal detail
 
@@ -49,11 +50,14 @@ Generated (UTC): 2026-11-28T12:58:03.595873+00:00
 | BTC | BTC-28NOV26-57500-C | ACTIVE | 0 | +0.00% | -17.80% | 50.8 | 0.40 | 8% | 32.8 | 0.20304 | 0.15% | CAUTION — Volume average से कम: participation कमजोर |
 | BTC | BTC-28NOV26-62000-P | ACTIVE | 0 | +0.00% | -8.78% | 36.4 | 4.22 | 78% | 30.4 | -30.84691 | 0.17% | GOOD — ADX/MACD/Volume aligned |
 | ETH | ETH-28NOV26-1740-P | ACTIVE | 0 | +0.00% | -12.47% | 31.8 | 1.84 | 85% | 31.0 | -0.78608 | 0.22% | GOOD — ADX/MACD/Volume aligned |
-| BTC | BTC-29NOV26-62000-P | ACTIVE | 0 | +2.84% | +2.77% | 35.7 | 0.22 | 74% | 57.5 | -14.19559 | 0.27% | CAUTION — Volume average से कम: participation कमजोर |
-| ETH | ETH-29NOV26-1720-P | ACTIVE | 0 | +0.00% | -7.68% | 33.2 | 0.41 | 47% | 62.5 | -0.42223 | 0.31% | CAUTION — Volume average से कम: participation कमजोर |
-| BTC | BTC-29NOV26-59000-P | ACTIVE | 0 | +0.00% | -15.40% | 26.2 | 0.37 | 48% | 63.1 | -36.77437 | 0.23% | CAUTION — Volume average से कम: participation कमजोर |
-| ETH | ETH-29NOV26-1620-P | ACTIVE | 0 | +0.00% | -11.16% | 35.9 | 0.56 | 56% | 61.5 | -0.06121 | 0.25% | CAUTION — Volume average से कम: participation कमजोर |
-| BTC | BTC-29NOV26-59500-P | ACTIVE | 0 | +0.00% | -17.31% | 32.7 | 2.23 | 65% | 72.6 | 4.43779 | 0.17% | CAUTION — MACD momentum signal की दिशा में confirm नहीं |
+| BTC | BTC-29NOV26-62000-P | ACTIVE | 0 | +11.40% | +11.40% | 35.7 | 0.22 | 74% | 57.5 | -14.19559 | 0.27% | CAUTION — Volume average से कम: participation कमजोर |
+| ETH | ETH-29NOV26-1720-P | ACTIVE | 0 | +6.74% | +6.74% | 33.2 | 0.41 | 47% | 62.5 | -0.42223 | 0.31% | CAUTION — Volume average से कम: participation कमजोर |
+| BTC | BTC-29NOV26-59000-P | ACTIVE | 0 | +7.38% | +7.38% | 26.2 | 0.37 | 48% | 63.1 | -36.77437 | 0.23% | CAUTION — Volume average से कम: participation कमजोर |
+| ETH | ETH-29NOV26-1620-P | ACTIVE | 1 | +38.02% | +38.02% | 35.9 | 0.56 | 56% | 61.5 | -0.06121 | 0.25% | CAUTION — Volume average से कम: participation कमजोर |
+| BTC | BTC-29NOV26-59500-P | ACTIVE | 0 | +0.00% | -0.17% | 32.7 | 2.23 | 65% | 72.6 | 4.43779 | 0.17% | CAUTION — MACD momentum signal की दिशा में confirm नहीं |
+| BTC | BTC-29NOV26-58500-P | ACTIVE | 0 | +0.00% | -15.88% | 31.9 | 2.60 | 48% | 18.6 | -19.96740 | 0.16% | CAUTION — ADX 20 से कम: trend कमजोर |
+| ETH | ETH-29NOV26-1620-P | ACTIVE | 0 | +0.00% | -16.53% | 25.6 | 2.57 | 55% | 29.0 | -1.11937 | 0.20% | GOOD — ADX/MACD/Volume aligned |
+| DOGE | DOGE_USDT-20261225-0.07-P | ACTIVE | 0 | +0.00% | -9.04% | 24.7 | 2.28 | 55% | 29.1 | -0.00004 | 0.18% | GOOD — ADX/MACD/Volume aligned |
 
 ## Audit limitations
 
