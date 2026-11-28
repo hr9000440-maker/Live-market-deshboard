@@ -870,8 +870,11 @@ async function analyzeCryptoCoin(coin){
  let entrySide='WAIT',entryReason='5m entry trigger की पुष्टि अधूरी',multiReason='5m entry + 15m trend filter';
  try{
   const cachedH1=cryptoH1Cache[symbol];
-  const h1Candles=cachedH1&&Date.now()-cachedH1.ts<10*60*1000?cachedH1.rows:await fetchSignalTimeframe(symbol,'1h',60);
-  cryptoH1Cache[symbol]={rows:h1Candles,ts:Date.now()};
+  let h1Candles=[];
+  try{
+   h1Candles=cachedH1&&Date.now()-cachedH1.ts<10*60*1000?cachedH1.rows:await fetchSignalTimeframe(symbol,'1h',60);
+   cryptoH1Cache[symbol]={rows:h1Candles,ts:Date.now()};
+  }catch(e){console.warn(coin+' 1h context unavailable; retaining 15m/5m safety filters',e);}
   const [fiveCandles,oneCandles]=await Promise.all([fetchSignalTimeframe(symbol,'5m',60),fetchSignalTimeframe(symbol,'1m',60)]);
   const fiveClose=fiveCandles.map(x=>Number(x[4])),fiveHighs=fiveCandles.map(x=>Number(x[2])),fiveLows=fiveCandles.map(x=>Number(x[3])),fiveVolumes=fiveCandles.map(x=>Number(x[5]));
   fiveE9=ema(fiveClose.slice(-30),9);fiveE21=ema(fiveClose.slice(-50),21);fiveRsi=rsi(fiveClose,14);
@@ -887,8 +890,10 @@ async function analyzeCryptoCoin(coin){
   const fiveBear=fClose<fiveE9&&fiveE9<fiveE21&&fiveRsi>=22&&fiveRsi<=58&&fLocation<=0.48;
   // 15m remains the directional safety filter; 1m detects the first impulse
   // while 5m EMA9 slope/price confirms that the move is not fighting the entry timeframe.
-  const h1Closes=h1Candles.map(x=>Number(x[4])),h1Close=h1Closes.at(-1),h1E21=ema(h1Closes.slice(-50),21),h1PrevE21=ema(h1Closes.slice(0,-1).slice(-50),21);
-  const h1Bull=h1Close>h1E21&&h1E21>h1PrevE21,h1Bear=h1Close<h1E21&&h1E21<h1PrevE21;
+  const h1Closes=h1Candles.map(x=>Number(x[4]));
+  const h1Ready=h1Closes.length>=22;
+  const h1Close=h1Ready?h1Closes.at(-1):NaN,h1E21=h1Ready?ema(h1Closes.slice(-50),21):NaN,h1PrevE21=h1Ready?ema(h1Closes.slice(0,-1).slice(-50),21):NaN;
+  const h1Bull=h1Ready&&h1Close>h1E21&&h1E21>h1PrevE21,h1Bear=h1Ready&&h1Close<h1E21&&h1E21<h1PrevE21;
   // 1h is context, not a hard veto: it can lag sharp reversals by many candles.
   // Keep the closed 15m trend filter plus 15m/5m ADX, volume and candle-body quality gates.
   const trendBull=confirmedClose>=confirmedE21&&confirmedE21>=previousE21;
