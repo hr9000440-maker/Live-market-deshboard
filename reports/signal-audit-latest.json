@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-11-28T02:56:11.899031+00:00",
+  "generated_at_utc": "2026-11-28T03:56:12.435945+00:00",
   "total_signals": 23,
   "status_counts": {
     "STOPPED": 15,
@@ -605,9 +605,9 @@
       "stage": 0,
       "entry": 2360.8577250000003,
       "peak": 2360.8577250000003,
-      "last_premium": 1774.1211499999997,
+      "last_premium": 1976.96631,
       "max_favorable_pct": 0.0,
-      "last_mark_pct": -24.85,
+      "last_mark_pct": -16.26,
       "signal_time": "2026-11-27T18:48:26.027302+00:00",
       "has_quality_metrics": true,
       "rsi": 37.31655789920452,

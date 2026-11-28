@@ -1,6 +1,6 @@
 # Option Signal Checker — latest audit
 
-Generated (UTC): 2026-11-28T02:56:11.899031+00:00
+Generated (UTC): 2026-11-28T03:56:12.435945+00:00
 
 ## Summary
 - Total tracked signals: **23**
@@ -45,7 +45,7 @@ Generated (UTC): 2026-11-28T02:56:11.899031+00:00
 | BTC | BTC-28NOV26-61000-P | TARGET_HIT | 0 | +374.13% | +374.13% | 39.9 | 1.67 | 12% | 24.8 | -38.96355 | 0.23% | GOOD — ADX/MACD/Volume aligned |
 | BTC | BTC-28NOV26-62000-P | STOPPED | 0 | +0.00% | -31.51% | 31.1 | 0.40 | 41% | 68.0 | -40.90097 | 0.90% | CAUTION — Volume average से कम: participation कमजोर |
 | ETH | ETH-28NOV26-1650-P | STOPPED | 0 | +0.00% | -36.70% | 29.4 | 0.77 | 60% | 62.9 | -1.03889 | 1.00% | CAUTION — Volume average से कम: participation कमजोर |
-| BTC | BTC-28NOV26-62000-P | ACTIVE | 0 | +0.00% | -24.85% | 37.3 | 0.17 | 31% | 52.5 | 21.47508 | 0.52% | CAUTION — Volume average से कम: participation कमजोर; MACD momentum signal की दिशा में confirm नहीं |
+| BTC | BTC-28NOV26-62000-P | ACTIVE | 0 | +0.00% | -16.26% | 37.3 | 0.17 | 31% | 52.5 | 21.47508 | 0.52% | CAUTION — Volume average से कम: participation कमजोर; MACD momentum signal की दिशा में confirm नहीं |
 
 ## Audit limitations
 
