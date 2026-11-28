@@ -27,7 +27,14 @@ def _change(new, old):
 
 
 def _request(fetch_json, path, params):
-    return fetch_json(BASE + path + "?" + urlencode(params), timeout=10)
+    query = "?" + urlencode(params)
+    errors = []
+    for host in (BASE, "https://fapi1.binance.com", "https://fapi2.binance.com"):
+        try:
+            return fetch_json(host + path + query, timeout=8)
+        except Exception as exc:
+            errors.append(str(exc)[:100])
+    raise RuntimeError("Binance futures endpoints unavailable: " + " | ".join(errors[-2:]))
 
 
 def _coin_report(coin, fetch_json):
@@ -179,6 +186,7 @@ def _coin_report(coin, fetch_json):
         "taker_buy_pct": taker_buy_pct, "book_imbalance_pct": book_imbalance,
         "large_buy_usd": large_buy, "large_sell_usd": large_sell,
         "large_buy_count": large_buy_count, "large_sell_count": large_sell_count,
+        "large_trade_sample_count": len(recent_trades), "large_trade_threshold_usd": cutoff,
         "large_trade_net_pct": large_net_pct, "funding_rate_pct": funding * 100 if funding is not None else None,
         "global_long_short_account_ratio": account_ratio,
         "last_15m_high": recent_high, "last_15m_low": recent_low,
@@ -186,7 +194,7 @@ def _coin_report(coin, fetch_json):
         "strong_pressure": source_count >= 4 and abs(score) >= 60,
         "evidence": evidence, "data_points": source_count,
         "errors": errors[:5],
-        "interpretation_note": "Long/short ratio is general account positioning, not verified whale positions. OI always has both a buyer and seller."
+        "interpretation_note": "Long/short ratio is general account positioning, not verified whale positions. OI always has both a buyer and seller. Large trades are the top decile of the recent sampled aggregate trades, not verified institutional orders."
     }
 
 
