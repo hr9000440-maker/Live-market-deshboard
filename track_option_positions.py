@@ -44,6 +44,16 @@ def main():
     changed=False
     cache={}
     for p in positions:
+        # Retry an undelivered Telegram result/risk alert, including for positions already closed.
+        pending=p.get("pending_telegram")
+        if pending:
+            try:
+                telegram(pending)
+                p.pop("pending_telegram",None)
+                changed=True
+            except Exception as notify_error:
+                print("WARN pending Telegram alert not delivered: "+str(notify_error))
+                continue
         if p.get("status")!="ACTIVE": continue
         coin=p["coin"]
         try:
@@ -114,8 +124,12 @@ def main():
             p["last_checked"]=datetime.now(timezone.utc).isoformat()
             changed=True
             if msg:
-                telegram(msg)
-                print(coin+" "+p["contract"]+": "+p["status"]+" / stage "+str(p.get("stage",0)))
+                try:
+                    telegram(msg)
+                    print(coin+" "+p["contract"]+": "+p["status"]+" / stage "+str(p.get("stage",0)))
+                except Exception as notify_error:
+                    p["pending_telegram"]=msg
+                    print("WARN alert queued for retry "+coin+" "+p["contract"]+": "+str(notify_error))
             if rocket_msg:
                 telegram(rocket_msg)
                 p["rocket_alerted"]=True
