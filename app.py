@@ -801,6 +801,101 @@ def big_player_advisor():
         response.headers["Cache-Control"] = "no-store, max-age=0"
         return response
 
+
+# Read-only diagnostics. Results are cached briefly to avoid stressing public APIs.
+_diagnostics_lock = threading.RLock()
+_diagnostics_cache = {"at": 0, "report": None}
+_browser_error_lock = threading.RLock()
+_browser_errors = []
+
+@app.post("/api/diagnostics/browser-error")
+def diagnostics_browser_error():
+    from flask import request
+    payload = request.get_json(silent=True) or {}
+    item = {
+        "at": _utc_now(),
+        "message": str(payload.get("message") or "Unknown browser error")[:300],
+        "source": str(payload.get("source") or "")[:240],
+        "line": int(payload.get("line") or 0) if str(payload.get("line") or "0").isdigit() else 0,
+        "kind": str(payload.get("kind") or "error")[:40],
+    }
+    with _browser_error_lock:
+        _browser_errors.append(item)
+        del _browser_errors[:-30]
+    return jsonify({"stored": True})
+
+@app.get("/api/diagnostics")
+def diagnostics_report():
+    now = time.time()
+    with _diagnostics_lock:
+        cached = _diagnostics_cache.get("report")
+        if cached and now - _diagnostics_cache.get("at", 0) < 60:
+            return jsonify(cached)
+
+    def check_coin(coin):
+        result = {"coin": coin, "spot": "UNKNOWN", "futures": "UNKNOWN", "options": "UNKNOWN",
+                  "option_count": 0, "errors": []}
+        try:
+            spot = _fetch_json("https://api.binance.com/api/v3/ticker/price?symbol=" + coin + "USDT", timeout=6)
+            result["spot"] = "OK" if float(spot.get("price") or 0) > 0 else "BAD"
+            result["spot_price"] = float(spot.get("price") or 0) or None
+        except Exception as exc:
+            result["spot"] = "ERROR"
+            result["errors"].append("spot: " + str(exc)[:120])
+        try:
+            fut = _fetch_json("https://fapi.binance.com/fapi/v1/premiumIndex?symbol=" + coin + "USDT", timeout=6)
+            result["futures"] = "OK" if float(fut.get("markPrice") or 0) > 0 else "BAD"
+            result["mark_price"] = float(fut.get("markPrice") or 0) or None
+        except Exception as exc:
+            result["futures"] = "ERROR"
+            result["errors"].append("futures: " + str(exc)[:120])
+        try:
+            with app.test_client() as client:
+                response = client.get("/api/options/" + coin)
+                body = response.get_json(silent=True) or {}
+                result["options"] = "OK" if response.status_code == 200 and int(body.get("count") or len(body.get("rows") or [])) > 0 else "UNAVAILABLE"
+                result["option_count"] = int(body.get("count") or len(body.get("rows") or []))
+                if response.status_code != 200:
+                    result["errors"].append("options HTTP " + str(response.status_code) + ": " + str(body.get("error") or body.get("details") or "")[:100])
+        except Exception as exc:
+            result["options"] = "ERROR"
+            result["errors"].append("options: " + str(exc)[:120])
+        return result
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        coins = list(pool.map(check_coin, COINS))
+
+    with feed_lock:
+        stream = {
+            "connection": feed.get("connection"),
+            "last_message_at": feed.get("last_message_at"),
+            "last_error": feed.get("last_error"),
+            "coins": {}
+        }
+        now_ms = int(time.time() * 1000)
+        for coin, data in feed["coins"].items():
+            rows = data.get("candles") or []
+            last = rows[-1] if rows else None
+            age = int((now_ms - last["exchange_update_time"]) / 1000) if last and last.get("exchange_update_time") else None
+            stream["coins"][coin] = {"candles": len(rows), "age_seconds": age,
+                                     "fresh": bool(age is not None and age <= 120)}
+
+    with _browser_error_lock:
+        browser_errors = list(_browser_errors[-10:])
+
+    report = {
+        "checked_at": _utc_now(),
+        "server": "OK",
+        "coin_checks": coins,
+        "coinswitch_stream": stream,
+        "browser_errors": browser_errors,
+        "note": "Read-only diagnostics. HTTP/API availability does not guarantee a correct trading signal."
+    }
+    with _diagnostics_lock:
+        _diagnostics_cache["at"] = time.time()
+        _diagnostics_cache["report"] = report
+    return jsonify(report)
+
 @app.get("/health")
 def health():
     return jsonify({"status": "ok", "service": "live-market-dashboard"})
