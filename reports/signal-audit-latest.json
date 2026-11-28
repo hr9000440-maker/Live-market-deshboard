@@ -1,15 +1,15 @@
 {
-  "generated_at_utc": "2026-11-28T04:59:47.671403+00:00",
-  "total_signals": 24,
+  "generated_at_utc": "2026-11-28T05:58:04.767069+00:00",
+  "total_signals": 26,
   "status_counts": {
     "STOPPED": 15,
     "TRAIL_STOPPED": 1,
     "TARGET_HIT": 6,
-    "ACTIVE": 2
+    "ACTIVE": 4
   },
-  "active_signals": 2,
+  "active_signals": 4,
   "closed_or_resolved_signals": 22,
-  "signals_with_quality_metrics": 12,
+  "signals_with_quality_metrics": 14,
   "legacy_or_incomplete_metric_records": 12,
   "records_missing_valid_entry": 0,
   "by_coin": {
@@ -17,11 +17,12 @@
       "TRAIL_STOPPED": 1,
       "STOPPED": 8,
       "TARGET_HIT": 3,
-      "ACTIVE": 2
+      "ACTIVE": 3
     },
     "ETH": {
       "STOPPED": 7,
-      "TARGET_HIT": 3
+      "TARGET_HIT": 3,
+      "ACTIVE": 1
     }
   },
   "positions": [
@@ -605,9 +606,9 @@
       "stage": 0,
       "entry": 2360.8577250000003,
       "peak": 2360.8577250000003,
-      "last_premium": 1918.94272,
+      "last_premium": 2236.839,
       "max_favorable_pct": 0.0,
-      "last_mark_pct": -18.72,
+      "last_mark_pct": -5.25,
       "signal_time": "2026-11-27T18:48:26.027302+00:00",
       "has_quality_metrics": true,
       "rsi": 37.31655789920452,
@@ -631,9 +632,9 @@
       "stage": 0,
       "entry": 2577.9772799999996,
       "peak": 2577.9772799999996,
-      "last_premium": null,
+      "last_premium": 2057.89188,
       "max_favorable_pct": 0.0,
-      "last_mark_pct": null,
+      "last_mark_pct": -20.17,
       "signal_time": "2026-11-28T04:53:01.546692+00:00",
       "has_quality_metrics": true,
       "rsi": 50.750038632225206,
@@ -646,6 +647,58 @@
       "atr": 91.76428571428603,
       "atr_pct": 0.15288365443224605,
       "confirmation": "CAUTION — Volume average से कम: participation कमजोर",
+      "market_data_source": "KuCoin Spot",
+      "option_quote_source": "Deribit public options API"
+    },
+    {
+      "coin": "BTC",
+      "contract": "BTC-28NOV26-62000-P",
+      "direction": "STRONG BUY PUT",
+      "status": "ACTIVE",
+      "stage": 0,
+      "entry": 2388.4932000000003,
+      "peak": 2388.4932000000003,
+      "last_premium": null,
+      "max_favorable_pct": 0.0,
+      "last_mark_pct": null,
+      "signal_time": "2026-11-28T05:50:51.125357+00:00",
+      "has_quality_metrics": true,
+      "rsi": 36.37781537213613,
+      "volume_ratio": 4.220012512201756,
+      "candle_body_ratio": 0.7848410757946633,
+      "macd": -40.42751199441409,
+      "macd_signal": -9.580601021346864,
+      "macd_hist": -30.846910973067224,
+      "adx": 30.432490614413815,
+      "atr": 99.70714285714295,
+      "atr_pct": 0.16692779903323243,
+      "confirmation": "GOOD — ADX/MACD/Volume aligned",
+      "market_data_source": "KuCoin Spot",
+      "option_quote_source": "Deribit public options API"
+    },
+    {
+      "coin": "ETH",
+      "contract": "ETH-28NOV26-1740-P",
+      "direction": "STRONG BUY PUT",
+      "status": "ACTIVE",
+      "stage": 0,
+      "entry": 91.7304,
+      "peak": 91.7304,
+      "last_premium": null,
+      "max_favorable_pct": 0.0,
+      "last_mark_pct": null,
+      "signal_time": "2026-11-28T05:50:52.639602+00:00",
+      "has_quality_metrics": true,
+      "rsi": 31.834598269665946,
+      "volume_ratio": 1.8375780770760644,
+      "candle_body_ratio": 0.8463203463203348,
+      "macd": -2.2348040873991977,
+      "macd_signal": -1.448719920723174,
+      "macd_hist": -0.7860841666760237,
+      "adx": 31.047278113889814,
+      "atr": 3.5864285714286064,
+      "atr_pct": 0.21671310827282322,
+      "confirmation": "GOOD — ADX/MACD/Volume aligned",
       "market_data_source": "KuCoin Spot",
       "option_quote_source": "Deribit public options API"
     }
