@@ -176,24 +176,55 @@ def candles_5m(coin):
     raise RuntimeError(coin + " 5m market data unavailable: " + " | ".join(errors))
 
 
+def candles_1m(coin):
+    """Fetch public 1m spot candles for fresh impulse detection; options quotes remain unchanged."""
+    symbol = coin + "USDT"
+    errors = []
+    urls = (
+        ("https://api.binance.com/api/v3/klines?" + urllib.parse.urlencode({"symbol": symbol, "interval": "1m", "limit": 100}), False),
+        ("https://data-api.binance.vision/api/v3/klines?" + urllib.parse.urlencode({"symbol": symbol, "interval": "1m", "limit": 100}), False),
+        ("https://api.gateio.ws/api/v4/spot/candlesticks?" + urllib.parse.urlencode({"currency_pair": coin + "_USDT", "interval": "1m", "limit": 100}), True),
+    )
+    for url, gate in urls:
+        try:
+            rows = get_json(url, timeout=15)
+            if gate:
+                rows = [[int(float(x[0]) * 1000), x[5], x[3], x[4], x[2], x[1], int(float(x[0]) * 1000 + 59999)] for x in rows]
+                rows.sort(key=lambda x: int(x[0]))
+            rows = [x for x in rows if isinstance(x, list) and len(x) >= 7
+                    and all(float(x[i]) > 0 for i in (0, 1, 2, 3, 4))]
+            if len(rows) >= 31:
+                return rows, "Gate.io Spot" if gate else "Binance Spot"
+            errors.append("1m candles कम")
+        except Exception as exc:
+            errors.append(str(exc)[:120])
+    raise RuntimeError(coin + " 1m market data unavailable: " + " | ".join(errors))
+
+
 def confirmed_signal(coin):
-    # 5m is the entry timeframe; 15m only checks that the broader trend is not opposed.
+    # 1m detects a fresh impulse; a completed 5m candle must confirm it;
+    # the completed 15m EMA21 trend remains the final safety filter.
     trend_rows, trend_source = candles(coin)
     rows, source = candles_5m(coin)
+    one_rows, one_source = candles_1m(coin)
     latest_open = int(float(rows[-1][0]))
     age = int(time.time() * 1000) - latest_open
     if age < -60000 or age > 15 * 60 * 1000:
         raise RuntimeError("5m candle data पुराना है; सुरक्षित रूप से signal रोका गया")
     closed = rows[:-1]
     trend_closed = trend_rows[:-1]
-    if len(closed) < 31 or len(trend_closed) < 31:
-        raise RuntimeError("5m/15m EMA-RSI calculation के लिए candles कम हैं")
+    now_ms = int(time.time() * 1000)
+    one_closed = [x for x in one_rows if int(float(x[0])) + 60000 <= now_ms]
+    if len(closed) < 31 or len(trend_closed) < 31 or len(one_closed) < 30:
+        raise RuntimeError("1m/5m/15m EMA-RSI calculation के लिए candles कम हैं")
+
     closes = [float(x[4]) for x in closed]
     highs = [float(x[2]) for x in closed]
     lows = [float(x[3]) for x in closed]
     volumes = [float(x[5]) for x in closed]
     close, previous_close = closes[-1], closes[-2]
     e9, e21 = ema(closes[-30:], 9), ema(closes[-50:], 21)
+    previous_e9 = ema(closes[:-1][-30:], 9)
     rv = rsi(closes, 14)
     op, high, low, volume = (float(closed[-1][i]) for i in (1, 2, 3, 5))
     candle_range = max(high - low, 1e-12)
@@ -212,17 +243,60 @@ def confirmed_signal(coin):
     trend_bull = trend_close >= trend_e21 and trend_e21 >= previous_trend_e21
     trend_bear = trend_close <= trend_e21 and trend_e21 <= previous_trend_e21
 
-    # 5m trigger avoids waiting for a fully stacked 15m EMA/ADX/Supertrend setup.
-    # 15m EMA21 slope and close are the safety filter; volume/body remain diagnostics.
+    # Keep the original 5m breakout path as first priority.
     bullish = close > e9 > e21 and 42 <= rv <= 78 and close_location >= 0.52 and trend_bull
     bearish = close < e9 < e21 and 22 <= rv <= 58 and close_location <= 0.48 and trend_bear
     direction = "STRONG BUY CALL" if bullish else "STRONG BUY PUT" if bearish else None
+    signal_time = int(float(closed[-1][0]))
+    signal_source = source + " 5m / " + trend_source + " 15m"
+
+    # Earlier-entry fallback: a fresh 1m impulse must be followed by a completed
+    # 5m candle with matching direction and EMA9 slope. 15m trend still must agree.
+    if not direction:
+        fresh = [x for x in one_closed[-5:]
+                 if now_ms - (int(float(x[0])) + 60000) <= 5 * 60 * 1000]
+        for one in reversed(fresh):
+            idx = one_closed.index(one)
+            if idx < 25 or int(float(closed[-1][0])) < int(float(one[0])):
+                continue
+            one_closes = [float(x[4]) for x in one_closed[:idx + 1]]
+            one_highs = [float(x[2]) for x in one_closed[:idx + 1]]
+            one_lows = [float(x[3]) for x in one_closed[:idx + 1]]
+            one_volumes = [float(x[5]) for x in one_closed[:idx + 1]]
+            one_op, one_high, one_low, one_close, one_volume = (float(one[i]) for i in (1, 2, 3, 4, 5))
+            one_range = max(one_high - one_low, 1e-12)
+            one_body = abs(one_close - one_op) / one_range
+            one_location = (one_close - one_low) / one_range
+            one_e9 = ema(one_closes[-30:], 9)
+            one_e21 = ema(one_closes[-50:], 21)
+            one_prev_e9 = ema(one_closes[:-1][-30:], 9)
+            one_rsi = rsi(one_closes, 14)
+            one_move = abs(one_close - one_closes[-2]) / one_closes[-2] * 100 if one_closes[-2] else 0
+            prior_high = max(one_highs[-4:-1])
+            prior_low = min(one_lows[-4:-1])
+            one_bull = (one_close > one_op and one_body >= 0.55 and one_location >= 0.60
+                        and (one_close > prior_high or one_move >= 0.08)
+                        and one_e9 > one_e21 and one_e9 >= one_prev_e9 and 42 <= one_rsi <= 75)
+            one_bear = (one_close < one_op and one_body >= 0.55 and one_location <= 0.40
+                        and (one_close < prior_low or one_move >= 0.08)
+                        and one_e9 < one_e21 and one_e9 <= one_prev_e9 and 22 <= one_rsi <= 58)
+            if one_bull:
+                if close > op and close > e9 and e9 >= previous_e9 and rv >= 42 and close_location >= 0.52 and trend_bull:
+                    direction = "STRONG BUY CALL"
+            elif one_bear:
+                if close < op and close < e9 and e9 <= previous_e9 and rv <= 58 and close_location <= 0.48 and trend_bear:
+                    direction = "STRONG BUY PUT"
+            if direction:
+                signal_time = int(float(one[0]))
+                signal_source = "1m early impulse / 5m context / " + trend_source + " 15m"
+                print(f"{coin}: 1m early impulse confirmed by 5m + 15m filters | {direction} | 1m candle={signal_time}")
+                break
+
     return {"direction": direction, "price": close, "rsi": rv, "ema9": e9, "ema21": e21,
             "volume_ratio": volume_ratio, "body_ratio": body_ratio,
             "macd": macd_line, "macd_signal": macd_signal, "macd_hist": macd_hist,
             "adx": adx_value, "atr": atr_value, "atr_pct": atr_pct,
-            "candle_time": int(float(closed[-1][0])),
-            "source": source + " 5m / " + trend_source + " 15m"}
+            "candle_time": signal_time, "source": signal_source}
 
 def expiry_ms(value):
     value = str(value or "").strip()
@@ -399,6 +473,14 @@ def main():
             if state.get(key) == stamp:
                 print(coin + ": duplicate signal already sent for this closed candle")
                 continue
+            # Suppress repeat entries in the same direction for 20 minutes,
+            # even if the option contract/strike changes during one market move.
+            direction_lock_key = "__last_direction__|" + coin
+            previous_lock = state.get(direction_lock_key, {})
+            if (previous_lock.get("direction") == signal["direction"]
+                    and time.time() - float(previous_lock.get("sent_at", 0)) < 20 * 60):
+                print(coin + ": same-direction repeat suppressed within 20-minute move lock")
+                continue
             side = "BUY CALL" if "CALL" in signal["direction"] else "BUY PUT"
             cost_line = (f"Estimated premium value (not margin): ₹{option['cost']:.0f}" if option["cost"] is not None
                          else "Estimated premium value: unavailable (lot metadata missing)")
@@ -475,6 +557,7 @@ def main():
                     json.dump(positions, pf, ensure_ascii=False, indent=2)
                     pf.write("\n")
             state[key] = stamp
+            state[direction_lock_key] = {"direction": signal["direction"], "sent_at": time.time(), "contract": option["name"]}
             save_state(state)
             sent += 1
             print(coin + ": Telegram sent " + signal["direction"] + " " + option["name"])
