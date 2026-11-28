@@ -13,6 +13,66 @@ from datetime import datetime, timezone
 
 from options_strong_signals import OPTION_API, candles, choose_expiry, ema, get_json, rsi, telegram
 
+
+def macd(values, fast=12, slow=26, signal=9):
+    line = []
+    for i in range(len(values)):
+        sample = values[:i + 1]
+        line.append(ema(sample, fast) - ema(sample, slow))
+    signal_line = ema(line[-signal * 3:], signal)
+    return line[-1], signal_line, line[-1] - signal_line
+
+
+def adx_value(highs, lows, closes, period=14):
+    trs, plus_dm, minus_dm = [], [], []
+    for i in range(1, len(closes)):
+        up = highs[i] - highs[i - 1]
+        down = lows[i - 1] - lows[i]
+        plus_dm.append(max(up, 0.0) if up > down else 0.0)
+        minus_dm.append(max(down, 0.0) if down > up else 0.0)
+        trs.append(max(highs[i] - lows[i], abs(highs[i] - closes[i - 1]),
+                       abs(lows[i] - closes[i - 1])))
+    if len(trs) < period:
+        return 0.0
+    dx = []
+    for end in range(period, len(trs) + 1):
+        tr_sum = sum(trs[end-period:end])
+        if tr_sum <= 0:
+            dx.append(0.0)
+            continue
+        pdi = 100.0 * sum(plus_dm[end-period:end]) / tr_sum
+        mdi = 100.0 * sum(minus_dm[end-period:end]) / tr_sum
+        dx.append(100.0 * abs(pdi-mdi) / (pdi+mdi) if pdi+mdi else 0.0)
+    return sum(dx[-period:]) / min(period, len(dx))
+
+
+def supertrend_direction(highs, lows, closes, period=10, multiplier=3.0):
+    if len(closes) < period + 2:
+        return "UNKNOWN"
+    trs = [max(highs[i]-lows[i], abs(highs[i]-closes[i-1]),
+               abs(lows[i]-closes[i-1])) for i in range(1, len(closes))]
+    atrs = [None] * len(closes)
+    for i in range(period, len(closes)):
+        atrs[i] = sum(trs[i-period:i]) / period
+    final_upper = final_lower = None
+    trend = 1
+    for i in range(period, len(closes)):
+        mid = (highs[i] + lows[i]) / 2.0
+        basic_upper = mid + multiplier * atrs[i]
+        basic_lower = mid - multiplier * atrs[i]
+        if final_upper is None:
+            final_upper, final_lower = basic_upper, basic_lower
+        else:
+            prev_close = closes[i-1]
+            final_upper = basic_upper if basic_upper < final_upper or prev_close > final_upper else final_upper
+            final_lower = basic_lower if basic_lower > final_lower or prev_close < final_lower else final_lower
+        if trend == 1 and closes[i] < final_lower:
+            trend = -1
+        elif trend == -1 and closes[i] > final_upper:
+            trend = 1
+    return "BULLISH" if trend == 1 else "BEARISH"
+
+
 COINS = ("BTC", "ETH", "BNB", "ZEC")
 STATE_PATH = "state/jackpot_early_signals.json"
 BINANCE = "https://api.binance.com/api/v3/klines"
@@ -206,13 +266,21 @@ def five_minute_signal(coin):
         atr = sum(true_ranges) / max(1, len(true_ranges))
         avg_vol = sum(volumes[max(0, idx - 20):idx]) / max(1, len(volumes[max(0, idx - 20):idx]))
         direction = "STRONG BUY CALL" if bull else "STRONG BUY PUT"
+        sample_closes = closes[:idx + 1]
+        sample_highs = highs[:idx + 1]
+        sample_lows = lows[:idx + 1]
+        macd_line, macd_signal, macd_hist = macd(sample_closes)
+        adx = adx_value(sample_highs, sample_lows, sample_closes)
+        st_direction = supertrend_direction(sample_highs, sample_lows, sample_closes)
         result = {
-            "direction": direction, "price": close, "rsi": rsi(closes[:idx + 1], 14),
-            "ema9": ema(closes[max(0, idx - 29):idx + 1], 9),
-            "ema21": ema(closes[max(0, idx - 49):idx + 1], 21),
+            "direction": direction, "price": close, "rsi": rsi(sample_closes, 14),
+            "ema9": ema(sample_closes[-30:], 9),
+            "ema21": ema(sample_closes[-50:], 21),
             "candle_time": int(float(last[0])), "source": source,
             "volume_ratio": volume / avg_vol if avg_vol > 0 else 0.0,
             "body_ratio": body, "atr": atr,
+            "macd": macd_line, "macd_signal": macd_signal, "macd_hist": macd_hist,
+            "adx": adx, "supertrend": st_direction,
             "move_pct": abs(close - closes[idx - 1]) / closes[idx - 1] * 100,
             "swing_low": min(lows[max(0, idx - 5):idx + 1]),
             "swing_high": max(highs[max(0, idx - 5):idx + 1])
@@ -241,12 +309,16 @@ def confirm_15m(coin, direction):
     e9 = ema(closes[-30:], 9)
     e21 = ema(closes[-50:], 21)
     rv = rsi(closes, 14)
-    # The 15m candle confirms direction without requiring a fully mature EMA trend.
-    # The 5m breakout remains the strict trigger; 15m must agree with price/EMA9.
+    highs = [float(x[2]) for x in closed]
+    lows = [float(x[3]) for x in closed]
+    macd_line, macd_signal, macd_hist = macd(closes)
+    adx = adx_value(highs, lows, closes)
+    st_direction = supertrend_direction(highs, lows, closes)
+    # Preserve existing 15m confirmation and add Supertrend direction confirmation.
     if "CALL" in direction:
-        ok = close > e9 and close >= previous_close and rv >= 40
+        ok = close > e9 and close >= previous_close and rv >= 40 and st_direction == "BULLISH"
     else:
-        ok = close < e9 and close <= previous_close and rv <= 60
+        ok = close < e9 and close <= previous_close and rv <= 60 and st_direction == "BEARISH"
     if not ok:
         if coin == "ETH":
             checks = {
@@ -266,7 +338,9 @@ def confirm_15m(coin, direction):
             f"ETH: 15m confirmation passed {direction} | "
             f"close={close:.6f} | EMA9={e9:.6f} | RSI14={rv:.1f} | source={source}"
         )
-    return {"close": close, "ema9": e9, "ema21": e21, "rsi": rv, "source": source}
+    return {"close": close, "ema9": e9, "ema21": e21, "rsi": rv, "source": source,
+            "macd": macd_line, "macd_signal": macd_signal, "macd_hist": macd_hist,
+            "adx": adx, "supertrend": st_direction}
 
 
 def best_zero_hero_option(coin, direction, underlying, payload):
@@ -469,8 +543,9 @@ def main():
                 + f"Bid: {option['bid']:.6f} | Ask: {option['ask']:.6f} | Spread: {option['spread']*100:.2f}%\\n"
                 + sl_line + target_text
                 + f"5m RSI14: {sig['rsi']:.1f} | EMA9: {sig['ema9']:.2f} | EMA21: {sig['ema21']:.2f}\\n"
-                + f"15m confirmation: RSI {confirm['rsi']:.1f} | Close {confirm['close']:.4f} vs EMA9 {confirm['ema9']:.4f}\\n"
-                + f"5m move: {sig['move_pct']:.3f}% | ATR: {sig['atr']:.4f} | Volume: {sig['volume_ratio']:.2f}x\\n"
+                + f"15m confirmation: RSI {confirm['rsi']:.1f} | Close {confirm['close']:.4f} vs EMA9 {confirm['ema9']:.4f} | Supertrend {confirm['supertrend']}\\n"
+                + f"5m move: {sig['move_pct']:.3f}% | ATR: {sig['atr']:.4f} | ADX: {sig['adx']:.1f} | Supertrend: {sig['supertrend']}\\n"
+                + f"MACD: {sig['macd']:.5f} | Signal: {sig['macd_signal']:.5f} | Histogram: {sig['macd_hist']:.5f} | Volume: {sig['volume_ratio']:.2f}x\\n"
                 + f"Market data: {sig['source']} | Option source: {payload.get('source', 'unknown')}\\n"
                 + target_method + f". Targets and trailing SL follow underlying movement; SL only tightens. {coin} premium ₹0–₹{MAX_PREMIUM_INR_BY_COIN.get(coin, 30.0):.0f} filter and <=10% spread retained. Signal only — no automatic order."
             )
