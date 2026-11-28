@@ -1434,5 +1434,5 @@ function calculate(){
 }
 document.addEventListener('DOMContentLoaded',()=>{const tgToken=document.getElementById('telegramToken'),tgChat=document.getElementById('telegramChatId');if(tgToken)tgToken.value=localStorage.getItem('telegramBotToken')||'';if(tgChat)tgChat.value=localStorage.getItem('telegramChatId')||'';renderCryptoMovementLog();renderOptionMovementTracker();loadBigPlayerAdvisor();setInterval(loadBigPlayerAdvisor,60000);loadCoinSwitchFeed();setInterval(loadCoinSwitchFeed,15000);loadPaperTradingLedger();setInterval(loadPaperTradingLedger,60000);renderDashboardSignalHistory();loadServerOptionSnapshots();setInterval(loadServerOptionSnapshots,300000);loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals();if(localStorage.getItem('signalNotificationsEnabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){document.getElementById('notificationStatus').textContent='Notification: चालू';}setInterval(loadAllCryptoSignals,10000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadAllCryptoSignals();});window.addEventListener('online',()=>loadAllCryptoSignals());});
 </script>
-</body>
+<script src="/diagnostics.js" defer></script>\n</body>
 </html>
