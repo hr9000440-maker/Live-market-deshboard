@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """No-money paper trading engine. Bybit public linear candles with Binance fallback."""
-import json, os, time, urllib.request, datetime
+import json, os, time, math, urllib.request, datetime
 STATE_PATH="paper_trades.json"
 COINS=["BTC","ETH","BNB","ZEC"]
 BUDGET_INR=500
@@ -12,55 +12,73 @@ def get_json(url):
     with urllib.request.urlopen(req,timeout=15) as r: return json.loads(r.read())
 
 def candles(symbol, interval, limit=80):
-    # KuCoin was confirmed working for BTC/ETH/BNB/ZEC in the Zero Hero CI logs.
-    # Prefer it first, then try independent public feeds. These are market-data
-    # reads only; the engine remains paper-only.
-    errors=[]
-    try:
-        ktype={"5m":"5min","15m":"15min"}.get(interval,interval)
-        payload=get_json("https://api.kucoin.com/api/v1/market/candles?symbol="+symbol+"-USDT&type="+ktype)
-        if not isinstance(payload,dict) or payload.get("code")!="200000" or not isinstance(payload.get("data"),list):
-            raise RuntimeError("KuCoin response unavailable")
-        data=[]
-        for x in payload["data"]:
-            if len(x)<6: continue
-            # KuCoin: [time, open, close, high, low, volume, turnover]
-            data.append([int(float(x[0])*1000),x[1],x[3],x[4],x[2],x[5]])
-        data.sort(key=lambda x:int(x[0]))
-        if len(data)<35: raise RuntimeError("KuCoin: insufficient candle data")
-        candles.last_source="KuCoin spot (primary)"
-        return data[:-1]
-    except Exception as e:
-        errors.append("KuCoin: "+str(e)[:120])
-    try:
-        # Gate.io: [timestamp, volume, close, high, low, open].
-        data=get_json("https://api.gateio.ws/api/v4/spot/candlesticks?currency_pair="+symbol+"_USDT&interval="+interval+"&limit="+str(limit))
-        rows=[[int(float(x[0])*1000),x[5],x[3],x[4],x[2],x[1]] for x in data if len(x)>=6]
-        rows.sort(key=lambda x:int(x[0]))
-        if len(rows)<35: raise RuntimeError("Gate.io: insufficient candle data")
-        candles.last_source="Gate.io spot fallback"
-        return rows[:-1]
-    except Exception as e:
-        errors.append("Gate.io: "+str(e)[:120])
-    try:
-        payload=get_json(f"https://api.bybit.com/v5/market/kline?category=linear&symbol={symbol}USDT&interval={interval}&limit={limit}")
-        if payload.get("retCode") != 0:
-            raise RuntimeError(f"Bybit {payload.get('retCode')}: {payload.get('retMsg')}")
-        items=payload.get("result",{}).get("list",[])
-        data=[[int(x[0]),x[1],x[2],x[3],x[4],x[5]] for x in reversed(items)]
-        if len(data)<35: raise RuntimeError("Bybit: insufficient candle data")
-        candles.last_source="Bybit linear"
-        return data[:-1]
-    except Exception as e:
-        errors.append("Bybit: "+str(e)[:120])
-    try:
-        data=get_json(f"https://fapi.binance.com/fapi/v1/klines?symbol={symbol}USDT&interval={interval}&limit={limit}")
-        if not isinstance(data,list) or len(data)<35: raise RuntimeError("Binance USD-M: insufficient candle data")
-        candles.last_source="Binance USD-M"
-        return data[:-1]
-    except Exception as e:
-        errors.append("Binance: "+str(e)[:120])
-    raise RuntimeError("All market-data sources failed: " + " | ".join(errors)[:360])
+    # Futures-only paper data: Bybit linear primary, Binance USD-M fallback.
+    # Spot feeds are deliberately excluded so spot candles cannot masquerade as futures.
+    interval_ms = {"5m": 300000, "15m": 900000}.get(interval)
+    bybit_interval = {"5m": "5", "15m": "15"}.get(interval)
+    if not interval_ms or not bybit_interval:
+        raise RuntimeError("Unsupported candle interval: " + str(interval))
+    now_ms = int(time.time() * 1000)
+    errors = []
+
+    sources = (
+        ("Bybit linear", "bybit"),
+        ("Binance USD-M", "binance"),
+    )
+    for source_name, source in sources:
+        try:
+            if source == "bybit":
+                payload = get_json(
+                    f"https://api.bybit.com/v5/market/kline?category=linear&symbol={symbol}USDT&interval={bybit_interval}&limit={limit}"
+                )
+                if not isinstance(payload, dict) or payload.get("retCode") != 0:
+                    raise RuntimeError("Bybit linear response: " + str(payload.get("retMsg", "invalid response")))
+                raw = payload.get("result", {}).get("list", [])
+                if not isinstance(raw, list):
+                    raise RuntimeError("Bybit linear candles missing")
+                raw = list(reversed(raw))
+            else:
+                raw = get_json(
+                    f"https://fapi.binance.com/fapi/v1/klines?symbol={symbol}USDT&interval={interval}&limit={limit}"
+                )
+                if not isinstance(raw, list):
+                    raise RuntimeError("Binance USD-M candles missing")
+
+            rows = []
+            seen = set()
+            for item in raw:
+                if not isinstance(item, (list, tuple)) or len(item) < 6:
+                    raise RuntimeError(source_name + ": malformed candle row")
+                ts = int(float(item[0]))
+                op, high, low, close, volume = (float(item[i]) for i in range(1, 6))
+                values = (op, high, low, close, volume)
+                if not all(math.isfinite(v) for v in values):
+                    raise RuntimeError(source_name + ": non-finite candle value")
+                if min(op, high, low, close) <= 0 or volume < 0:
+                    raise RuntimeError(source_name + ": zero/negative OHLC or volume")
+                if high < max(op, close, low) or low > min(op, close, high):
+                    raise RuntimeError(source_name + ": invalid OHLC range")
+                if ts in seen:
+                    raise RuntimeError(source_name + ": duplicate candle timestamp")
+                seen.add(ts)
+                # Keep completed candles only; do not blindly drop the newest row.
+                if ts + interval_ms <= now_ms:
+                    rows.append([ts, op, high, low, close, volume])
+
+            rows.sort(key=lambda row: row[0])
+            if len(rows) < 35:
+                raise RuntimeError(source_name + ": insufficient completed candles")
+            age_ms = now_ms - (rows[-1][0] + interval_ms)
+            if age_ms < -1000 or age_ms > interval_ms * 2:
+                raise RuntimeError(source_name + ": latest completed candle is stale")
+            candles.last_source = source_name
+            candles.last_candle_time = rows[-1][0]
+            candles.last_candle_age_ms = max(0, age_ms)
+            return rows
+        except Exception as e:
+            errors.append(source_name + ": " + str(e)[:140])
+
+    raise RuntimeError("Bybit linear and Binance USD-M unavailable: " + " | ".join(errors)[:360])
 
 def ema(v,n):
     a=v[0]; k=2/(n+1)
@@ -88,9 +106,26 @@ def analyze(coin,tf):
             "rsi":rv,"ema9":e9,"ema21":e21,"candle":int(rows[-1][0]),"atr":atr}
 
 def load():
+    default = {"mode": "PAPER ONLY", "budget_inr": BUDGET_INR, "open_trades": [],
+               "closed_trades": [], "last_update": None, "errors": {}}
+    if not os.path.exists(STATE_PATH):
+        return default
     try:
-        with open(STATE_PATH) as f: return json.load(f)
-    except Exception: return {"mode":"PAPER ONLY","budget_inr":BUDGET_INR,"open_trades":[],"closed_trades":[],"last_update":None,"errors":{}}
+        with open(STATE_PATH, encoding="utf-8") as f:
+            state = json.load(f)
+    except Exception as e:
+        # Never silently replace a damaged ledger with an empty one.
+        raise RuntimeError(STATE_PATH + " is unreadable; refusing to reset paper history") from e
+    if not isinstance(state, dict):
+        raise RuntimeError(STATE_PATH + " must contain a JSON object; refusing to reset paper history")
+    for key in ("open_trades", "closed_trades"):
+        if key in state and not isinstance(state[key], list):
+            raise RuntimeError(STATE_PATH + " has invalid " + key + "; refusing to reset paper history")
+    if "errors" in state and not isinstance(state["errors"], dict):
+        raise RuntimeError(STATE_PATH + " has invalid errors map; refusing to reset paper history")
+    for key, value in default.items():
+        state.setdefault(key, value)
+    return state
 
 def save(s):
     s["last_update"]=datetime.datetime.now(datetime.timezone.utc).isoformat()
