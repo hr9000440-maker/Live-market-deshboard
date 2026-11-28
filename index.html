@@ -910,9 +910,9 @@ async function analyzeCryptoCoin(coin){
   if(entrySide!=='WAIT'&&!strictQuality){entrySide='WAIT';entryReason='QUALITY FILTER: 1H/15m direction के साथ ADX≥20, 15m/5m Volume≥1.20x और Candle Body≥55% सभी जरूरी';}
   multiReason='1H '+(h1Bull?'BULLISH':h1Bear?'BEARISH':'NEUTRAL')+' • 15m '+(confirmedSide==='BUY / LONG'?'BULLISH':confirmedSide==='SELL / SHORT'?'BEARISH':'NEUTRAL')+' • 5m '+(fiveBull?'BUY':fiveBear?'SELL':fiveContextBull?'BULLISH CONTEXT':fiveContextBear?'BEARISH CONTEXT':'WAIT')+' • 1m '+(oneBull?'EARLY BUY':oneBear?'EARLY SELL':'WAIT')+' • Quality '+(strictQuality?'PASS':'FAIL');
  }catch(e){
-  // If fast candles fail, retain only the old fully-confirmed 15m signal as a safe fallback.
-  entrySide=confirmedSide;entryReason=confirmationReason;fiveEntry=confirmedClose;fastEntryUsed=false;
-  multiReason='5m/1m data unavailable; 15m confirmed fallback only: '+(e.message||'feed error');
+  // Accuracy-first safety: without fresh 1h + 5m + 1m context, do not fall back to a weaker 15m-only entry.
+  entrySide='WAIT';entryReason='1H/5m/1m confirmation unavailable — सुरक्षित रूप से कोई signal नहीं';fiveEntry=confirmedClose;fastEntryUsed=false;
+  multiReason='Higher-timeframe/entry data unavailable; signal suppressed: '+(e.message||'feed error');
  }
  const closes=candles.map(x=>Number(x[4])),highs=candles.map(x=>Number(x[2])),lows=candles.map(x=>Number(x[3])),volumes=candles.map(x=>Number(x[5]));
  const close=closes.at(-1),open=Number(candles.at(-1)[1]),high=highs.at(-1),low=lows.at(-1),volume=volumes.at(-1);
