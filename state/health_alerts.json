@@ -1,4 +1,8 @@
 {
-  "active_issues": [],
-  "alerted_issues": []
+  "active_issues": [
+    "CoinSwitch futures klines feed"
+  ],
+  "alerted_issues": [
+    "CoinSwitch futures klines feed"
+  ]
 }
