@@ -845,20 +845,32 @@ async function analyzeCryptoCoin(coin){
  let confirmedSide='WAIT',confirmationReason='15m EMA/RSI के साथ ADX (≥18) और Supertrend की पुष्टि अधूरी';
  if(bullishQuality){confirmedSide='BUY / LONG';confirmationReason='CONFIRMED: बंद 15m candle EMA9 और EMA21 के ऊपर, EMA9>EMA21, EMA21 ऊपर/स्थिर, RSI '+confirmedRsi.toFixed(1)+', ADX '+confirmedAdx.toFixed(1)+' और Supertrend BUY';}
  else if(bearishQuality){confirmedSide='SELL / SHORT';confirmationReason='CONFIRMED: बंद 15m candle EMA9 और EMA21 के नीचे, EMA9<EMA21, EMA21 नीचे/स्थिर, RSI '+confirmedRsi.toFixed(1)+', ADX '+confirmedAdx.toFixed(1)+' और Supertrend SELL';}
- // 1m/5m are supplementary early-movement context only. They must never block the
- // existing confirmed 15m signal, especially the user's established option alerts.
- let fiveRsi=NaN,oneClose=confirmedClose,multiReason='15m confirmation is primary; 1m/5m are supplementary';
+ // Faster entry engine: closed 5m candle triggers the trade; 15m is a trend filter,
+ // not a requirement to wait for a full 15m EMA/ADX/Supertrend stack. 1m is early context only.
+ let fiveRsi=NaN,fiveE9=NaN,fiveE21=NaN,fiveEntry=NaN,fiveAtr=NaN,oneClose=confirmedClose;
+ let entrySide='WAIT',entryReason='5m entry trigger की पुष्टि अधूरी',multiReason='5m entry + 15m trend filter';
  try{
   const [fiveCandles,oneCandles]=await Promise.all([fetchSignalTimeframe(symbol,'5m',60),fetchSignalTimeframe(symbol,'1m',60)]);
-  const fiveClose=fiveCandles.map(x=>Number(x[4])),fiveE9=ema(fiveClose.slice(-30),9),fiveE21=ema(fiveClose.slice(-50),21);
-  fiveRsi=rsi(fiveClose,14);
-  const oneLast=oneCandles.at(-1);
-  oneClose=Number(oneLast[4]);
-  const fiveBull=fiveClose.at(-1)>fiveE9&&fiveE9>fiveE21&&fiveRsi>=42&&fiveRsi<=78;
-  const fiveBear=fiveClose.at(-1)<fiveE9&&fiveE9<fiveE21&&fiveRsi>=22&&fiveRsi<=58;
-  multiReason='15m '+confirmedSide+' • 5m '+(fiveBull?'BUY':fiveBear?'SELL':'WAIT')+' • 1m latest close '+oneClose;
+  const fiveClose=fiveCandles.map(x=>Number(x[4])),fiveHighs=fiveCandles.map(x=>Number(x[2])),fiveLows=fiveCandles.map(x=>Number(x[3]));
+  fiveE9=ema(fiveClose.slice(-30),9);fiveE21=ema(fiveClose.slice(-50),21);fiveRsi=rsi(fiveClose,14);
+  const fLast=fiveCandles.at(-1),fPrev=fiveCandles.at(-2),fOpen=Number(fLast[1]),fClose=Number(fLast[4]),fHigh=Number(fLast[2]),fLow=Number(fLast[3]);
+  fiveEntry=fClose;
+  const fRange=Math.max(fHigh-fLow,1e-12),fLocation=(fClose-fLow)/fRange;
+  const fRanges=[];for(let j=Math.max(1,fiveCandles.length-14);j<fiveCandles.length;j++)fRanges.push(Math.max(fiveHighs[j]-fiveLows[j],Math.abs(fiveHighs[j]-fiveClose[j-1]),Math.abs(fiveLows[j]-fiveClose[j-1])));
+  fiveAtr=fRanges.reduce((a,b)=>a+b,0)/Math.max(1,fRanges.length);
+  const oneLast=oneCandles.at(-1);oneClose=Number(oneLast[4]);
+  const fiveBull=fClose>fiveE9&&fiveE9>fiveE21&&fiveRsi>=42&&fiveRsi<=78&&fLocation>=0.52;
+  const fiveBear=fClose<fiveE9&&fiveE9<fiveE21&&fiveRsi>=22&&fiveRsi<=58&&fLocation<=0.48;
+  // 15m trend should support the direction, but ADX/Supertrend/full EMA stack no longer delay entry.
+  const trendBull=confirmedClose>=confirmedE21&&confirmedE21>=previousE21;
+  const trendBear=confirmedClose<=confirmedE21&&confirmedE21<=previousE21;
+  if(fiveBull&&trendBull){entrySide='BUY / LONG';entryReason='EARLY ENTRY: बंद 5m candle EMA9/EMA21 और RSI से BUY trigger; 15m trend supportive';}
+  else if(fiveBear&&trendBear){entrySide='SELL / SHORT';entryReason='EARLY ENTRY: बंद 5m candle EMA9/EMA21 और RSI से SELL trigger; 15m trend supportive';}
+  multiReason='5m '+(fiveBull?'BUY':fiveBear?'SELL':'WAIT')+' • 15m trend '+(trendBull?'BULLISH':trendBear?'BEARISH':'NEUTRAL')+' • 1m early close '+oneClose;
  }catch(e){
-  multiReason='15m '+confirmedSide+' कायम • 1m/5m extra data unavailable; original signal not blocked';
+  // If fast candles fail, retain only the old fully-confirmed 15m signal as a safe fallback.
+  entrySide=confirmedSide;entryReason=confirmationReason;fiveEntry=confirmedClose;
+  multiReason='5m/1m data unavailable; 15m confirmed fallback only: '+(e.message||'feed error');
  }
  const closes=candles.map(x=>Number(x[4])),highs=candles.map(x=>Number(x[2])),lows=candles.map(x=>Number(x[3])),volumes=candles.map(x=>Number(x[5]));
  const close=closes.at(-1),open=Number(candles.at(-1)[1]),high=highs.at(-1),low=lows.at(-1),volume=volumes.at(-1);
@@ -872,9 +884,10 @@ async function analyzeCryptoCoin(coin){
  const prevHigh=highs.at(-2),prevLow=lows.at(-2),breakUp=close>prevHigh,breakDown=close<prevLow;
  const buyChecks={priceAboveEMA9:close>e9,emaBullish:e9>e21,breakout:breakUp,rsiInRange:rv>=30&&rv<=90};
  const sellChecks={priceBelowEMA9:close<e9,emaBearish:e9<e21,breakdown:breakDown,rsiInRange:rv>=10&&rv<=70};
- // केवल पिछली पूरी बंद 15m candle की पुष्टि मान्य है; live/incomplete candle से EARLY signal नहीं बनेगा.
- side=confirmedSide;
- reason=confirmationReason;
+ // Entry now comes from the latest fully closed 5m candle; 15m trend is a directional safety filter.
+ // If fast-timeframe data is unavailable, the fallback above requires the old full 15m confirmation.
+ side=entrySide;
+ reason=entryReason;
  // Signal identity और duplicate रोकने के लिए बंद 15m candle का timestamp उपयोग करें.
  const thisCandle=Number(closedCandles.at(-1)[0]);
  const lockedSnapshot=null;
@@ -901,13 +914,14 @@ async function analyzeCryptoCoin(coin){
  // filters are informational only, so they cannot silently suppress a valid directional signal.
  const h1Info='1h filter disabled';
  const prevSide=null;
- const strong=side!=='WAIT'&&confirmedSide===side,signalType=side==='WAIT'?'WAIT':(strong?'CONFIRMED':'EARLY');
- const entry=confirmedClose;
- const sl=side==='BUY / LONG'?entry-1.2*atr:side==='SELL / SHORT'?entry+1.2*atr:null;
+ const strong=side!=='WAIT',signalType=side==='WAIT'?'WAIT':(Number.isFinite(fiveEntry)?'5m CONFIRMED / 15m FILTER':'15m FALLBACK');
+ const entry=Number.isFinite(fiveEntry)?fiveEntry:confirmedClose;
+ const riskAtr=Number.isFinite(fiveAtr)&&fiveAtr>0?fiveAtr:atr;
+ const sl=side==='BUY / LONG'?entry-1.2*riskAtr:side==='SELL / SHORT'?entry+1.2*riskAtr:null;
  const risk=sl===null?null:Math.abs(entry-sl),t1=sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk),t2=sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk),t3=sl===null?null:(side==='BUY / LONG'?entry+3*risk:entry-3*risk);
  const previous=prevSide||'कोई पिछला सिग्नल नहीं',changeReason=previous===side?'सिग्नल वही रहा':('सिग्नल बदला: '+previous+' → '+side);
- const quality='DATA: '+usedFeed+' • 15m primary signal • ADX '+(Number.isFinite(confirmedAdx)?confirmedAdx.toFixed(1):'N/A')+' • Supertrend '+(confirmedSupertrend?.direction||'N/A')+' • 1m/5m supplementary • 5m RSI '+(Number.isFinite(fiveRsi)?fiveRsi.toFixed(1):'N/A')+' • Volume informational: '+(volOk?'औसत से अधिक':'औसत से कम')+' • Candle body informational: '+(candleOk?'strong':'weak');
- const signal={coin,side,strong,baseSide:side,signalType,reason,diagnostic,quality,changeReason,previous,entry,sl,t1,t2,t3,rv:confirmedRsi,e9:confirmedE9,e21:confirmedE21,volume,avgVol,open,high,low,confirmedSide,confirmedClose,confirmedE9,confirmedE21,confirmedRsi,confirmedAdx,confirmedSupertrend,confirmationReason,fiveRsi,oneClose,multiReason,time:new Date(Number(closedCandles.at(-1)[0])).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),candleTime:thisCandle};
+ const quality='DATA: '+usedFeed+' • 5m entry trigger / 15m trend filter • 15m ADX '+(Number.isFinite(confirmedAdx)?confirmedAdx.toFixed(1):'N/A')+' • Supertrend '+(confirmedSupertrend?.direction||'N/A')+' • 1m early context • 5m RSI '+(Number.isFinite(fiveRsi)?fiveRsi.toFixed(1):'N/A')+' • Volume informational: '+(volOk?'औसत से अधिक':'औसत से कम')+' • Candle body informational: '+(candleOk?'strong':'weak');
+ const signal={coin,side,strong,baseSide:side,signalType,reason,diagnostic,quality,changeReason,previous,entry,sl,t1,t2,t3,rv:Number.isFinite(fiveRsi)?fiveRsi:confirmedRsi,e9:Number.isFinite(fiveE9)?fiveE9:confirmedE9,e21:Number.isFinite(fiveE21)?fiveE21:confirmedE21,volume,avgVol,open,high,low,confirmedSide,confirmedClose,confirmedE9,confirmedE21,confirmedRsi,confirmedAdx,confirmedSupertrend,confirmationReason,fiveRsi,oneClose,multiReason,time:new Date(Number(closedCandles.at(-1)[0])).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),candleTime:thisCandle};
  cryptoSignalLock[coin]={candleTime:thisCandle,signal};
  return signal;
 }
