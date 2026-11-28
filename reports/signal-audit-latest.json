@@ -1,15 +1,15 @@
 {
-  "generated_at_utc": "2026-11-28T03:56:12.435945+00:00",
-  "total_signals": 23,
+  "generated_at_utc": "2026-11-28T04:59:47.671403+00:00",
+  "total_signals": 24,
   "status_counts": {
     "STOPPED": 15,
     "TRAIL_STOPPED": 1,
     "TARGET_HIT": 6,
-    "ACTIVE": 1
+    "ACTIVE": 2
   },
-  "active_signals": 1,
+  "active_signals": 2,
   "closed_or_resolved_signals": 22,
-  "signals_with_quality_metrics": 11,
+  "signals_with_quality_metrics": 12,
   "legacy_or_incomplete_metric_records": 12,
   "records_missing_valid_entry": 0,
   "by_coin": {
@@ -17,7 +17,7 @@
       "TRAIL_STOPPED": 1,
       "STOPPED": 8,
       "TARGET_HIT": 3,
-      "ACTIVE": 1
+      "ACTIVE": 2
     },
     "ETH": {
       "STOPPED": 7,
@@ -605,9 +605,9 @@
       "stage": 0,
       "entry": 2360.8577250000003,
       "peak": 2360.8577250000003,
-      "last_premium": 1976.96631,
+      "last_premium": 1918.94272,
       "max_favorable_pct": 0.0,
-      "last_mark_pct": -16.26,
+      "last_mark_pct": -18.72,
       "signal_time": "2026-11-27T18:48:26.027302+00:00",
       "has_quality_metrics": true,
       "rsi": 37.31655789920452,
@@ -620,6 +620,32 @@
       "atr": 309.37857142857166,
       "atr_pct": 0.5173130820862031,
       "confirmation": "CAUTION — Volume average से कम: participation कमजोर; MACD momentum signal की दिशा में confirm नहीं",
+      "market_data_source": "KuCoin Spot",
+      "option_quote_source": "Deribit public options API"
+    },
+    {
+      "coin": "BTC",
+      "contract": "BTC-28NOV26-57500-C",
+      "direction": "STRONG BUY CALL",
+      "status": "ACTIVE",
+      "stage": 0,
+      "entry": 2577.9772799999996,
+      "peak": 2577.9772799999996,
+      "last_premium": null,
+      "max_favorable_pct": 0.0,
+      "last_mark_pct": null,
+      "signal_time": "2026-11-28T04:53:01.546692+00:00",
+      "has_quality_metrics": true,
+      "rsi": 50.750038632225206,
+      "volume_ratio": 0.39742633657103993,
+      "candle_body_ratio": 0.07530981887506785,
+      "macd": 8.66298348770215,
+      "macd_signal": 8.459939878406594,
+      "macd_hist": 0.20304360929555543,
+      "adx": 32.7629386165048,
+      "atr": 91.76428571428603,
+      "atr_pct": 0.15288365443224605,
+      "confirmation": "CAUTION — Volume average से कम: participation कमजोर",
       "market_data_source": "KuCoin Spot",
       "option_quote_source": "Deribit public options API"
     }
