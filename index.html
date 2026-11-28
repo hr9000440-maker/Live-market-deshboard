@@ -847,7 +847,7 @@ async function analyzeCryptoCoin(coin){
  else if(bearishQuality){confirmedSide='SELL / SHORT';confirmationReason='CONFIRMED: बंद 15m candle EMA9 और EMA21 के नीचे, EMA9<EMA21, EMA21 नीचे/स्थिर, RSI '+confirmedRsi.toFixed(1)+', ADX '+confirmedAdx.toFixed(1)+' और Supertrend SELL';}
  // Faster entry engine: closed 5m candle triggers the trade; 15m is a trend filter,
  // not a requirement to wait for a full 15m EMA/ADX/Supertrend stack. 1m is early context only.
- let fiveRsi=NaN,fiveE9=NaN,fiveE21=NaN,fiveEntry=NaN,fiveAtr=NaN,fiveCandleTime=NaN,fastEntryUsed=false,oneClose=confirmedClose;
+ let fiveRsi=NaN,fiveE9=NaN,fiveE21=NaN,fiveEntry=NaN,fiveAtr=NaN,fiveCandleTime=NaN,fastEntryUsed=false,earlyEntryUsed=false,oneRsi=NaN,oneE9=NaN,oneE21=NaN,oneClose=confirmedClose;
  let entrySide='WAIT',entryReason='5m entry trigger की पुष्टि अधूरी',multiReason='5m entry + 15m trend filter';
  try{
   const [fiveCandles,oneCandles]=await Promise.all([fetchSignalTimeframe(symbol,'5m',60),fetchSignalTimeframe(symbol,'1m',60)]);
@@ -859,14 +859,29 @@ async function analyzeCryptoCoin(coin){
   const fRanges=[];for(let j=Math.max(1,fiveCandles.length-14);j<fiveCandles.length;j++)fRanges.push(Math.max(fiveHighs[j]-fiveLows[j],Math.abs(fiveHighs[j]-fiveClose[j-1]),Math.abs(fiveLows[j]-fiveClose[j-1])));
   fiveAtr=fRanges.reduce((a,b)=>a+b,0)/Math.max(1,fRanges.length);
   const oneLast=oneCandles.at(-1);oneClose=Number(oneLast[4]);
+  const fivePrevE9=ema(fiveClose.slice(0,-1).slice(-30),9);
   const fiveBull=fClose>fiveE9&&fiveE9>fiveE21&&fiveRsi>=42&&fiveRsi<=78&&fLocation>=0.52;
   const fiveBear=fClose<fiveE9&&fiveE9<fiveE21&&fiveRsi>=22&&fiveRsi<=58&&fLocation<=0.48;
-  // 15m trend should support the direction, but ADX/Supertrend/full EMA stack no longer delay entry.
+  // 15m remains the directional safety filter; 1m detects the first impulse
+  // while 5m EMA9 slope/price confirms that the move is not fighting the entry timeframe.
   const trendBull=confirmedClose>=confirmedE21&&confirmedE21>=previousE21;
   const trendBear=confirmedClose<=confirmedE21&&confirmedE21<=previousE21;
-  if(fiveBull&&trendBull){entrySide='BUY / LONG';entryReason='EARLY ENTRY: बंद 5m candle EMA9/EMA21 और RSI से BUY trigger; 15m trend supportive';}
-  else if(fiveBear&&trendBear){entrySide='SELL / SHORT';entryReason='EARLY ENTRY: बंद 5m candle EMA9/EMA21 और RSI से SELL trigger; 15m trend supportive';}
-  multiReason='5m '+(fiveBull?'BUY':fiveBear?'SELL':'WAIT')+' • 15m trend '+(trendBull?'BULLISH':trendBear?'BEARISH':'NEUTRAL')+' • 1m early close '+oneClose;
+  const oneCloses=oneCandles.map(x=>Number(x[4]));
+  const oneHighs=oneCandles.map(x=>Number(x[2]));
+  const oneLows=oneCandles.map(x=>Number(x[3]));
+  oneRsi=rsi(oneCloses,14);oneE9=ema(oneCloses.slice(-30),9);oneE21=ema(oneCloses.slice(-50),21);
+  const onePrevE9=ema(oneCloses.slice(0,-1).slice(-30),9);
+  const oneOpen=Number(oneLast[1]),oneHigh=Number(oneLast[2]),oneLow=Number(oneLast[3]);
+  const priorHigh=Math.max(...oneHighs.slice(-4,-1)),priorLow=Math.min(...oneLows.slice(-4,-1));
+  const oneBull=oneClose>oneOpen&&oneClose>oneE9&&oneE9>oneE21&&oneE9>onePrevE9&&oneRsi>=50&&oneRsi<=82&&oneClose>priorHigh;
+  const oneBear=oneClose<oneOpen&&oneClose<oneE9&&oneE9<oneE21&&oneE9<onePrevE9&&oneRsi>=18&&oneRsi<=50&&oneClose<priorLow;
+  const fiveContextBull=fClose>fiveE9&&fiveE9>=fivePrevE9;
+  const fiveContextBear=fClose<fiveE9&&fiveE9<=fivePrevE9;
+  if(fiveBull&&trendBull){entrySide='BUY / LONG';entryReason='5m ENTRY CONFIRMED: बंद 5m candle EMA9/EMA21 और RSI से BUY trigger; 15m trend supportive';}
+  else if(fiveBear&&trendBear){entrySide='SELL / SHORT';entryReason='5m ENTRY CONFIRMED: बंद 5m candle EMA9/EMA21 और RSI से SELL trigger; 15m trend supportive';}
+  else if(oneBull&&fiveContextBull&&trendBull){entrySide='BUY / LONG';entryReason='1m EARLY BUY: शुरुआती breakout + 5m EMA9 support + 15m trend confirmation';fiveEntry=oneClose;fiveCandleTime=Number(oneLast[0]);earlyEntryUsed=true;}
+  else if(oneBear&&fiveContextBear&&trendBear){entrySide='SELL / SHORT';entryReason='1m EARLY SELL: शुरुआती breakdown + 5m EMA9 support + 15m trend confirmation';fiveEntry=oneClose;fiveCandleTime=Number(oneLast[0]);earlyEntryUsed=true;}
+  multiReason='1m '+(oneBull?'EARLY BUY':oneBear?'EARLY SELL':'WAIT')+' • 5m '+(fiveBull?'BUY':fiveBear?'SELL':fiveContextBull?'BULLISH CONTEXT':fiveContextBear?'BEARISH CONTEXT':'WAIT')+' • 15m trend '+(trendBull?'BULLISH':trendBear?'BEARISH':'NEUTRAL');
  }catch(e){
   // If fast candles fail, retain only the old fully-confirmed 15m signal as a safe fallback.
   entrySide=confirmedSide;entryReason=confirmationReason;fiveEntry=confirmedClose;fastEntryUsed=false;
@@ -914,13 +929,13 @@ async function analyzeCryptoCoin(coin){
  // filters are informational only, so they cannot silently suppress a valid directional signal.
  const h1Info='1h filter disabled';
  const prevSide=null;
- const strong=side!=='WAIT',signalType=side==='WAIT'?'WAIT':(fastEntryUsed?'5m ENTRY / 15m FILTER':'15m FALLBACK');
+ const strong=side!=='WAIT',signalType=side==='WAIT'?'WAIT':(earlyEntryUsed?'1m EARLY / 5m CONTEXT / 15m FILTER':(fastEntryUsed?'5m ENTRY / 15m FILTER':'15m FALLBACK'));
  const entry=Number.isFinite(fiveEntry)?fiveEntry:confirmedClose;
  const riskAtr=Number.isFinite(fiveAtr)&&fiveAtr>0?fiveAtr:atr;
  const sl=side==='BUY / LONG'?entry-1.2*riskAtr:side==='SELL / SHORT'?entry+1.2*riskAtr:null;
  const risk=sl===null?null:Math.abs(entry-sl),t1=sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk),t2=sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk),t3=sl===null?null:(side==='BUY / LONG'?entry+3*risk:entry-3*risk);
  const previous=prevSide||'कोई पिछला सिग्नल नहीं',changeReason=previous===side?'सिग्नल वही रहा':('सिग्नल बदला: '+previous+' → '+side);
- const quality='DATA: '+usedFeed+' • 5m entry trigger / 15m trend filter • 15m ADX '+(Number.isFinite(confirmedAdx)?confirmedAdx.toFixed(1):'N/A')+' • Supertrend '+(confirmedSupertrend?.direction||'N/A')+' • 1m early context • 5m RSI '+(Number.isFinite(fiveRsi)?fiveRsi.toFixed(1):'N/A')+' • Volume informational: '+(volOk?'औसत से अधिक':'औसत से कम')+' • Candle body informational: '+(candleOk?'strong':'weak');
+ const quality='DATA: '+usedFeed+' • 1m early breakout/breakdown + 5m context/entry + 15m trend filter • 1m RSI '+(Number.isFinite(oneRsi)?oneRsi.toFixed(1):'N/A')+' • 15m ADX '+(Number.isFinite(confirmedAdx)?confirmedAdx.toFixed(1):'N/A')+' • Supertrend '+(confirmedSupertrend?.direction||'N/A')+' • 1m early context • 5m RSI '+(Number.isFinite(fiveRsi)?fiveRsi.toFixed(1):'N/A')+' • Volume informational: '+(volOk?'औसत से अधिक':'औसत से कम')+' • Candle body informational: '+(candleOk?'strong':'weak');
  const signal={coin,side,strong,baseSide:side,signalType,reason,diagnostic,quality,changeReason,previous,entry,sl,t1,t2,t3,rv:Number.isFinite(fiveRsi)?fiveRsi:confirmedRsi,e9:Number.isFinite(fiveE9)?fiveE9:confirmedE9,e21:Number.isFinite(fiveE21)?fiveE21:confirmedE21,volume,avgVol,open,high,low,confirmedSide,confirmedClose,confirmedE9,confirmedE21,confirmedRsi,confirmedAdx,confirmedSupertrend,confirmationReason,fiveRsi,oneClose,multiReason,time:new Date(Number(closedCandles.at(-1)[0])).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),candleTime:thisCandle};
  cryptoSignalLock[coin]={candleTime:thisCandle,signal};
  return signal;
