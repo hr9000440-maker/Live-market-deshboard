@@ -151,23 +151,49 @@ def trend_strength(highs, lows, closes, period=14):
     return adx, atr
 
 
+def candles_5m(coin):
+    """Fetch closed 5m spot candles for earlier entries; never place orders."""
+    symbol = coin + "USDT"
+    errors = []
+    urls = (
+        ("https://api.binance.com/api/v3/klines?" + urllib.parse.urlencode({"symbol": symbol, "interval": "5m", "limit": 60}), False),
+        ("https://data-api.binance.vision/api/v3/klines?" + urllib.parse.urlencode({"symbol": symbol, "interval": "5m", "limit": 60}), False),
+        ("https://api.gateio.ws/api/v4/spot/candlesticks?" + urllib.parse.urlencode({"currency_pair": coin + "_USDT", "interval": "5m", "limit": 60}), True),
+    )
+    for url, gate in urls:
+        try:
+            rows = get_json(url, timeout=15)
+            if gate:
+                rows = [[int(float(x[0]) * 1000), x[5], x[3], x[4], x[2], x[1], int(float(x[0]) * 1000 + 299999)] for x in rows]
+                rows.sort(key=lambda x: int(x[0]))
+            rows = [x for x in rows if isinstance(x, list) and len(x) >= 7
+                    and all(float(x[i]) > 0 for i in (0, 1, 2, 3, 4))]
+            if len(rows) >= 31:
+                return rows, "Gate.io Spot" if gate else "Binance Spot"
+            errors.append("5m candles कम")
+        except Exception as exc:
+            errors.append(str(exc)[:140])
+    raise RuntimeError(coin + " 5m market data unavailable: " + " | ".join(errors))
+
+
 def confirmed_signal(coin):
-    rows, source = candles(coin)
+    # 5m is the entry timeframe; 15m only checks that the broader trend is not opposed.
+    trend_rows, trend_source = candles(coin)
+    rows, source = candles_5m(coin)
     latest_open = int(float(rows[-1][0]))
     age = int(time.time() * 1000) - latest_open
-    if age < -60000 or age > 30 * 60 * 1000:
-        raise RuntimeError("15m candle data पुराना है; सुरक्षित रूप से signal रोका गया")
+    if age < -60000 or age > 15 * 60 * 1000:
+        raise RuntimeError("5m candle data पुराना है; सुरक्षित रूप से signal रोका गया")
     closed = rows[:-1]
-    if len(closed) < 31:
-        raise RuntimeError("EMA/RSI calculation के लिए पर्याप्त बंद 15m candles उपलब्ध नहीं हैं")
+    trend_closed = trend_rows[:-1]
+    if len(closed) < 31 or len(trend_closed) < 31:
+        raise RuntimeError("5m/15m EMA-RSI calculation के लिए candles कम हैं")
     closes = [float(x[4]) for x in closed]
     highs = [float(x[2]) for x in closed]
     lows = [float(x[3]) for x in closed]
     volumes = [float(x[5]) for x in closed]
     close, previous_close = closes[-1], closes[-2]
     e9, e21 = ema(closes[-30:], 9), ema(closes[-50:], 21)
-    previous_e9 = ema(closes[:-1][-30:], 9)
-    previous_e21 = ema(closes[:-1][-50:], 21)
     rv = rsi(closes, 14)
     op, high, low, volume = (float(closed[-1][i]) for i in (1, 2, 3, 5))
     candle_range = max(high - low, 1e-12)
@@ -178,28 +204,25 @@ def confirmed_signal(coin):
     macd_line, macd_signal, macd_hist = macd(closes)
     adx_value, atr_value = trend_strength(highs, lows, closes)
     atr_pct = (atr_value / close * 100.0) if close else 0.0
-    # ADX, MACD and ATR are diagnostics only; existing signal gates and 25% option SL stay unchanged.
-    # Earlier-entry gate: one completed 15m candle can qualify when EMA9/EMA21
-    # are aligned and EMA21 is not moving against the trade. Volume/body are
-    # diagnostics only, so they cannot suppress a valid directional move.
-    # Keep the 25% option SL/TP calculation unchanged.
-    bullish = (
-        close > e9 > e21 >= previous_e21
-        and 42 <= rv <= 78
-        and close_location >= 0.55
-    )
-    bearish = (
-        close < e9 < e21 <= previous_e21
-        and 22 <= rv <= 58
-        and close_location <= 0.45
-    )
+
+    trend_closes = [float(x[4]) for x in trend_closed]
+    trend_e21 = ema(trend_closes[-50:], 21)
+    previous_trend_e21 = ema(trend_closes[:-1][-50:], 21)
+    trend_close = trend_closes[-1]
+    trend_bull = trend_close >= trend_e21 and trend_e21 >= previous_trend_e21
+    trend_bear = trend_close <= trend_e21 and trend_e21 <= previous_trend_e21
+
+    # 5m trigger avoids waiting for a fully stacked 15m EMA/ADX/Supertrend setup.
+    # 15m EMA21 slope and close are the safety filter; volume/body remain diagnostics.
+    bullish = close > e9 > e21 and 42 <= rv <= 78 and close_location >= 0.52 and trend_bull
+    bearish = close < e9 < e21 and 22 <= rv <= 58 and close_location <= 0.48 and trend_bear
     direction = "STRONG BUY CALL" if bullish else "STRONG BUY PUT" if bearish else None
     return {"direction": direction, "price": close, "rsi": rv, "ema9": e9, "ema21": e21,
             "volume_ratio": volume_ratio, "body_ratio": body_ratio,
             "macd": macd_line, "macd_signal": macd_signal, "macd_hist": macd_hist,
             "adx": adx_value, "atr": atr_value, "atr_pct": atr_pct,
-            "candle_time": int(float(closed[-1][0])), "source": source}
-
+            "candle_time": int(float(closed[-1][0])),
+            "source": source + " 5m / " + trend_source + " 15m"}
 
 def expiry_ms(value):
     value = str(value or "").strip()
