@@ -11,7 +11,7 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: options-strong-signals
+  group: option-premium-monitor
   cancel-in-progress: false
 jobs:
   monitor:
