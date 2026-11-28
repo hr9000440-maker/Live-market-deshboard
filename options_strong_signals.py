@@ -277,18 +277,21 @@ def confirmed_signal(coin):
     hour_close = hour_closes[-1]
     trend_bull_1h = hour_close > hour_e21 and hour_e21 > previous_hour_e21
     trend_bear_1h = hour_close < hour_e21 and hour_e21 < previous_hour_e21
-    trend_bull = trend_bull_15m and trend_bull_1h
-    trend_bear = trend_bear_15m and trend_bear_1h
+    # 1h is context, not a hard veto: requiring 1h alignment delayed sharp reversals.
+    # Keep 15m directional confirmation and the independent strict quality gate below.
+    trend_bull = trend_bull_15m
+    trend_bear = trend_bear_15m
 
     # Keep the original 5m breakout path as first priority.
     bullish = close > e9 > e21 and 42 <= rv <= 78 and close_location >= 0.52 and trend_bull
     bearish = close < e9 < e21 and 22 <= rv <= 58 and close_location <= 0.48 and trend_bear
     direction = "STRONG BUY CALL" if bullish else "STRONG BUY PUT" if bearish else None
     signal_time = int(float(closed[-1][0]))
-    signal_source = source + " 5m / " + trend_source + " 15m / " + hour_source
+    signal_source = source + " 5m / " + trend_source + " 15m / " + hour_source + " (1h context)"
 
     # Earlier-entry fallback: a fresh 1m impulse must be followed by a completed
-    # 5m candle with matching direction and EMA9 slope. 15m trend still must agree.
+    # 5m candle with matching direction and EMA9 slope. 15m trend still must agree;
+    # 1h remains visible context and cannot by itself block a confirmed reversal.
     if not direction and len(one_closed) >= 30:
         fresh = [x for x in one_closed[-5:]
                  if now_ms - (int(float(x[0])) + 60000) <= 5 * 60 * 1000]
