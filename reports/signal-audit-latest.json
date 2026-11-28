@@ -1,23 +1,23 @@
 {
-  "generated_at_utc": "2026-11-28T01:11:21.247843+00:00",
+  "generated_at_utc": "2026-11-28T02:56:11.899031+00:00",
   "total_signals": 23,
   "status_counts": {
-    "STOPPED": 14,
+    "STOPPED": 15,
     "TRAIL_STOPPED": 1,
     "TARGET_HIT": 6,
-    "ACTIVE": 2
+    "ACTIVE": 1
   },
-  "active_signals": 2,
-  "closed_or_resolved_signals": 21,
+  "active_signals": 1,
+  "closed_or_resolved_signals": 22,
   "signals_with_quality_metrics": 11,
   "legacy_or_incomplete_metric_records": 12,
   "records_missing_valid_entry": 0,
   "by_coin": {
     "BTC": {
       "TRAIL_STOPPED": 1,
-      "STOPPED": 7,
+      "STOPPED": 8,
       "TARGET_HIT": 3,
-      "ACTIVE": 2
+      "ACTIVE": 1
     },
     "ETH": {
       "STOPPED": 7,
@@ -549,13 +549,13 @@
       "coin": "BTC",
       "contract": "BTC-28NOV26-62000-P",
       "direction": "STRONG BUY PUT",
-      "status": "ACTIVE",
+      "status": "STOPPED",
       "stage": 0,
       "entry": 2590.32147,
       "peak": 2590.32147,
-      "last_premium": 2033.8623200000002,
+      "last_premium": 1774.1211499999997,
       "max_favorable_pct": 0.0,
-      "last_mark_pct": -21.48,
+      "last_mark_pct": -31.51,
       "signal_time": "2026-11-27T17:49:53.394492+00:00",
       "has_quality_metrics": true,
       "rsi": 31.11824331096365,
@@ -605,9 +605,9 @@
       "stage": 0,
       "entry": 2360.8577250000003,
       "peak": 2360.8577250000003,
-      "last_premium": 2033.8623200000002,
+      "last_premium": 1774.1211499999997,
       "max_favorable_pct": 0.0,
-      "last_mark_pct": -13.85,
+      "last_mark_pct": -24.85,
       "signal_time": "2026-11-27T18:48:26.027302+00:00",
       "has_quality_metrics": true,
       "rsi": 37.31655789920452,
