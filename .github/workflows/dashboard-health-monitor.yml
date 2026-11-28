@@ -12,7 +12,7 @@ on:
     - cron: '*/15 * * * *'
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
   actions: read
 concurrency:
   group: dashboard-health-monitor
@@ -31,3 +31,21 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 scripts/dashboard-health-check.py
+      - name: Save health alert deduplication state
+        if: always()
+        run: |
+          if [[ -n "$(git status --porcelain state/health_alerts.json)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add state/health_alerts.json
+            git commit -m "Update dashboard health alert state"
+            for attempt in 1 2 3 4 5; do
+              git pull --rebase origin main
+              if git push; then
+                exit 0
+              fi
+              sleep $((attempt * 2))
+            done
+            echo "Could not publish health alert state after 5 retries"
+            exit 1
+          fi
