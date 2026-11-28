@@ -152,7 +152,8 @@ def main():
                 try:
                     telegram(warning)
                 except Exception as notify_error:
-                    print("WARN Telegram data-delay alert failed: "+str(notify_error))
+                    p["pending_telegram"]=warning
+                    print("WARN Telegram data-delay alert queued for retry: "+str(notify_error))
                 p["last_data_warning_at"]=now.isoformat()
                 changed=True
     if changed:
