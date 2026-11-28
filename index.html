@@ -276,12 +276,12 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
  <div class="result"><small>Auto Refresh</small><strong>हर 60 सेकंड</strong></div>
 </div>
 <div class="option-table-wrap"><table class="option-table" style="min-width:1250px">
-<thead><tr><th>Coin</th><th>Price</th><th>5m / 15m</th><th>OI Change (30m)</th><th>Aggressive Buy %</th><th>Order Book</th><th>Large Trade Net</th><th>Funding</th><th>Long/Short Accounts</th><th>Advisor Score</th><th>Evidence</th></tr></thead>
-<tbody id="bigPlayerRows"><tr><td colspan="11">Live market data की प्रतीक्षा…</td></tr></tbody>
+<thead><tr><th>Coin</th><th>Price</th><th>5m / 15m</th><th>Current OI / 30m Change</th><th>Aggressive Buy %</th><th>Order Book</th><th>Large Trade Net</th><th>Funding</th><th>Long/Short Accounts</th><th>Recent 15m Range</th><th>Advisor Score</th><th>Evidence</th></tr></thead>
+<tbody id="bigPlayerRows"><tr><td colspan="12">Live market data की प्रतीक्षा…</td></tr></tbody>
 </table></div>
 <p class="note" id="bigPlayerNote">Advisor अभी डेटा प्राप्त कर रहा है। मजबूत दबाव के लिए कई स्वतंत्र संकेतों की पुष्टि आवश्यक है।</p>
 <button type="button" onclick="loadBigPlayerAdvisor()">🔄 Advisor अभी Refresh करें</button>
-<p class="note">ध्यान दें: Open Interest में हर contract का buyer और seller दोनों होते हैं। Long/Short ratio सामान्य accounts का अनुपात है, whale positions नहीं। Order-book orders cancel हो सकते हैं। Score एक heuristic है, guaranteed prediction या trade entry नहीं। Options Greeks/venue-specific option OI को तभी दिखाया जाएगा जब provider से सत्यापित डेटा उपलब्ध हो। कोई order place नहीं होता।</p>
+<p class="note">ध्यान दें: Open Interest में हर contract का buyer और seller दोनों होते हैं। Long/Short ratio सामान्य accounts का अनुपात है, whale positions नहीं। बड़े trades हाल के sampled trades के top 10% हैं, institutional पहचान नहीं। Order-book orders cancel हो सकते हैं। Score एक heuristic है, guaranteed prediction या trade entry नहीं। Options Greeks/venue-specific option OI को तभी दिखाया जाएगा जब provider से सत्यापित डेटा उपलब्ध हो। कोई order place नहीं होता।</p>
 </section>
 
 <section class="panel" id="crypto-signals">
@@ -1355,17 +1355,19 @@ async function loadBigPlayerAdvisor(){
   rows.innerHTML=order.map(coin=>{
    const c=coins[coin]||{},score=Number(c.score||0),bias=c.bias||'DATA UNAVAILABLE';
    const cls=bias==='BUY PRESSURE'?'call-text':bias==='SELL PRESSURE'?'put-text':'signal-neutral';
+   const strength=c.strong_pressure?'STRONG PRESSURE':'WATCH';
    const ev=(c.evidence||[]).slice(0,4).join(' • ')||((c.errors||[]).length?'कुछ स्रोत उपलब्ध नहीं':'पर्याप्त पुष्टि नहीं');
    return '<tr><td><strong>'+coin+'</strong><br><small>'+bias+'</small></td>'+
     '<td>'+advisorNumber(c.price,coin==='BTC'?1:4)+'</td>'+
     '<td>'+advisorNumber(c.change_5m_pct,2,'%')+' / '+advisorNumber(c.change_15m_pct,2,'%')+'</td>'+
-    '<td>'+advisorNumber(c.oi_change_30m_pct,2,'%')+'</td>'+
+    '<td>'+advisorNumber(c.open_interest,2)+'<br><small>'+advisorNumber(c.oi_change_30m_pct,2,'%')+' / 30m</small></td>'+
     '<td>'+advisorNumber(c.taker_buy_pct,1,'%')+'</td>'+
     '<td>'+advisorNumber(c.book_imbalance_pct,1,'%')+'</td>'+
-    '<td>'+advisorNumber(c.large_trade_net_pct,1,'%')+'<br><small>B '+Number(c.large_buy_count||0)+' / S '+Number(c.large_sell_count||0)+'</small></td>'+
+    '<td>'+advisorNumber(c.large_trade_net_pct,1,'%')+'<br><small>B '+Number(c.large_buy_count||0)+' / S '+Number(c.large_sell_count||0)+' • '+Number(c.large_trade_sample_count||0)+' sampled</small></td>'+
     '<td>'+advisorNumber(c.funding_rate_pct,4,'%')+'</td>'+
     '<td>'+advisorNumber(c.global_long_short_account_ratio,3)+'</td>'+
-    '<td class="'+cls+'"><strong>'+score+'</strong><br><small>'+advisorNumber(c.confidence,0)+'% data confidence</small></td>'+
+    '<td>'+advisorNumber(c.last_15m_low,coin==='BTC'?1:4)+' – '+advisorNumber(c.last_15m_high,coin==='BTC'?1:4)+'</td>'+
+    '<td class="'+cls+'"><strong>'+score+'</strong><br><small>'+strength+' • '+advisorNumber(c.confidence,0)+'% data coverage</small></td>'+
     '<td style="white-space:normal;min-width:220px;text-align:left">'+ev+'</td></tr>';
   }).join('');
   status.textContent='LIVE REPORT • '+order.filter(x=>coins[x]&&coins[x].data_points>=3).length+'/4 coins पर पर्याप्त स्रोत';
@@ -1373,7 +1375,7 @@ async function loadBigPlayerAdvisor(){
   note.textContent=(data.disclaimer||'Flow-pressure estimate only.')+' • हर 60 सेकंड refresh; वास्तविक exchange update की गति अलग हो सकती है।';
  }catch(e){
   status.textContent='DATA UNAVAILABLE';
-  rows.innerHTML='<tr><td colspan="11">Advisor data नहीं मिला: '+String(e.message||e).replace(/[<>]/g,'')+'</td></tr>';
+  rows.innerHTML='<tr><td colspan="12">Advisor data नहीं मिला: '+String(e.message||e).replace(/[<>]/g,'')+'</td></tr>';
   note.textContent='Render service/API या Binance public market data उपलब्ध नहीं है। इसे live signal न मानें; मौजूदा Scanner अप्रभावित है।';
  }
 }
