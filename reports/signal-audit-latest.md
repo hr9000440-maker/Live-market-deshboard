@@ -1,6 +1,6 @@
 # Option Signal Checker — latest audit
 
-Generated (UTC): 2026-11-28T07:10:42.771854+00:00
+Generated (UTC): 2026-11-28T08:53:16.001147+00:00
 
 ## Summary
 - Total tracked signals: **26**
@@ -45,10 +45,10 @@ Generated (UTC): 2026-11-28T07:10:42.771854+00:00
 | BTC | BTC-28NOV26-61000-P | TARGET_HIT | 0 | +374.13% | +374.13% | 39.9 | 1.67 | 12% | 24.8 | -38.96355 | 0.23% | GOOD — ADX/MACD/Volume aligned |
 | BTC | BTC-28NOV26-62000-P | STOPPED | 0 | +0.00% | -31.51% | 31.1 | 0.40 | 41% | 68.0 | -40.90097 | 0.90% | CAUTION — Volume average से कम: participation कमजोर |
 | ETH | ETH-28NOV26-1650-P | STOPPED | 0 | +0.00% | -36.70% | 29.4 | 0.77 | 60% | 62.9 | -1.03889 | 1.00% | CAUTION — Volume average से कम: participation कमजोर |
-| BTC | BTC-28NOV26-62000-P | ACTIVE | 0 | +0.00% | -11.34% | 37.3 | 0.17 | 31% | 52.5 | 21.47508 | 0.52% | CAUTION — Volume average से कम: participation कमजोर; MACD momentum signal की दिशा में confirm नहीं |
-| BTC | BTC-28NOV26-57500-C | ACTIVE | 0 | +0.00% | -15.33% | 50.8 | 0.40 | 8% | 32.8 | 0.20304 | 0.15% | CAUTION — Volume average से कम: participation कमजोर |
-| BTC | BTC-28NOV26-62000-P | ACTIVE | 0 | +0.00% | -12.37% | 36.4 | 4.22 | 78% | 30.4 | -30.84691 | 0.17% | GOOD — ADX/MACD/Volume aligned |
-| ETH | ETH-28NOV26-1740-P | ACTIVE | 0 | +0.00% | -16.81% | 31.8 | 1.84 | 85% | 31.0 | -0.78608 | 0.22% | GOOD — ADX/MACD/Volume aligned |
+| BTC | BTC-28NOV26-62000-P | ACTIVE | 0 | +0.00% | -7.71% | 37.3 | 0.17 | 31% | 52.5 | 21.47508 | 0.52% | CAUTION — Volume average से कम: participation कमजोर; MACD momentum signal की दिशा में confirm नहीं |
+| BTC | BTC-28NOV26-57500-C | ACTIVE | 0 | +0.00% | -17.80% | 50.8 | 0.40 | 8% | 32.8 | 0.20304 | 0.15% | CAUTION — Volume average से कम: participation कमजोर |
+| BTC | BTC-28NOV26-62000-P | ACTIVE | 0 | +0.00% | -8.78% | 36.4 | 4.22 | 78% | 30.4 | -30.84691 | 0.17% | GOOD — ADX/MACD/Volume aligned |
+| ETH | ETH-28NOV26-1740-P | ACTIVE | 0 | +0.00% | -12.47% | 31.8 | 1.84 | 85% | 31.0 | -0.78608 | 0.22% | GOOD — ADX/MACD/Volume aligned |
 
 ## Audit limitations
 
