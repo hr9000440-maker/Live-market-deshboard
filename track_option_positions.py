@@ -114,6 +114,23 @@ def main():
                 elif premium<=entry*0.82 and risk_stage<1:
                     msg=f"⚠️ OPTION EARLY WARNING — -18%\n{coin} {p['contract']}\nEntry: {entry:.4f} USD\nCurrent Bid/Mark: {premium:.4f} USD\nHard SL remains: {sl:.4f} USD\nLoss from entry: {move_pct:+.2f}%\nPlease review the position manually. No order was placed."
                     p["risk_stage"]=1
+            # One-time heads-up when premium covers 80% of the distance to each target.
+            # Existing TP hit rules and trailing-stop logic remain unchanged.
+            if p.get("status")=="ACTIVE" and msg is None:
+                for target_no, target_value, target_label in (
+                    (1, tp1, tp1_label), (2, tp2, tp2_label), (3, tp3, tp3_label)
+                ):
+                    near_key="tp"+str(target_no)+"_near_alerted"
+                    threshold=entry+(target_value-entry)*0.80
+                    if target_value>entry and not p.get(near_key,False) and premium>=threshold and premium<target_value:
+                        progress=(premium-entry)/(target_value-entry)*100.0
+                        msg=(f"🎯 OPTION TARGET APPROACH — TP{target_no} NEAR\n{coin} {p['contract']}\n"
+                             f"Entry: {entry:.4f} USD\nCurrent Premium: {premium:.4f} USD\n"
+                             f"TP{target_no}: {target_value:.4f} USD ({target_label})\n"
+                             f"Target progress: {progress:.1f}%\n"
+                             "Target is not yet hit. Review manually; no order was placed.")
+                        p[near_key]=True
+                        break
             # Keep the +75% rocket alert only when this record has a later final target.
             # For current +75% TP3 records, the final-target alert already covers this milestone.
             if (not p.get("rocket_alerted",False)
@@ -143,7 +160,7 @@ def main():
                 last_dt=datetime.fromisoformat(str(last_warning).replace("Z","+00:00")) if last_warning else None
             except ValueError:
                 last_dt=None
-            if last_dt is None or (now-last_dt).total_seconds()>=900:
+            if last_dt is None or (now-last_dt).total_seconds()>=3600:
                 warning=("🚨 OPTION MONITOR DATA DELAY\n"+coin+" "+str(p.get("contract"))+
                          "\nLive premium quote unavailable; automatic SL tracking is temporarily unverified."+
                          "\nLast known premium: "+str(p.get("last_premium","—"))+
