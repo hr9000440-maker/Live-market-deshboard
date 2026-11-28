@@ -202,7 +202,12 @@ def confirmed_signal(coin):
     # the completed 15m EMA21 trend remains the final safety filter.
     trend_rows, trend_source = candles(coin)
     rows, source = candles_5m(coin)
-    one_rows, one_source = candles_1m(coin)
+    try:
+        one_rows, one_source = candles_1m(coin)
+    except Exception as exc:
+        # 1m is an optional early-entry enhancement; never disable the existing 5m path.
+        one_rows, one_source = [], "unavailable"
+        print(coin + ": 1m early feed unavailable; retaining original 5m signal path: " + str(exc)[:120])
     latest_open = int(float(rows[-1][0]))
     age = int(time.time() * 1000) - latest_open
     if age < -60000 or age > 15 * 60 * 1000:
@@ -211,8 +216,8 @@ def confirmed_signal(coin):
     trend_closed = trend_rows[:-1]
     now_ms = int(time.time() * 1000)
     one_closed = [x for x in one_rows if int(float(x[0])) + 60000 <= now_ms]
-    if len(closed) < 31 or len(trend_closed) < 31 or len(one_closed) < 30:
-        raise RuntimeError("1m/5m/15m EMA-RSI calculation के लिए candles कम हैं")
+    if len(closed) < 31 or len(trend_closed) < 31:
+        raise RuntimeError("5m/15m EMA-RSI calculation के लिए candles कम हैं")
 
     closes = [float(x[4]) for x in closed]
     highs = [float(x[2]) for x in closed]
@@ -248,7 +253,7 @@ def confirmed_signal(coin):
 
     # Earlier-entry fallback: a fresh 1m impulse must be followed by a completed
     # 5m candle with matching direction and EMA9 slope. 15m trend still must agree.
-    if not direction:
+    if not direction and len(one_closed) >= 30:
         fresh = [x for x in one_closed[-5:]
                  if now_ms - (int(float(x[0])) + 60000) <= 5 * 60 * 1000]
         for one in reversed(fresh):
