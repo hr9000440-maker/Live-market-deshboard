@@ -11,7 +11,7 @@ import time
 import urllib.parse
 from datetime import datetime, timezone
 
-from options_strong_signals import OPTION_API, candles, choose_expiry, ema, get_json, rsi, telegram
+from options_strong_signals import OPTION_API, candles, expiry_ms, ema, get_json, rsi, telegram
 
 
 def macd(values, fast=12, slow=26, signal=9):
@@ -347,69 +347,81 @@ def best_zero_hero_option(coin, direction, underlying, payload):
     rows = payload.get("rows")
     if not isinstance(rows, list):
         raise RuntimeError("Options gateway response में rows नहीं हैं")
-    expiry = choose_expiry(rows)
     wanted = "C" if "CALL" in direction else "P"
     source = str(payload.get("source") or "").lower()
     quote_is_usd = any(x in source for x in ("paradex", "bybit", "binance"))
-    candidates = []
+    # Try every current/future expiry in order. Previously only the nearest
+    # expiry was checked, so an illiquid/overpriced front expiry could suppress
+    # a valid contract in the next expiry even when all other filters passed.
+    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_ms = int(today.timestamp() * 1000)
+    expiries = sorted({
+        str(row.get("expiry") or str(row.get("instrument_name") or "").split("-")[1])
+        for row in rows
+        if row.get("expiry") or len(str(row.get("instrument_name") or "").split("-")) > 1
+    }, key=expiry_ms)
+    expiries = [value for value in expiries if expiry_ms(value) >= today_ms]
     # ETH-only diagnostics: count the exact filter that rejects contracts.
     # This is logging only; it does not change eligibility or any coin's signals.
     eth_rejects = {"expiry": 0, "side": 0, "quote_or_liquidity": 0, "otm": 0, "spread": 0, "premium": 0}
-    for row in rows:
-        name = str(row.get("instrument_name") or "")
-        parts = name.split("-")
-        row_expiry = str(row.get("expiry") or (parts[1] if len(parts) > 1 else ""))
-        if not name or row_expiry != expiry:
-            if coin == "ETH": eth_rejects["expiry"] += 1
-            continue
-        typ = str(row.get("option_type") or "").upper()
-        is_side = (typ in (wanted, "CALL" if wanted == "C" else "PUT")
-                   or name.endswith("-" + wanted)
-                   or name.endswith("-" + ("CALL" if wanted == "C" else "PUT")))
-        if not is_side:
-            if coin == "ETH": eth_rejects["side"] += 1
-            continue
-        try:
-            strike = float(row.get("strike") or (parts[2] if len(parts) > 2 else 0))
-            bid = float(row.get("bid_price") or 0)
-            ask = float(row.get("ask_price") or 0)
-            oi = float(row.get("open_interest") or 0)
-            vol = float(row.get("volume") or 0)
-        except (TypeError, ValueError):
-            continue
-        if strike <= 0 or bid <= 0 or ask < bid or ask <= 0 or (oi <= 0 and vol <= 0):
-            if coin == "ETH": eth_rejects["quote_or_liquidity"] += 1
-            continue
-        otm_pct = ((strike - underlying) / underlying * 100) if wanted == "C" else ((underlying - strike) / underlying * 100)
-        if not 0.5 <= otm_pct <= 3.0:
-            if coin == "ETH": eth_rejects["otm"] += 1
-            continue
-        mid = (bid + ask) / 2.0
-        spread = (ask - bid) / mid if mid > 0 else 999
-        if spread > MAX_SPREAD:
-            if coin == "ETH": eth_rejects["spread"] += 1
-            continue
-        bid_usd = bid if quote_is_usd else bid * underlying
-        ask_usd = ask if quote_is_usd else ask * underlying
-        ask_inr = ask_usd * USD_INR
-        max_premium_inr = MAX_PREMIUM_INR_BY_COIN.get(coin, 30.0)
-        if not MIN_PREMIUM_INR < ask_inr <= max_premium_inr:
-            if coin == "ETH": eth_rejects["premium"] += 1
-            continue
-        liquidity = min(oi + vol, 1000000.0)
-        score = abs(otm_pct - 1.5) * 0.001 + spread * 0.01 - min(liquidity, 10000.0) * 1e-9
-        greeks = row.get("greeks") if isinstance(row.get("greeks"), dict) else {}
-        delta = float(row.get("delta") or greeks.get("delta") or 0)
-        gamma = float(row.get("gamma") or greeks.get("gamma") or 0)
-        candidates.append({"name": name, "strike": strike, "expiry": expiry,
-                           "bid": bid_usd, "ask": ask_usd, "entry": ask_usd,
-                           "premium_inr": ask_inr, "spread": spread, "score": score,
-                           "delta": delta, "gamma": gamma})
-    if not candidates:
-        detail = " | ETH filter counts: " + ", ".join(f"{k}={v}" for k, v in eth_rejects.items()) if coin == "ETH" else ""
-        max_premium_inr = MAX_PREMIUM_INR_BY_COIN.get(coin, 30.0)
-        raise RuntimeError(f"live {wanted} contract ₹0–₹{max_premium_inr:.0f} premium, <=10% spread और OI/volume के साथ नहीं मिला" + detail)
-    return min(candidates, key=lambda x: x["score"])
+    for expiry in expiries:
+        candidates = []
+        for row in rows:
+            name = str(row.get("instrument_name") or "")
+            parts = name.split("-")
+            row_expiry = str(row.get("expiry") or (parts[1] if len(parts) > 1 else ""))
+            if not name or row_expiry != expiry:
+                continue
+            typ = str(row.get("option_type") or "").upper()
+            is_side = (typ in (wanted, "CALL" if wanted == "C" else "PUT")
+                       or name.endswith("-" + wanted)
+                       or name.endswith("-" + ("CALL" if wanted == "C" else "PUT")))
+            if not is_side:
+                if coin == "ETH": eth_rejects["side"] += 1
+                continue
+            try:
+                strike = float(row.get("strike") or (parts[2] if len(parts) > 2 else 0))
+                bid = float(row.get("bid_price") or 0)
+                ask = float(row.get("ask_price") or 0)
+                oi = float(row.get("open_interest") or 0)
+                vol = float(row.get("volume") or 0)
+            except (TypeError, ValueError):
+                continue
+            if strike <= 0 or bid <= 0 or ask < bid or ask <= 0 or (oi <= 0 and vol <= 0):
+                if coin == "ETH": eth_rejects["quote_or_liquidity"] += 1
+                continue
+            otm_pct = ((strike - underlying) / underlying * 100) if wanted == "C" else ((underlying - strike) / underlying * 100)
+            if not 0.5 <= otm_pct <= 3.0:
+                if coin == "ETH": eth_rejects["otm"] += 1
+                continue
+            mid = (bid + ask) / 2.0
+            spread = (ask - bid) / mid if mid > 0 else 999
+            if spread > MAX_SPREAD:
+                if coin == "ETH": eth_rejects["spread"] += 1
+                continue
+            bid_usd = bid if quote_is_usd else bid * underlying
+            ask_usd = ask if quote_is_usd else ask * underlying
+            ask_inr = ask_usd * USD_INR
+            max_premium_inr = MAX_PREMIUM_INR_BY_COIN.get(coin, 30.0)
+            if not MIN_PREMIUM_INR < ask_inr <= max_premium_inr:
+                if coin == "ETH": eth_rejects["premium"] += 1
+                continue
+            liquidity = min(oi + vol, 1000000.0)
+            score = abs(otm_pct - 1.5) * 0.001 + spread * 0.01 - min(liquidity, 10000.0) * 1e-9
+            greeks = row.get("greeks") if isinstance(row.get("greeks"), dict) else {}
+            delta = float(row.get("delta") or greeks.get("delta") or 0)
+            gamma = float(row.get("gamma") or greeks.get("gamma") or 0)
+            candidates.append({"name": name, "strike": strike, "expiry": expiry,
+                               "bid": bid_usd, "ask": ask_usd, "entry": ask_usd,
+                               "premium_inr": ask_inr, "spread": spread, "score": score,
+                               "delta": delta, "gamma": gamma})
+        if candidates:
+            # Keep the earliest expiry with at least one contract passing every
+            # existing premium, OTM, liquidity and spread condition.
+            return min(candidates, key=lambda x: x["score"])
+    detail = " | ETH filter counts: " + ", ".join(f"{k}={v}" for k, v in eth_rejects.items()) if coin == "ETH" else ""
+    max_premium_inr = MAX_PREMIUM_INR_BY_COIN.get(coin, 30.0)
+    raise RuntimeError(f"live {wanted} contract ₹0–₹{max_premium_inr:.0f} premium, <=10% spread और OI/volume के साथ नहीं मिला" + detail)
 
 
 def monitor_positions(coin, payload, underlying, sig, state):
