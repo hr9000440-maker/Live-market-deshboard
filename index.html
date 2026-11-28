@@ -1059,18 +1059,18 @@ function notifyTelegramStrongOption(coin,contract,signal,entry,spread,sl,tp1,tp2
  const bidUsd=optionUsd(Number(best.bid_price),Number(underlying));
  if(!(askUsd>0)||!(bidUsd>0))return;
  const slUsd=askUsd*0.75,tp1Usd=askUsd*1.25,tp2Usd=askUsd*1.50,tp3Usd=askUsd*1.75;
- const message='🚨 DASHBOARD OPTION SIGNAL\\n'+
-  'Coin: '+coin+'\\n'+direction+'\\nContract: '+best.instrument_name+'\\n'+
-  'Strike: '+cryptoOptionStrike(best)+' | Expiry: '+expiryValue+'\\n'+
-  'Underlying: '+Number(underlying).toFixed(4)+' USD\\n'+
-  'Bid: '+bidUsd.toFixed(6)+' | Ask / Entry: '+askUsd.toFixed(6)+' USD\\n'+
-  '🛑 SL (-25%): '+slUsd.toFixed(6)+' USD\\n'+
-  '🎯 TP1 (+25%): '+tp1Usd.toFixed(6)+' USD\\n'+
-  '🎯 TP2 (+50%): '+tp2Usd.toFixed(6)+' USD\\n'+
-  '🏁 TP3 (+75%): '+tp3Usd.toFixed(6)+' USD\\n'+
-  'Spread: '+(((Number(best.ask_price)-Number(best.bid_price))/((Number(best.ask_price)+Number(best.bid_price))/2))*100).toFixed(2)+'% (max 10%)\\n'+
-  'RSI: '+fmt(window.cryptoLastGoodSignals?.[coin]?.rv)+' | EMA9: '+fmt(window.cryptoLastGoodSignals?.[coin]?.e9)+' | EMA21: '+fmt(window.cryptoLastGoodSignals?.[coin]?.e21)+'\\n'+
-  'Signal: '+signal+' | '+(why||'Dashboard confirmed direction')+'\\n'+
+ const message='🚨 DASHBOARD OPTION SIGNAL\n'+
+  'Coin: '+coin+'\n'+direction+'\nContract: '+best.instrument_name+'\n'+
+  'Strike: '+cryptoOptionStrike(best)+' | Expiry: '+expiryValue+'\n'+
+  'Underlying: '+Number(underlying).toFixed(4)+' USD\n'+
+  'Bid: '+bidUsd.toFixed(6)+' | Ask / Entry: '+askUsd.toFixed(6)+' USD\n'+
+  '🛑 SL (-25%): '+slUsd.toFixed(6)+' USD\n'+
+  '🎯 TP1 (+25%): '+tp1Usd.toFixed(6)+' USD\n'+
+  '🎯 TP2 (+50%): '+tp2Usd.toFixed(6)+' USD\n'+
+  '🏁 TP3 (+75%): '+tp3Usd.toFixed(6)+' USD\n'+
+  'Spread: '+(((Number(best.ask_price)-Number(best.bid_price))/((Number(best.ask_price)+Number(best.bid_price))/2))*100).toFixed(2)+'% (max 10%)\n'+
+  'RSI: '+fmt(window.cryptoLastGoodSignals?.[coin]?.rv)+' | EMA9: '+fmt(window.cryptoLastGoodSignals?.[coin]?.e9)+' | EMA21: '+fmt(window.cryptoLastGoodSignals?.[coin]?.e21)+'\n'+
+  'Signal: '+signal+' | '+(why||'Dashboard confirmed direction')+'\n'+
   'Dashboard signal only — कोई automatic order नहीं।';
  sendTelegramDeduped(key,stamp,message,e=>telegramStatus('Dashboard option Telegram alert failed: '+e.message));
 }
