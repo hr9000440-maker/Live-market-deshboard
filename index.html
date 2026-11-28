@@ -781,7 +781,7 @@ async function fetchSignalTimeframe(symbol,interval,limit){
    const unique=[...new Map(valid.map(x=>[Number(x[0]),x])).values()];
    const closed=unique.slice(0,-1);
    const last=closed.at(-1),age=Date.now()-Number(last[0]);
-   const duration=interval==='1m'?60000:300000;
+   const duration=interval==='1m'?60000:interval==='5m'?300000:3600000;
    if(!last||age<0||age>duration*3)throw new Error('पुराना '+interval+' डेटा');
    return closed;
   }catch(e){errors.push(e.message||'feed error')}
@@ -869,12 +869,16 @@ async function analyzeCryptoCoin(coin){
  let fiveRsi=NaN,fiveE9=NaN,fiveE21=NaN,fiveEntry=NaN,fiveAtr=NaN,fiveCandleTime=NaN,fastEntryUsed=false,earlyEntryUsed=false,oneRsi=NaN,oneE9=NaN,oneE21=NaN,oneClose=confirmedClose;
  let entrySide='WAIT',entryReason='5m entry trigger की पुष्टि अधूरी',multiReason='5m entry + 15m trend filter';
  try{
+  const cachedH1=cryptoH1Cache[symbol];
+  const h1Candles=cachedH1&&Date.now()-cachedH1.ts<10*60*1000?cachedH1.rows:await fetchSignalTimeframe(symbol,'1h',60);
+  cryptoH1Cache[symbol]={rows:h1Candles,ts:Date.now()};
   const [fiveCandles,oneCandles]=await Promise.all([fetchSignalTimeframe(symbol,'5m',60),fetchSignalTimeframe(symbol,'1m',60)]);
-  const fiveClose=fiveCandles.map(x=>Number(x[4])),fiveHighs=fiveCandles.map(x=>Number(x[2])),fiveLows=fiveCandles.map(x=>Number(x[3]));
+  const fiveClose=fiveCandles.map(x=>Number(x[4])),fiveHighs=fiveCandles.map(x=>Number(x[2])),fiveLows=fiveCandles.map(x=>Number(x[3])),fiveVolumes=fiveCandles.map(x=>Number(x[5]));
   fiveE9=ema(fiveClose.slice(-30),9);fiveE21=ema(fiveClose.slice(-50),21);fiveRsi=rsi(fiveClose,14);
   const fLast=fiveCandles.at(-1),fPrev=fiveCandles.at(-2),fOpen=Number(fLast[1]),fClose=Number(fLast[4]),fHigh=Number(fLast[2]),fLow=Number(fLast[3]);
   fiveEntry=fClose;fiveCandleTime=Number(fLast[0]);fastEntryUsed=true;
-  const fRange=Math.max(fHigh-fLow,1e-12),fLocation=(fClose-fLow)/fRange;
+  const fRange=Math.max(fHigh-fLow,1e-12),fLocation=(fClose-fLow)/fRange,fBodyRatio=Math.abs(fClose-fOpen)/fRange;
+  const fAvgVolume=fiveVolumes.slice(-21,-1).reduce((a,b)=>a+b,0)/20,fVolumeRatio=fAvgVolume>0?fiveVolumes.at(-1)/fAvgVolume:0;
   const fRanges=[];for(let j=Math.max(1,fiveCandles.length-14);j<fiveCandles.length;j++)fRanges.push(Math.max(fiveHighs[j]-fiveLows[j],Math.abs(fiveHighs[j]-fiveClose[j-1]),Math.abs(fiveLows[j]-fiveClose[j-1])));
   fiveAtr=fRanges.reduce((a,b)=>a+b,0)/Math.max(1,fRanges.length);
   const oneLast=oneCandles.at(-1);oneClose=Number(oneLast[4]);
@@ -883,8 +887,10 @@ async function analyzeCryptoCoin(coin){
   const fiveBear=fClose<fiveE9&&fiveE9<fiveE21&&fiveRsi>=22&&fiveRsi<=58&&fLocation<=0.48;
   // 15m remains the directional safety filter; 1m detects the first impulse
   // while 5m EMA9 slope/price confirms that the move is not fighting the entry timeframe.
-  const trendBull=confirmedClose>=confirmedE21&&confirmedE21>=previousE21;
-  const trendBear=confirmedClose<=confirmedE21&&confirmedE21<=previousE21;
+  const h1Closes=h1Candles.map(x=>Number(x[4])),h1Close=h1Closes.at(-1),h1E21=ema(h1Closes.slice(-50),21),h1PrevE21=ema(h1Closes.slice(0,-1).slice(-50),21);
+  const h1Bull=h1Close>h1E21&&h1E21>h1PrevE21,h1Bear=h1Close<h1E21&&h1E21<h1PrevE21;
+  const trendBull=confirmedClose>=confirmedE21&&confirmedE21>=previousE21&&h1Bull;
+  const trendBear=confirmedClose<=confirmedE21&&confirmedE21<=previousE21&&h1Bear;
   const oneCloses=oneCandles.map(x=>Number(x[4]));
   const oneHighs=oneCandles.map(x=>Number(x[2]));
   const oneLows=oneCandles.map(x=>Number(x[3]));
@@ -900,7 +906,9 @@ async function analyzeCryptoCoin(coin){
   else if(fiveBear&&trendBear){entrySide='SELL / SHORT';entryReason='5m ENTRY CONFIRMED: बंद 5m candle EMA9/EMA21 और RSI से SELL trigger; 15m trend supportive';}
   else if(oneBull&&fiveContextBull&&trendBull){entrySide='BUY / LONG';entryReason='1m EARLY BUY: शुरुआती breakout + 5m EMA9 support + 15m trend confirmation';fiveEntry=oneClose;fiveCandleTime=Number(oneLast[0]);earlyEntryUsed=true;}
   else if(oneBear&&fiveContextBear&&trendBear){entrySide='SELL / SHORT';entryReason='1m EARLY SELL: शुरुआती breakdown + 5m EMA9 support + 15m trend confirmation';fiveEntry=oneClose;fiveCandleTime=Number(oneLast[0]);earlyEntryUsed=true;}
-  multiReason='1m '+(oneBull?'EARLY BUY':oneBear?'EARLY SELL':'WAIT')+' • 5m '+(fiveBull?'BUY':fiveBear?'SELL':fiveContextBull?'BULLISH CONTEXT':fiveContextBear?'BEARISH CONTEXT':'WAIT')+' • 15m trend '+(trendBull?'BULLISH':trendBear?'BEARISH':'NEUTRAL');
+  const strictQuality=Number.isFinite(confirmedAdx)&&confirmedAdx>=20&&confirmedVolumeRatio>=1.20&&confirmedBody>=0.55&&fVolumeRatio>=1.20&&fBodyRatio>=0.55;
+  if(entrySide!=='WAIT'&&!strictQuality){entrySide='WAIT';entryReason='QUALITY FILTER: 1H/15m direction के साथ ADX≥20, 15m/5m Volume≥1.20x और Candle Body≥55% सभी जरूरी';}
+  multiReason='1H '+(h1Bull?'BULLISH':h1Bear?'BEARISH':'NEUTRAL')+' • 15m '+(confirmedSide==='BUY / LONG'?'BULLISH':confirmedSide==='SELL / SHORT'?'BEARISH':'NEUTRAL')+' • 5m '+(fiveBull?'BUY':fiveBear?'SELL':fiveContextBull?'BULLISH CONTEXT':fiveContextBear?'BEARISH CONTEXT':'WAIT')+' • 1m '+(oneBull?'EARLY BUY':oneBear?'EARLY SELL':'WAIT')+' • Quality '+(strictQuality?'PASS':'FAIL');
  }catch(e){
   // If fast candles fail, retain only the old fully-confirmed 15m signal as a safe fallback.
   entrySide=confirmedSide;entryReason=confirmationReason;fiveEntry=confirmedClose;fastEntryUsed=false;
