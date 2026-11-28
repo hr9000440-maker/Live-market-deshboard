@@ -243,8 +243,13 @@
       "pnl_inr": 12.36
     }
   ],
-  "last_update": "2026-11-28T01:51:17.379237+00:00",
-  "errors": {},
+  "last_update": "2026-11-28T04:26:19.849133+00:00",
+  "errors": {
+    "BTC": "Bybit linear and Binance USD-M unavailable: Bybit linear: HTTP Error 403: Forbidden | Binance USD-M: HTTP Error 451: ",
+    "ETH": "Bybit linear and Binance USD-M unavailable: Bybit linear: HTTP Error 403: Forbidden | Binance USD-M: HTTP Error 451: ",
+    "BNB": "Bybit linear and Binance USD-M unavailable: Bybit linear: HTTP Error 403: Forbidden | Binance USD-M: HTTP Error 451: ",
+    "ZEC": "Bybit linear and Binance USD-M unavailable: Bybit linear: HTTP Error 403: Forbidden | Binance USD-M: HTTP Error 451: "
+  },
   "last_signal": {
     "ZEC": "ZEC:SELL:1795812300000",
     "BTC": "BTC:SELL:1795795200000",
