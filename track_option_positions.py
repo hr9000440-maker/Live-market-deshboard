@@ -99,10 +99,10 @@ def main():
             if p.get("status")=="ACTIVE" and msg is None:
                 risk_stage=int(p.get("risk_stage",0))
                 if premium<=entry*0.78 and risk_stage<2:
-                    msg=f"⚠️ OPTION RISK WARNING — -22% / HIGH RISK\\n{coin} {p['contract']}\\nEntry: {entry:.4f} USD\\nCurrent Bid/Mark: {premium:.4f} USD\\nHard SL remains: {sl:.4f} USD\\nLoss from entry: {move_pct:+.2f}%\\nPlease review the position manually. No order was placed."
+                    msg=f"⚠️ OPTION RISK WARNING — -22% / HIGH RISK\n{coin} {p['contract']}\nEntry: {entry:.4f} USD\nCurrent Bid/Mark: {premium:.4f} USD\nHard SL remains: {sl:.4f} USD\nLoss from entry: {move_pct:+.2f}%\nPlease review the position manually. No order was placed."
                     p["risk_stage"]=2
                 elif premium<=entry*0.82 and risk_stage<1:
-                    msg=f"⚠️ OPTION EARLY WARNING — -18%\\n{coin} {p['contract']}\\nEntry: {entry:.4f} USD\\nCurrent Bid/Mark: {premium:.4f} USD\\nHard SL remains: {sl:.4f} USD\\nLoss from entry: {move_pct:+.2f}%\\nPlease review the position manually. No order was placed."
+                    msg=f"⚠️ OPTION EARLY WARNING — -18%\n{coin} {p['contract']}\nEntry: {entry:.4f} USD\nCurrent Bid/Mark: {premium:.4f} USD\nHard SL remains: {sl:.4f} USD\nLoss from entry: {move_pct:+.2f}%\nPlease review the position manually. No order was placed."
                     p["risk_stage"]=1
             # Keep the +75% rocket alert only when this record has a later final target.
             # For current +75% TP3 records, the final-target alert already covers this milestone.
@@ -130,11 +130,11 @@ def main():
             except ValueError:
                 last_dt=None
             if last_dt is None or (now-last_dt).total_seconds()>=900:
-                warning=("🚨 OPTION MONITOR DATA DELAY\\n"+coin+" "+str(p.get("contract"))+
-                         "\\nLive premium quote unavailable; automatic SL tracking is temporarily unverified."+
-                         "\\nLast known premium: "+str(p.get("last_premium","—"))+
-                         "\\nReason: "+str(e)[:220]+
-                         "\\nPlease check the contract manually. No order was placed.")
+                warning=("🚨 OPTION MONITOR DATA DELAY\n"+coin+" "+str(p.get("contract"))+
+                         "\nLive premium quote unavailable; automatic SL tracking is temporarily unverified."+
+                         "\nLast known premium: "+str(p.get("last_premium","—"))+
+                         "\nReason: "+str(e)[:220]+
+                         "\nPlease check the contract manually. No order was placed.")
                 try:
                     telegram(warning)
                 except Exception as notify_error:
