@@ -1,6 +1,6 @@
 # Option Signal Checker — latest audit
 
-Generated (UTC): 2026-11-28T18:49:27.663325+00:00
+Generated (UTC): 2026-11-28T19:53:20.193726+00:00
 
 ## Summary
 - Total tracked signals: **34**
@@ -50,14 +50,14 @@ Generated (UTC): 2026-11-28T18:49:27.663325+00:00
 | BTC | BTC-28NOV26-57500-C | ACTIVE | 0 | +0.00% | -17.80% | 50.8 | 0.40 | 8% | 32.8 | 0.20304 | 0.15% | CAUTION — Volume average से कम: participation कमजोर |
 | BTC | BTC-28NOV26-62000-P | ACTIVE | 0 | +0.00% | -8.78% | 36.4 | 4.22 | 78% | 30.4 | -30.84691 | 0.17% | GOOD — ADX/MACD/Volume aligned |
 | ETH | ETH-28NOV26-1740-P | ACTIVE | 0 | +0.00% | -12.47% | 31.8 | 1.84 | 85% | 31.0 | -0.78608 | 0.22% | GOOD — ADX/MACD/Volume aligned |
-| BTC | BTC-29NOV26-62000-P | ACTIVE | 0 | +11.40% | -3.57% | 35.7 | 0.22 | 74% | 57.5 | -14.19559 | 0.27% | CAUTION — Volume average से कम: participation कमजोर |
+| BTC | BTC-29NOV26-62000-P | ACTIVE | 0 | +11.40% | +0.71% | 35.7 | 0.22 | 74% | 57.5 | -14.19559 | 0.27% | CAUTION — Volume average से कम: participation कमजोर |
 | ETH | ETH-29NOV26-1720-P | ACTIVE | 0 | +6.74% | -4.59% | 33.2 | 0.41 | 47% | 62.5 | -0.42223 | 0.31% | CAUTION — Volume average से कम: participation कमजोर |
 | BTC | BTC-29NOV26-59000-P | STOPPED | 0 | +7.38% | -30.55% | 26.2 | 0.37 | 48% | 63.1 | -36.77437 | 0.23% | CAUTION — Volume average से कम: participation कमजोर |
 | ETH | ETH-29NOV26-1620-P | TRAIL_STOPPED | 1 | +38.02% | -8.18% | 35.9 | 0.56 | 56% | 61.5 | -0.06121 | 0.25% | CAUTION — Volume average से कम: participation कमजोर |
 | BTC | BTC-29NOV26-59500-P | STOPPED | 0 | +0.00% | -34.50% | 32.7 | 2.23 | 65% | 72.6 | 4.43779 | 0.17% | CAUTION — MACD momentum signal की दिशा में confirm नहीं |
 | BTC | BTC-29NOV26-58500-P | STOPPED | 0 | +0.00% | -33.63% | 31.9 | 2.60 | 48% | 18.6 | -19.96740 | 0.16% | CAUTION — ADX 20 से कम: trend कमजोर |
 | ETH | ETH-29NOV26-1620-P | STOPPED | 0 | +0.00% | -31.24% | 25.6 | 2.57 | 55% | 29.0 | -1.11937 | 0.20% | GOOD — ADX/MACD/Volume aligned |
-| DOGE | DOGE_USDT-20261225-0.07-P | ACTIVE | 0 | +0.00% | -9.11% | 24.7 | 2.28 | 55% | 29.1 | -0.00004 | 0.18% | GOOD — ADX/MACD/Volume aligned |
+| DOGE | DOGE_USDT-20261225-0.07-P | ACTIVE | 0 | +0.00% | -9.24% | 24.7 | 2.28 | 55% | 29.1 | -0.00004 | 0.18% | GOOD — ADX/MACD/Volume aligned |
 
 ## Audit limitations
 
