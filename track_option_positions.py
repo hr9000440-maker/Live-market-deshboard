@@ -70,7 +70,8 @@ def main():
             jackpot = p.get("signal_type") == "JACKPOT"
             tp1_label = "2x premium" if jackpot else "+25%"
             tp2_label = "5x premium" if jackpot else "+50%"
-            tp3_label = "10x premium" if jackpot else "+85%"
+            tp3_change_pct = ((tp3 / entry) - 1.0) * 100.0 if entry > 0 else 0.0
+            tp3_label = "10x premium" if jackpot else f"+{tp3_change_pct:.0f}%"
             if premium<=sl:
                 msg=f"📣 OPTION RESULT — 🛑 INITIAL SL HIT — EXIT\n{coin} {p['contract']}\nEntry: {entry:.4f} USD\nCurrent Premium: {premium:.4f} USD\nSL: {sl:.4f} USD\nResult: {move_pct:+.2f}% premium change\nSignal closed for tracking. No order was placed."
                 p["status"]="STOPPED"
@@ -92,9 +93,11 @@ def main():
                 if premium<=trail:
                     msg=f"📣 OPTION RESULT — 🔒 TRAILING SL HIT — EXIT\n{coin} {p['contract']}\nEntry: {entry:.4f} USD\nPeak Premium: {peak:.4f} USD\nCurrent Premium: {premium:.4f} USD\nTrailing SL: {trail:.4f} USD\nResult: {move_pct:+.2f}% premium change\nSignal closed for tracking. No order was placed."
                     p["status"]="TRAIL_STOPPED"
-            # Rocket is an extra milestone on the SAME signal, not a new trade.
-            # +75% is deliberately before the existing +85% final target.
-            if not p.get("rocket_alerted",False) and premium>=entry*1.75:
+            # Keep the +75% rocket alert only when this record has a later final target.
+            # For current +75% TP3 records, the final-target alert already covers this milestone.
+            if (not p.get("rocket_alerted",False)
+                    and tp3_change_pct > 75.0 + 1e-6
+                    and premium >= entry * 1.75):
                 rocket_msg=f"🚀 ROCKET ALERT — +75% PREMIUM MOVE\n{coin} {p['contract']}\nOriginal Entry: {entry:.4f} USD\nCurrent Premium: {premium:.4f} USD\nMove from entry: {move_pct:+.2f}%\nSame signal — no new entry or order. Check existing targets / manage manually."
             p["last_premium"]=premium
             p["last_checked"]=datetime.now(timezone.utc).isoformat()
