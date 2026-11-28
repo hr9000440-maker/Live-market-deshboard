@@ -1,15 +1,15 @@
 {
-  "generated_at_utc": "2026-11-28T08:53:16.001147+00:00",
-  "total_signals": 26,
+  "generated_at_utc": "2026-11-28T09:53:39.875546+00:00",
+  "total_signals": 28,
   "status_counts": {
     "STOPPED": 15,
     "TRAIL_STOPPED": 1,
     "TARGET_HIT": 6,
-    "ACTIVE": 4
+    "ACTIVE": 6
   },
-  "active_signals": 4,
+  "active_signals": 6,
   "closed_or_resolved_signals": 22,
-  "signals_with_quality_metrics": 14,
+  "signals_with_quality_metrics": 16,
   "legacy_or_incomplete_metric_records": 12,
   "records_missing_valid_entry": 0,
   "by_coin": {
@@ -17,12 +17,12 @@
       "TRAIL_STOPPED": 1,
       "STOPPED": 8,
       "TARGET_HIT": 3,
-      "ACTIVE": 3
+      "ACTIVE": 4
     },
     "ETH": {
       "STOPPED": 7,
       "TARGET_HIT": 3,
-      "ACTIVE": 1
+      "ACTIVE": 2
     }
   },
   "positions": [
@@ -699,6 +699,58 @@
       "atr": 3.5864285714286064,
       "atr_pct": 0.21671310827282322,
       "confirmation": "GOOD — ADX/MACD/Volume aligned",
+      "market_data_source": "KuCoin Spot",
+      "option_quote_source": "Deribit public options API"
+    },
+    {
+      "coin": "BTC",
+      "contract": "BTC-29NOV26-62000-P",
+      "direction": "STRONG BUY PUT",
+      "status": "ACTIVE",
+      "stage": 0,
+      "entry": 2647.396225,
+      "peak": 2647.396225,
+      "last_premium": null,
+      "max_favorable_pct": 0.0,
+      "last_mark_pct": null,
+      "signal_time": "2026-11-28T09:51:38.725052+00:00",
+      "has_quality_metrics": true,
+      "rsi": 35.71784065717286,
+      "volume_ratio": 0.22076177257026436,
+      "candle_body_ratio": 0.740318906605898,
+      "macd": -92.06467171161057,
+      "macd_signal": -77.86908215483457,
+      "macd_hist": -14.195589556776,
+      "adx": 57.469428064187056,
+      "atr": 160.05714285714203,
+      "atr_pct": 0.268798501407568,
+      "confirmation": "CAUTION — Volume average से कम: participation कमजोर",
+      "market_data_source": "KuCoin Spot",
+      "option_quote_source": "Deribit public options API"
+    },
+    {
+      "coin": "ETH",
+      "contract": "ETH-29NOV26-1720-P",
+      "direction": "STRONG BUY PUT",
+      "status": "ACTIVE",
+      "stage": 0,
+      "entry": 76.65525,
+      "peak": 76.65525,
+      "last_premium": null,
+      "max_favorable_pct": 0.0,
+      "last_mark_pct": null,
+      "signal_time": "2026-11-28T09:51:40.562383+00:00",
+      "has_quality_metrics": true,
+      "rsi": 33.23288524745851,
+      "volume_ratio": 0.4129829104110683,
+      "candle_body_ratio": 0.4691943127962098,
+      "macd": -3.251270703529144,
+      "macd_signal": -2.8290419961813846,
+      "macd_hist": -0.4222287073477595,
+      "adx": 62.474138426847716,
+      "atr": 5.03571428571427,
+      "atr_pct": 0.30524660461861824,
+      "confirmation": "CAUTION — Volume average से कम: participation कमजोर",
       "market_data_source": "KuCoin Spot",
       "option_quote_source": "Deribit public options API"
     }

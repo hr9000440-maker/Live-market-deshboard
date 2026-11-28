@@ -1,23 +1,23 @@
 # Option Signal Checker — latest audit
 
-Generated (UTC): 2026-11-28T08:53:16.001147+00:00
+Generated (UTC): 2026-11-28T09:53:39.875546+00:00
 
 ## Summary
-- Total tracked signals: **26**
-- Active: **4**
+- Total tracked signals: **28**
+- Active: **6**
 - STOPPED: **15**
 - Trailing SL stopped: **1**
 - Final target hit: **6**
 - Other statuses: **0**
-- Records with quality metrics: **14/26**
+- Records with quality metrics: **16/28**
 - Records missing a valid entry: **0**
 
 ## By coin
 
 | Coin | Active | SL stopped | Trailing SL | Target hit | Other |
 |---|---:|---:|---:|---:|---:|
-| BTC | 3 | 8 | 1 | 3 | 0 |
-| ETH | 1 | 7 | 0 | 3 | 0 |
+| BTC | 4 | 8 | 1 | 3 | 0 |
+| ETH | 2 | 7 | 0 | 3 | 0 |
 
 ## Per-signal detail
 
@@ -49,6 +49,8 @@ Generated (UTC): 2026-11-28T08:53:16.001147+00:00
 | BTC | BTC-28NOV26-57500-C | ACTIVE | 0 | +0.00% | -17.80% | 50.8 | 0.40 | 8% | 32.8 | 0.20304 | 0.15% | CAUTION — Volume average से कम: participation कमजोर |
 | BTC | BTC-28NOV26-62000-P | ACTIVE | 0 | +0.00% | -8.78% | 36.4 | 4.22 | 78% | 30.4 | -30.84691 | 0.17% | GOOD — ADX/MACD/Volume aligned |
 | ETH | ETH-28NOV26-1740-P | ACTIVE | 0 | +0.00% | -12.47% | 31.8 | 1.84 | 85% | 31.0 | -0.78608 | 0.22% | GOOD — ADX/MACD/Volume aligned |
+| BTC | BTC-29NOV26-62000-P | ACTIVE | 0 | +0.00% | n/a | 35.7 | 0.22 | 74% | 57.5 | -14.19559 | 0.27% | CAUTION — Volume average से कम: participation कमजोर |
+| ETH | ETH-29NOV26-1720-P | ACTIVE | 0 | +0.00% | n/a | 33.2 | 0.41 | 47% | 62.5 | -0.42223 | 0.31% | CAUTION — Volume average से कम: participation कमजोर |
 
 ## Audit limitations
 
