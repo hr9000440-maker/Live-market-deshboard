@@ -75,6 +75,7 @@ def main():
             if premium<=sl:
                 msg=f"📣 OPTION RESULT — 🛑 INITIAL SL HIT — EXIT\n{coin} {p['contract']}\nEntry: {entry:.4f} USD\nCurrent Premium: {premium:.4f} USD\nSL: {sl:.4f} USD\nResult: {move_pct:+.2f}% premium change\nSignal closed for tracking. No order was placed."
                 p["status"]="STOPPED"
+                p["risk_stage"]=3
             elif premium>=tp3:
                 msg=f"📣 OPTION RESULT — 🎯 FINAL TARGET HIT ({tp3_label})\n{coin} {p['contract']}\nEntry: {entry:.4f} USD\nCurrent Premium: {premium:.4f} USD\nFinal target: {tp3:.4f} USD\nResult: {move_pct:+.2f}% premium change\nProfit-book alert. No order was placed."
                 p["status"]="TARGET_HIT"
@@ -93,6 +94,16 @@ def main():
                 if premium<=trail:
                     msg=f"📣 OPTION RESULT — 🔒 TRAILING SL HIT — EXIT\n{coin} {p['contract']}\nEntry: {entry:.4f} USD\nPeak Premium: {peak:.4f} USD\nCurrent Premium: {premium:.4f} USD\nTrailing SL: {trail:.4f} USD\nResult: {move_pct:+.2f}% premium change\nSignal closed for tracking. No order was placed."
                     p["status"]="TRAIL_STOPPED"
+            # Early risk warnings are advisory only; the original 25% hard SL is unchanged.
+            # Stage 1 warns at -18%; stage 2 warns at -22%; stage 3 is the hard SL.
+            if p.get("status")=="ACTIVE" and msg is None:
+                risk_stage=int(p.get("risk_stage",0))
+                if premium<=entry*0.78 and risk_stage<2:
+                    msg=f"⚠️ OPTION RISK WARNING — -22% / HIGH RISK\\n{coin} {p['contract']}\\nEntry: {entry:.4f} USD\\nCurrent Bid/Mark: {premium:.4f} USD\\nHard SL remains: {sl:.4f} USD\\nLoss from entry: {move_pct:+.2f}%\\nPlease review the position manually. No order was placed."
+                    p["risk_stage"]=2
+                elif premium<=entry*0.82 and risk_stage<1:
+                    msg=f"⚠️ OPTION EARLY WARNING — -18%\\n{coin} {p['contract']}\\nEntry: {entry:.4f} USD\\nCurrent Bid/Mark: {premium:.4f} USD\\nHard SL remains: {sl:.4f} USD\\nLoss from entry: {move_pct:+.2f}%\\nPlease review the position manually. No order was placed."
+                    p["risk_stage"]=1
             # Keep the +75% rocket alert only when this record has a later final target.
             # For current +75% TP3 records, the final-target alert already covers this milestone.
             if (not p.get("rocket_alerted",False)
@@ -111,6 +122,25 @@ def main():
                 print(coin+" "+p["contract"]+": ROCKET alert sent")
         except Exception as e:
             print("WARN "+coin+" "+str(p.get("contract"))+": "+str(e))
+            # A failed quote check is itself important: never imply that SL monitoring is healthy.
+            now=datetime.now(timezone.utc)
+            last_warning=p.get("last_data_warning_at")
+            try:
+                last_dt=datetime.fromisoformat(str(last_warning).replace("Z","+00:00")) if last_warning else None
+            except ValueError:
+                last_dt=None
+            if last_dt is None or (now-last_dt).total_seconds()>=900:
+                warning=("🚨 OPTION MONITOR DATA DELAY\\n"+coin+" "+str(p.get("contract"))+
+                         "\\nLive premium quote unavailable; automatic SL tracking is temporarily unverified."+
+                         "\\nLast known premium: "+str(p.get("last_premium","—"))+
+                         "\\nReason: "+str(e)[:220]+
+                         "\\nPlease check the contract manually. No order was placed.")
+                try:
+                    telegram(warning)
+                except Exception as notify_error:
+                    print("WARN Telegram data-delay alert failed: "+str(notify_error))
+                p["last_data_warning_at"]=now.isoformat()
+                changed=True
     if changed:
         os.makedirs("state",exist_ok=True)
         with open(PATH,"w",encoding="utf-8") as f:
