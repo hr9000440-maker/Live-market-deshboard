@@ -763,6 +763,70 @@ def crypto_options(coin):
         "count": len(rows), "details": errors[-4:],
     })
 
+
+# Loris Tools funding context. Server-side only: the API key is never sent to the browser.
+_loris_lock = threading.RLock()
+_loris_cache = {"at": 0, "payload": None}
+
+def _fetch_loris_funding():
+    import json
+    from urllib.request import Request, urlopen
+    api_key = os.getenv("LORIS_API_KEY")
+    if not api_key:
+        return {"status": "not_configured", "message": "LORIS_API_KEY environment variable is missing."}, 503
+    request = Request(
+        "https://api.loris.tools/funding",
+        headers={"Accept": "application/json", "X-Api-Key": api_key,
+                 "User-Agent": "LiveMarketDashboard/1.0"},
+        method="GET",
+    )
+    try:
+        with urlopen(request, timeout=10) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        if not isinstance(payload, dict) or not isinstance(payload.get("funding_rates"), dict):
+            return {"status": "invalid_response", "message": "Loris returned an unexpected funding response."}, 502
+        return {
+            "status": "ok",
+            "source": "Loris Tools",
+            "updated_at": payload.get("timestamp"),
+            "symbols": payload.get("symbols", []),
+            "funding_rates": payload.get("funding_rates", {}),
+            "funding_intervals": payload.get("funding_intervals", {}),
+            "oi_rankings": payload.get("oi_rankings", {}),
+            "note": "Funding rates are 8-hour-normalized basis points. Context only; not a trade trigger."
+        }, 200
+    except Exception as exc:
+        # Do not include request headers or secret values in logs/responses.
+        reason = str(exc)[:160]
+        status_code = getattr(exc, "code", None)
+        if status_code == 401:
+            return {"status": "unauthorized", "message": "Loris rejected the API key (HTTP 401). Check the Render secret."}, 502
+        if status_code == 403:
+            return {"status": "tier_limited", "message": "Loris key is valid but this endpoint or requested data is not included in the current plan (HTTP 403)."}, 502
+        if status_code == 429:
+            return {"status": "rate_limited", "message": "Loris rate limit reached. Please retry later."}, 503
+        return {"status": "unavailable", "message": "Loris funding request failed: " + reason}, 503
+
+
+@app.get("/api/loris/funding")
+def loris_funding():
+    """Read-only Loris cross-venue funding context; does not affect trade signals."""
+    now = time.time()
+    with _loris_lock:
+        cached = _loris_cache.get("payload")
+        if cached and now - _loris_cache.get("at", 0) < 30:
+            response = make_response(jsonify(cached[0]), cached[1])
+            response.headers["Cache-Control"] = "no-store, max-age=0"
+            return response
+    payload, status_code = _fetch_loris_funding()
+    if status_code == 200:
+        with _loris_lock:
+            _loris_cache["at"] = time.time()
+            _loris_cache["payload"] = (payload, status_code)
+    response = make_response(jsonify(payload), status_code)
+    response.headers["Cache-Control"] = "no-store, max-age=0"
+    return response
+
 @app.get("/api/algo/status")
 def algo_status():
     return jsonify({
