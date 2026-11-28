@@ -1,6 +1,6 @@
 # Option Signal Checker — latest audit
 
-Generated (UTC): 2026-11-28T11:49:13.487484+00:00
+Generated (UTC): 2026-11-28T12:58:03.595873+00:00
 
 ## Summary
 - Total tracked signals: **31**
@@ -49,11 +49,11 @@ Generated (UTC): 2026-11-28T11:49:13.487484+00:00
 | BTC | BTC-28NOV26-57500-C | ACTIVE | 0 | +0.00% | -17.80% | 50.8 | 0.40 | 8% | 32.8 | 0.20304 | 0.15% | CAUTION — Volume average से कम: participation कमजोर |
 | BTC | BTC-28NOV26-62000-P | ACTIVE | 0 | +0.00% | -8.78% | 36.4 | 4.22 | 78% | 30.4 | -30.84691 | 0.17% | GOOD — ADX/MACD/Volume aligned |
 | ETH | ETH-28NOV26-1740-P | ACTIVE | 0 | +0.00% | -12.47% | 31.8 | 1.84 | 85% | 31.0 | -0.78608 | 0.22% | GOOD — ADX/MACD/Volume aligned |
-| BTC | BTC-29NOV26-62000-P | ACTIVE | 0 | +1.77% | +1.77% | 35.7 | 0.22 | 74% | 57.5 | -14.19559 | 0.27% | CAUTION — Volume average से कम: participation कमजोर |
-| ETH | ETH-29NOV26-1720-P | ACTIVE | 0 | +0.00% | -5.52% | 33.2 | 0.41 | 47% | 62.5 | -0.42223 | 0.31% | CAUTION — Volume average से कम: participation कमजोर |
-| BTC | BTC-29NOV26-59000-P | ACTIVE | 0 | +0.00% | -23.00% | 26.2 | 0.37 | 48% | 63.1 | -36.77437 | 0.23% | CAUTION — Volume average से कम: participation कमजोर |
-| ETH | ETH-29NOV26-1620-P | ACTIVE | 0 | +0.00% | -5.60% | 35.9 | 0.56 | 56% | 61.5 | -0.06121 | 0.25% | CAUTION — Volume average से कम: participation कमजोर |
-| BTC | BTC-29NOV26-59500-P | ACTIVE | 0 | +0.00% | n/a | 32.7 | 2.23 | 65% | 72.6 | 4.43779 | 0.17% | CAUTION — MACD momentum signal की दिशा में confirm नहीं |
+| BTC | BTC-29NOV26-62000-P | ACTIVE | 0 | +2.84% | +2.77% | 35.7 | 0.22 | 74% | 57.5 | -14.19559 | 0.27% | CAUTION — Volume average से कम: participation कमजोर |
+| ETH | ETH-29NOV26-1720-P | ACTIVE | 0 | +0.00% | -7.68% | 33.2 | 0.41 | 47% | 62.5 | -0.42223 | 0.31% | CAUTION — Volume average से कम: participation कमजोर |
+| BTC | BTC-29NOV26-59000-P | ACTIVE | 0 | +0.00% | -15.40% | 26.2 | 0.37 | 48% | 63.1 | -36.77437 | 0.23% | CAUTION — Volume average से कम: participation कमजोर |
+| ETH | ETH-29NOV26-1620-P | ACTIVE | 0 | +0.00% | -11.16% | 35.9 | 0.56 | 56% | 61.5 | -0.06121 | 0.25% | CAUTION — Volume average से कम: participation कमजोर |
+| BTC | BTC-29NOV26-59500-P | ACTIVE | 0 | +0.00% | -17.31% | 32.7 | 2.23 | 65% | 72.6 | 4.43779 | 0.17% | CAUTION — MACD momentum signal की दिशा में confirm नहीं |
 
 ## Audit limitations
 
