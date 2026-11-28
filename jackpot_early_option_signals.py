@@ -79,7 +79,7 @@ BINANCE = "https://api.binance.com/api/v3/klines"
 GATE = "https://api.gateio.ws/api/v4/spot/candlesticks"
 USD_INR = 95.0
 MIN_PREMIUM_INR = 0.0
-MAX_PREMIUM_INR_BY_COIN = {"BTC": 100.0, "ETH": 30.0, "BNB": 30.0, "ZEC": 30.0}
+MAX_PREMIUM_INR_BY_COIN = {"BTC": 200.0, "ETH": 200.0, "BNB": 200.0, "ZEC": 200.0}
 MAX_SPREAD = 0.10
 
 
