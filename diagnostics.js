@@ -20,7 +20,7 @@ async function runCheck(){
  const statusEl=document.getElementById('diagStatus'),body=document.getElementById('diagBody');if(!statusEl||!body)return;
  statusEl.textContent='सर्वर और चारों कॉइन की जाँच हो रही है…';
  try{
-  const r=await fetch('/api/diagnostics?ts='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('Diagnostics HTTP '+r.status);
+  const r=await fetch('https://live-market-deshboard.onrender.com/api/diagnostics?ts='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('Diagnostics HTTP '+r.status);
   const d=await r.json();let bad=0;
   const rows=(d.coin_checks||[]).map(c=>{
    if(c.spot!=='OK'||c.futures!=='OK'||c.options!=='OK')bad++;
@@ -34,7 +34,7 @@ async function runCheck(){
  }catch(e){statusEl.innerHTML='<span style="color:#ff9c8c">🔴 जाँच नहीं हो सकी: '+esc(e.message)+'</span>';}
 }
 function sendError(kind,message,source,line){
- try{fetch('/api/diagnostics/browser-error',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind,message:String(message||'').slice(0,300),source:String(source||'').slice(0,240),line:Number(line)||0}),keepalive:true});}catch(_){}
+ try{fetch('https://live-market-deshboard.onrender.com/api/diagnostics/browser-error',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind,message:String(message||'').slice(0,300),source:String(source||'').slice(0,240),line:Number(line)||0}),keepalive:true});}catch(_){}
 }
 window.addEventListener('error',e=>sendError('error',e.message,e.filename,e.lineno));
 window.addEventListener('unhandledrejection',e=>sendError('promise',e.reason&&e.reason.message||e.reason,'',0));
