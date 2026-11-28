@@ -2,7 +2,7 @@
 """Independent four-coin Zero Hero scanner. Alert-only; never places orders.
 
 Uses fresh completed 1m impulse candles for earlier movement capture; scans run on the GitHub schedule. Option ask premium
-must be INR 5-30 equivalent, with live bid/ask, OI/volume and <=10% spread.
+must be BTC ₹0-100 or ETH/BNB/ZEC ₹0-30 equivalent, with live bid/ask, OI/volume and <=10% spread.
 """
 import json
 import os
@@ -18,8 +18,8 @@ STATE_PATH = "state/jackpot_early_signals.json"
 BINANCE = "https://api.binance.com/api/v3/klines"
 GATE = "https://api.gateio.ws/api/v4/spot/candlesticks"
 USD_INR = 95.0
-MIN_PREMIUM_INR = 5.0
-MAX_PREMIUM_INR = 30.0
+MIN_PREMIUM_INR = 0.0
+MAX_PREMIUM_INR_BY_COIN = {"BTC": 100.0, "ETH": 30.0, "BNB": 30.0, "ZEC": 30.0}
 MAX_SPREAD = 0.10
 
 
@@ -318,7 +318,8 @@ def best_zero_hero_option(coin, direction, underlying, payload):
         bid_usd = bid if quote_is_usd else bid * underlying
         ask_usd = ask if quote_is_usd else ask * underlying
         ask_inr = ask_usd * USD_INR
-        if not MIN_PREMIUM_INR <= ask_inr <= MAX_PREMIUM_INR:
+        max_premium_inr = MAX_PREMIUM_INR_BY_COIN.get(coin, 30.0)
+        if not MIN_PREMIUM_INR < ask_inr <= max_premium_inr:
             if coin == "ETH": eth_rejects["premium"] += 1
             continue
         liquidity = min(oi + vol, 1000000.0)
@@ -332,7 +333,8 @@ def best_zero_hero_option(coin, direction, underlying, payload):
                            "delta": delta, "gamma": gamma})
     if not candidates:
         detail = " | ETH filter counts: " + ", ".join(f"{k}={v}" for k, v in eth_rejects.items()) if coin == "ETH" else ""
-        raise RuntimeError("live " + wanted + " contract ₹5–₹30 premium, <=10% spread और OI/volume के साथ नहीं मिला" + detail)
+        max_premium_inr = MAX_PREMIUM_INR_BY_COIN.get(coin, 30.0)
+        raise RuntimeError(f"live {wanted} contract ₹0–₹{max_premium_inr:.0f} premium, <=10% spread और OI/volume के साथ नहीं मिला" + detail)
     return min(candidates, key=lambda x: x["score"])
 
 
@@ -470,7 +472,7 @@ def main():
                 + f"15m confirmation: RSI {confirm['rsi']:.1f} | Close {confirm['close']:.4f} vs EMA9 {confirm['ema9']:.4f}\\n"
                 + f"5m move: {sig['move_pct']:.3f}% | ATR: {sig['atr']:.4f} | Volume: {sig['volume_ratio']:.2f}x\\n"
                 + f"Market data: {sig['source']} | Option source: {payload.get('source', 'unknown')}\\n"
-                + target_method + ". Targets and trailing SL follow underlying movement; SL only tightens. Premium ₹5–₹30 filter and <=10% spread retained. Signal only — no automatic order."
+                + target_method + f". Targets and trailing SL follow underlying movement; SL only tightens. {coin} premium ₹0–₹{MAX_PREMIUM_INR_BY_COIN.get(coin, 30.0):.0f} filter and <=10% spread retained. Signal only — no automatic order."
             )
             telegram(msg)
             positions = state.setdefault("__positions__", [])
@@ -506,7 +508,7 @@ def main():
                             + f"Underlying SL / invalidation: {stop:.4f} USD\\n"
                             + "Underlying targets: " + " / ".join(f"{x:.4f}" for x in tps) + " USD\\n"
                             + f"1m move: {sig['move_pct']:.3f}% | RSI14: {sig['rsi']:.1f} | ATR: {sig['atr']:.4f}\\n"
-                            + "⚠️ NO OPTION ENTRY: कोई contract ₹5–₹30 premium, <=10% spread और liquidity filter पास नहीं कर पाया। यह underlying movement alert है, option buy recommendation नहीं।"
+                            + f"⚠️ NO OPTION ENTRY: कोई contract ₹0–₹{MAX_PREMIUM_INR_BY_COIN.get(coin, 30.0):.0f} premium, <=10% spread और liquidity filter पास नहीं कर पाया। यह underlying movement alert है, option buy recommendation नहीं।"
                         )
                         telegram(movement_msg)
                         state[movement_key] = movement_stamp
