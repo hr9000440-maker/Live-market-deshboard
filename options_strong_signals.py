@@ -228,7 +228,12 @@ def confirmed_signal(coin):
     # 1m detects a fresh impulse; a completed 5m candle must confirm it;
     # the completed 15m EMA21 trend remains the final safety filter.
     trend_rows, trend_source = candles(coin)
-    hour_rows, hour_source = candles_1h(coin)
+    try:
+        hour_rows, hour_source = candles_1h(coin)
+    except Exception as exc:
+        # 1h is context only; a failed 1h feed must not hide a valid 5m/15m reversal.
+        hour_rows, hour_source = [], "1h context unavailable"
+        print(coin + ": " + str(exc)[:140])
     rows, source = candles_5m(coin)
     try:
         one_rows, one_source = candles_1m(coin)
@@ -272,11 +277,14 @@ def confirmed_signal(coin):
     trend_bull_15m = trend_close >= trend_e21 and trend_e21 >= previous_trend_e21
     trend_bear_15m = trend_close <= trend_e21 and trend_e21 <= previous_trend_e21
     hour_closes = [float(x[4]) for x in hour_rows]
-    hour_e21 = ema(hour_closes[-50:], 21)
-    previous_hour_e21 = ema(hour_closes[:-1][-50:], 21)
-    hour_close = hour_closes[-1]
-    trend_bull_1h = hour_close > hour_e21 and hour_e21 > previous_hour_e21
-    trend_bear_1h = hour_close < hour_e21 and hour_e21 < previous_hour_e21
+    if len(hour_closes) >= 22:
+        hour_e21 = ema(hour_closes[-50:], 21)
+        previous_hour_e21 = ema(hour_closes[:-1][-50:], 21)
+        hour_close = hour_closes[-1]
+        trend_bull_1h = hour_close > hour_e21 and hour_e21 > previous_hour_e21
+        trend_bear_1h = hour_close < hour_e21 and hour_e21 < previous_hour_e21
+    else:
+        trend_bull_1h = trend_bear_1h = False
     # 1h is context, not a hard veto: requiring 1h alignment delayed sharp reversals.
     # Keep 15m directional confirmation and the independent strict quality gate below.
     trend_bull = trend_bull_15m
