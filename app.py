@@ -3,6 +3,7 @@ import threading
 import time
 from datetime import datetime, timezone
 from flask import Flask, jsonify, send_from_directory, make_response
+from big_player_advisor import build_big_player_report
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__, static_folder=None)
@@ -781,6 +782,24 @@ def algo_validate():
     except Exception as exc:
         safe = str(exc)[:200]
         return jsonify({"valid": False, "message": safe}), 503
+
+
+@app.get("/api/advisor/big-players")
+def big_player_advisor():
+    """Read-only multi-source futures flow analysis for BTC/ETH/BNB/ZEC."""
+    try:
+        report = build_big_player_report(_fetch_json)
+        response = make_response(jsonify(report))
+        response.headers["Cache-Control"] = "no-store, max-age=0"
+        return response
+    except Exception as exc:
+        response = make_response(jsonify({
+            "error": "Big Player Advisor data unavailable",
+            "details": str(exc)[:180],
+            "updated_at": _utc_now(),
+        }), 503)
+        response.headers["Cache-Control"] = "no-store, max-age=0"
+        return response
 
 @app.get("/health")
 def health():
