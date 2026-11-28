@@ -125,54 +125,55 @@ def check_coinswitch_futures_feed():
                 connected_dt = datetime.datetime.fromisoformat(str(connected_at).replace("Z", "+00:00"))
                 connected_age = max(0.0, (datetime.datetime.now(datetime.timezone.utc) - connected_dt).total_seconds())
             now_ms = int(datetime.datetime.now(datetime.timezone.utc).timestamp() * 1000)
-            checked = []
+            coin_errors = []
             for coin in ("BTC", "ETH", "BNB", "ZEC"):
-                item = coins.get(coin)
-                if not isinstance(item, dict):
-                    raise RuntimeError(coin + " futures payload missing")
-                rows = item.get("candles")
-                if not isinstance(rows, list) or not rows:
-                    raise RuntimeError(coin + " futures candles missing")
-                stamps = []
-                for row in rows:
-                    if not isinstance(row, dict):
-                        raise RuntimeError(coin + " malformed futures candle")
-                    stamp = int(row.get("start_time") or 0)
-                    op = float(row.get("open") or 0)
-                    high = float(row.get("high") or 0)
-                    low = float(row.get("low") or 0)
-                    close = float(row.get("close") or 0)
-                    volume = float(row.get("volume") or 0)
-                    if stamp <= 0 or min(op, high, low, close) <= 0 or volume < 0:
-                        raise RuntimeError(coin + " zero/missing futures candle values")
-                    if high < max(op, close, low) or low > min(op, high, close):
-                        raise RuntimeError(coin + " invalid futures OHLC range")
-                    stamps.append(stamp)
-                if len(stamps) != len(set(stamps)) or stamps != sorted(stamps):
-                    raise RuntimeError(coin + " duplicate or unsorted futures candle timestamps")
-                if float(item.get("last_price") or 0) <= 0:
-                    raise RuntimeError(coin + " futures last price missing")
-                age = item.get("age_seconds")
-                if not item.get("fresh") or age is None or float(age) > 120:
-                    raise RuntimeError(coin + " futures feed stale (age_seconds=" + str(age) + ")")
-                completed = [row for row in rows if row.get("closed") and int(row.get("close_time") or 0) <= now_ms]
-                if not completed:
-                    if connected_age is not None and connected_age <= 1200:
-                        notes.append(coin + " futures stream is live; waiting for first completed 15m candle after connection")
-                        checked.append((coin, len(rows), None, round(float(age))))
-                        continue
-                    raise RuntimeError(coin + " no completed 15m futures candle after WebSocket warm-up")
-                completed_age = (now_ms - int(completed[-1].get("close_time") or 0)) / 1000.0
-                if completed_age < 0 or completed_age > 1800:
-                    raise RuntimeError(coin + " latest completed 15m futures candle stale (" + str(round(completed_age)) + "s)")
-                checked.append((coin, len(rows), round(completed_age), round(float(age))))
-            for coin, count, closed_age, live_age in checked:
-                if closed_age is None:
-                    print("NOTE " + coin + " futures stream warming up: rows=" + str(count) +
-                          ", live age=" + str(live_age) + "s; no completed candle yet")
-                else:
-                    print("PASS " + coin + " CoinSwitch futures candles: rows=" + str(count) +
-                          ", latest closed age=" + str(closed_age) + "s, live age=" + str(live_age) + "s")
+                try:
+                    item = coins.get(coin)
+                    if not isinstance(item, dict):
+                        raise RuntimeError("payload missing")
+                    rows = item.get("candles")
+                    if not isinstance(rows, list) or not rows:
+                        raise RuntimeError("candles missing")
+                    stamps = []
+                    for row in rows:
+                        if not isinstance(row, dict):
+                            raise RuntimeError("malformed candle")
+                        stamp = int(row.get("start_time") or 0)
+                        op = float(row.get("open") or 0)
+                        high = float(row.get("high") or 0)
+                        low = float(row.get("low") or 0)
+                        close = float(row.get("close") or 0)
+                        volume = float(row.get("volume") or 0)
+                        if stamp <= 0 or min(op, high, low, close) <= 0 or volume < 0:
+                            raise RuntimeError("zero/missing OHLCV")
+                        if high < max(op, close, low) or low > min(op, high, close):
+                            raise RuntimeError("invalid OHLC range")
+                        stamps.append(stamp)
+                    if len(stamps) != len(set(stamps)) or stamps != sorted(stamps):
+                        raise RuntimeError("duplicate/unsorted candle timestamps")
+                    if float(item.get("last_price") or 0) <= 0:
+                        raise RuntimeError("last price missing")
+                    age = item.get("age_seconds")
+                    if not item.get("fresh") or age is None or float(age) > 120:
+                        raise RuntimeError("stale live update age=" + str(age))
+                    completed = [row for row in rows if row.get("closed") and int(row.get("close_time") or 0) <= now_ms]
+                    if not completed:
+                        if connected_age is not None and connected_age <= 1200:
+                            notes.append(coin + " futures stream is live; waiting for first completed 15m candle after connection")
+                            print("NOTE " + coin + " futures stream warming up: rows=" + str(len(rows)) +
+                                  ", live age=" + str(round(float(age))) + "s; no completed candle yet")
+                            continue
+                        raise RuntimeError("no completed 15m candle after WebSocket warm-up")
+                    completed_age = (now_ms - int(completed[-1].get("close_time") or 0)) / 1000.0
+                    if completed_age < 0 or completed_age > 1800:
+                        raise RuntimeError("latest completed 15m candle stale (" + str(round(completed_age)) + "s)")
+                    print("PASS " + coin + " CoinSwitch futures candles: rows=" + str(len(rows)) +
+                          ", latest closed age=" + str(round(completed_age)) + "s, live age=" + str(round(float(age))) + "s")
+                except Exception as coin_exc:
+                    coin_errors.append(coin + ": " + str(coin_exc))
+                    print("FAIL " + coin + " CoinSwitch futures candles: " + str(coin_exc))
+            if coin_errors:
+                raise RuntimeError("; ".join(coin_errors))
             return
         except Exception as e:
             last_error = str(e)
