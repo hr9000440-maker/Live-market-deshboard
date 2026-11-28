@@ -679,6 +679,42 @@ function renderCryptoOptions(){
   return '<tr><td>'+x.instrument_name+'</td><td>'+strike.toLocaleString('en-US')+'</td><td class="'+(side==='CALL'?'call-text':'put-text')+'">'+side+'</td><td class="'+(itm?'call-text':'')+'">'+moneynessLabel+'</td><td>'+optionMoney(optionUsd(bid,underlying))+'</td><td>'+optionMoney(optionUsd(ask,underlying))+'</td><td>'+optionMoney(markUsd)+'</td><td>'+(spread===null?'—':(spread*100).toFixed(2)+'%')+'</td><td>'+optionMoney(entryUsd)+'</td><td>'+optionMoney(slUsd)+'</td><td>'+optionMoney(tp1Usd)+'</td><td>'+optionMoney(tp2Usd)+'</td><td>'+optionMoney(tp3Usd)+'</td><td>'+oi.toLocaleString('en-US',{maximumFractionDigits:3})+'</td><td>'+vol.toLocaleString('en-US',{maximumFractionDigits:3})+'</td><td class="'+(signal==='WAIT'?'signal-neutral':side==='CALL'?'call-text':'put-text')+'">'+signal+(why?' ('+why+')':'')+'</td></tr>';
  }).join(''):'<tr><td colspan="16">इस expiry/type/strike filter में कोई contract नहीं मिला।</td></tr>';
 }
+function calculateAdx(highs,lows,closes,period=14){
+ if(highs.length<period*2+2||lows.length!==highs.length||closes.length!==highs.length)return NaN;
+ let tr=[],pdm=[],mdm=[];
+ for(let i=1;i<closes.length;i++){
+  const up=highs[i]-highs[i-1],down=lows[i-1]-lows[i];
+  tr.push(Math.max(highs[i]-lows[i],Math.abs(highs[i]-closes[i-1]),Math.abs(lows[i]-closes[i-1])));
+  pdm.push(up>down&&up>0?up:0);mdm.push(down>up&&down>0?down:0);
+ }
+ let atr=tr.slice(0,period).reduce((a,b)=>a+b,0),plus=pdm.slice(0,period).reduce((a,b)=>a+b,0),minus=mdm.slice(0,period).reduce((a,b)=>a+b,0),dx=[];
+ for(let i=period;i<tr.length;i++){
+  if(i>period-1){atr=atr-atr/period+tr[i];plus=plus-plus/period+pdm[i];minus=minus-minus/period+mdm[i];}
+  const p=atr?100*plus/atr:0,m=atr?100*minus/atr:0,den=p+m;
+  dx.push(den?100*Math.abs(p-m)/den:0);
+ }
+ if(dx.length<period)return NaN;
+ let adx=dx.slice(0,period).reduce((a,b)=>a+b,0)/period;
+ for(let i=period;i<dx.length;i++)adx=((adx*(period-1))+dx[i])/period;
+ return adx;
+}
+function calculateSupertrend(highs,lows,closes,period=10,multiplier=3){
+ if(highs.length<period+2||lows.length!==highs.length||closes.length!==highs.length)return null;
+ const tr=Array(closes.length).fill(0),upper=Array(closes.length).fill(0),lower=Array(closes.length).fill(0),finalUpper=Array(closes.length).fill(0),finalLower=Array(closes.length).fill(0),trend=Array(closes.length).fill(1);
+ for(let i=1;i<closes.length;i++)tr[i]=Math.max(highs[i]-lows[i],Math.abs(highs[i]-closes[i-1]),Math.abs(lows[i]-closes[i-1]));
+ let atr=tr.slice(1,period+1).reduce((a,b)=>a+b,0)/period;
+ for(let i=period;i<closes.length;i++){
+  if(i>period)atr=((atr*(period-1))+tr[i])/period;
+  const mid=(highs[i]+lows[i])/2;
+  upper[i]=mid+multiplier*atr;lower[i]=mid-multiplier*atr;
+  if(i===period){finalUpper[i]=upper[i];finalLower[i]=lower[i];trend[i]=closes[i]>=mid?1:-1;continue;}
+  finalUpper[i]=(upper[i]<finalUpper[i-1]||closes[i-1]>finalUpper[i-1])?upper[i]:finalUpper[i-1];
+  finalLower[i]=(lower[i]>finalLower[i-1]||closes[i-1]<finalLower[i-1])?lower[i]:finalLower[i-1];
+  trend[i]=trend[i-1]===1?(closes[i]<finalLower[i]?-1:1):(closes[i]>finalUpper[i]?1:-1);
+ }
+ const i=closes.length-1;
+ return {direction:trend[i]===1?'BUY':'SELL',value:trend[i]===1?finalLower[i]:finalUpper[i]};
+}
 function ema(values,period){let k=2/(period+1),v=values[0];for(let i=1;i<values.length;i++)v=values[i]*k+v*(1-k);return v}
 function rsi(values,period=14){
  // Wilder's RSI (RMA): standard RSI calculation, seeded from the first period.
@@ -794,18 +830,21 @@ async function analyzeCryptoCoin(coin){
  const closedCandles=candles.slice(0,-1);
  const closedCloses=closedCandles.map(x=>Number(x[4]));
  const closedVolumes=closedCandles.map(x=>Number(x[5]));
+ const closedHighs=closedCandles.map(x=>Number(x[2])),closedLows=closedCandles.map(x=>Number(x[3]));
  const confirmedClose=closedCloses.at(-1),confirmedE9=ema(closedCloses.slice(-30),9),confirmedE21=ema(closedCloses.slice(-50),21),confirmedRsi=rsi(closedCloses,14);
+ const confirmedAdx=calculateAdx(closedHighs,closedLows,closedCloses,14),confirmedSupertrend=calculateSupertrend(closedHighs,closedLows,closedCloses,10,3);
  const previousClose=closedCloses.at(-2),previousE9=ema(closedCloses.slice(0,-1).slice(-30),9),previousE21=ema(closedCloses.slice(0,-1).slice(-50),21);
  const confirmedOpen=Number(closedCandles.at(-1)[1]),confirmedHigh=Number(closedCandles.at(-1)[2]),confirmedLow=Number(closedCandles.at(-1)[3]),confirmedVolume=closedVolumes.at(-1);
  const confirmedRange=Math.max(confirmedHigh-confirmedLow,1e-12),confirmedBody=Math.abs(confirmedClose-confirmedOpen)/confirmedRange,confirmedLocation=(confirmedClose-confirmedLow)/confirmedRange;
  const confirmedAvgVolume=closedVolumes.slice(-21,-1).reduce((a,b)=>a+b,0)/20,confirmedVolumeRatio=confirmedAvgVolume>0?confirmedVolume/confirmedAvgVolume:0;
  // Earlier-entry gate: accept either a fresh EMA9 reclaim/breakdown or an already aligned EMA9/EMA21 trend.
  // Volume and candle-body remain quality diagnostics, not hard blockers; avoid waiting for two fully stacked candles.
- const bullishQuality=confirmedClose>confirmedE9&&confirmedClose>confirmedE21&&confirmedE9>confirmedE21&&confirmedE21>=previousE21&&confirmedRsi>=42&&confirmedRsi<=78&&confirmedLocation>=0.55;
- const bearishQuality=confirmedClose<confirmedE9&&confirmedClose<confirmedE21&&confirmedE9<confirmedE21&&confirmedE21<=previousE21&&confirmedRsi>=22&&confirmedRsi<=58&&confirmedLocation<=0.45;
- let confirmedSide='WAIT',confirmationReason='एक बंद 15m candle में EMA/RSI/close-position की पुष्टि अधूरी';
- if(bullishQuality){confirmedSide='BUY / LONG';confirmationReason='CONFIRMED: बंद 15m candle EMA9 और EMA21 के ऊपर, EMA9>EMA21, EMA21 ऊपर/स्थिर, RSI '+confirmedRsi.toFixed(1)+' और close ऊपरी 45% में';}
- else if(bearishQuality){confirmedSide='SELL / SHORT';confirmationReason='CONFIRMED: बंद 15m candle EMA9 और EMA21 के नीचे, EMA9<EMA21, EMA21 नीचे/स्थिर, RSI '+confirmedRsi.toFixed(1)+' और close निचले 45% में';}
+ const adxStrong=Number.isFinite(confirmedAdx)&&confirmedAdx>=18;
+ const bullishQuality=confirmedClose>confirmedE9&&confirmedClose>confirmedE21&&confirmedE9>confirmedE21&&confirmedE21>=previousE21&&confirmedRsi>=42&&confirmedRsi<=78&&confirmedLocation>=0.55&&adxStrong&&confirmedSupertrend?.direction==='BUY';
+ const bearishQuality=confirmedClose<confirmedE9&&confirmedClose<confirmedE21&&confirmedE9<confirmedE21&&confirmedE21<=previousE21&&confirmedRsi>=22&&confirmedRsi<=58&&confirmedLocation<=0.45&&adxStrong&&confirmedSupertrend?.direction==='SELL';
+ let confirmedSide='WAIT',confirmationReason='15m EMA/RSI के साथ ADX (≥18) और Supertrend की पुष्टि अधूरी';
+ if(bullishQuality){confirmedSide='BUY / LONG';confirmationReason='CONFIRMED: बंद 15m candle EMA9 और EMA21 के ऊपर, EMA9>EMA21, EMA21 ऊपर/स्थिर, RSI '+confirmedRsi.toFixed(1)+', ADX '+confirmedAdx.toFixed(1)+' और Supertrend BUY';}
+ else if(bearishQuality){confirmedSide='SELL / SHORT';confirmationReason='CONFIRMED: बंद 15m candle EMA9 और EMA21 के नीचे, EMA9<EMA21, EMA21 नीचे/स्थिर, RSI '+confirmedRsi.toFixed(1)+', ADX '+confirmedAdx.toFixed(1)+' और Supertrend SELL';}
  // 1m/5m are supplementary early-movement context only. They must never block the
  // existing confirmed 15m signal, especially the user's established option alerts.
  let fiveRsi=NaN,oneClose=confirmedClose,multiReason='15m confirmation is primary; 1m/5m are supplementary';
@@ -846,12 +885,16 @@ async function analyzeCryptoCoin(coin){
   if(!(confirmedE21>=previousE21))buyFailed.push('EMA21 ऊपर/स्थिर नहीं');
   if(!(confirmedRsi>=42&&confirmedRsi<=78))buyFailed.push('RSI 42–78 के बाहर');
   if(!(confirmedLocation>=0.55))buyFailed.push('close candle के ऊपरी 45% में नहीं');
+  if(!adxStrong)buyFailed.push('ADX 18 से कम/डेटा उपलब्ध नहीं');
+  if(confirmedSupertrend?.direction!=='BUY')buyFailed.push('Supertrend BUY नहीं');
   const sellFailed=[];
   if(!(confirmedClose<confirmedE9))sellFailed.push('बंद candle EMA9 के नीचे नहीं');
   if(!(confirmedE9<confirmedE21))sellFailed.push('EMA9, EMA21 के नीचे नहीं');
   if(!(confirmedE21<=previousE21))sellFailed.push('EMA21 नीचे/स्थिर नहीं');
   if(!(confirmedRsi>=22&&confirmedRsi<=58))sellFailed.push('RSI 22–58 के बाहर');
   if(!(confirmedLocation<=0.45))sellFailed.push('close candle के निचले 45% में नहीं');
+  if(!adxStrong)sellFailed.push('ADX 18 से कम/डेटा उपलब्ध नहीं');
+  if(confirmedSupertrend?.direction!=='SELL')sellFailed.push('Supertrend SELL नहीं');
   diagnostic=buyFailed.length<=sellFailed.length?'BUY की शर्तें: '+buyFailed.join(' • '):'SELL की शर्तें: '+sellFailed.join(' • ');
  }else diagnostic='Signal trigger confirmed: '+reason;
  // 15m EMA/RSI direction is the signal trigger. Higher-timeframe, volume and candle-body
@@ -863,8 +906,8 @@ async function analyzeCryptoCoin(coin){
  const sl=side==='BUY / LONG'?entry-1.2*atr:side==='SELL / SHORT'?entry+1.2*atr:null;
  const risk=sl===null?null:Math.abs(entry-sl),t1=sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk),t2=sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk),t3=sl===null?null:(side==='BUY / LONG'?entry+3*risk:entry-3*risk);
  const previous=prevSide||'कोई पिछला सिग्नल नहीं',changeReason=previous===side?'सिग्नल वही रहा':('सिग्नल बदला: '+previous+' → '+side);
- const quality='DATA: '+usedFeed+' • 15m primary signal • 1m/5m supplementary • 5m RSI '+(Number.isFinite(fiveRsi)?fiveRsi.toFixed(1):'N/A')+' • Volume informational: '+(volOk?'औसत से अधिक':'औसत से कम')+' • Candle body informational: '+(candleOk?'strong':'weak');
- const signal={coin,side,strong,baseSide:side,signalType,reason,diagnostic,quality,changeReason,previous,entry,sl,t1,t2,t3,rv:confirmedRsi,e9:confirmedE9,e21:confirmedE21,volume,avgVol,open,high,low,confirmedSide,confirmedClose,confirmedE9,confirmedE21,confirmedRsi,confirmationReason,fiveRsi,oneClose,multiReason,time:new Date(Number(closedCandles.at(-1)[0])).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),candleTime:thisCandle};
+ const quality='DATA: '+usedFeed+' • 15m primary signal • ADX '+(Number.isFinite(confirmedAdx)?confirmedAdx.toFixed(1):'N/A')+' • Supertrend '+(confirmedSupertrend?.direction||'N/A')+' • 1m/5m supplementary • 5m RSI '+(Number.isFinite(fiveRsi)?fiveRsi.toFixed(1):'N/A')+' • Volume informational: '+(volOk?'औसत से अधिक':'औसत से कम')+' • Candle body informational: '+(candleOk?'strong':'weak');
+ const signal={coin,side,strong,baseSide:side,signalType,reason,diagnostic,quality,changeReason,previous,entry,sl,t1,t2,t3,rv:confirmedRsi,e9:confirmedE9,e21:confirmedE21,volume,avgVol,open,high,low,confirmedSide,confirmedClose,confirmedE9,confirmedE21,confirmedRsi,confirmedAdx,confirmedSupertrend,confirmationReason,fiveRsi,oneClose,multiReason,time:new Date(Number(closedCandles.at(-1)[0])).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),candleTime:thisCandle};
  cryptoSignalLock[coin]={candleTime:thisCandle,signal};
  return signal;
 }
