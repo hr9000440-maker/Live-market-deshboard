@@ -23,11 +23,11 @@ jobs:
           ref: main
       - name: Check active option premiums and milestones
         env:
-          TELEGRAM_BOT_TOKEN: \${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAMBOTTOKAN: \${{ secrets.TELEGRAMBOTTOKAN }}
-          TELEGRAM_BOT_TOKAN: \${{ secrets.TELEGRAM_BOT_TOKAN }}
-          TELEGRAM_BOT_FATHER: \${{ secrets.TELEGRAM_BOT_FATHER }}
-          TELEGRAM_CHAT_ID: \${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAMBOTTOKAN: ${{ secrets.TELEGRAMBOTTOKAN }}
+          TELEGRAM_BOT_TOKAN: ${{ secrets.TELEGRAM_BOT_TOKAN }}
+          TELEGRAM_BOT_FATHER: ${{ secrets.TELEGRAM_BOT_FATHER }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python3 track_option_positions.py
       - name: Save monitoring state
         if: always()
