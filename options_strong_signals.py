@@ -293,6 +293,14 @@ def confirmed_signal(coin):
                 print(f"{coin}: 1m early impulse confirmed by 5m + 15m filters | {direction} | 1m candle={signal_time}")
                 break
 
+    # Strict quality gate: a setup is not a trade signal unless participation,
+    # trend strength, candle body and MACD all confirm the same direction.
+    if direction:
+        aligned_macd = (macd_hist > 0 if "CALL" in direction else macd_hist < 0)
+        if adx_value < 20 or volume_ratio < 1.20 or body_ratio < 0.55 or not aligned_macd:
+            print(f"{coin}: candidate rejected by strict quality gate | ADX={adx_value:.1f} volume={volume_ratio:.2f} body={body_ratio:.2f} MACD={macd_hist:.6g}")
+            direction = None
+
     return {"direction": direction, "price": close, "rsi": rv, "ema9": e9, "ema21": e21,
             "volume_ratio": volume_ratio, "body_ratio": body_ratio,
             "macd": macd_line, "macd_signal": macd_signal, "macd_hist": macd_hist,
@@ -368,11 +376,11 @@ def best_option(coin, signal, underlying, payload):
         oi, vol = float(row.get("open_interest") or 0), float(row.get("volume") or 0)
         strike = float(row.get("strike") or (parts[2] if len(parts) > 2 else 0) or 0)
         min_amount = float(row.get("min_trade_amount") or row.get("min_order_size") or row.get("order_size_increment") or 0)
-        if not (bid > 0 and ask >= bid and mark > 0 and strike > 0 and (oi > 0 or vol > 0)):
+        if not (bid > 0 and ask >= bid and mark > 0 and strike > 0 and oi > 0 and vol > 0):
             continue
         mid = (bid + ask) / 2.0
         spread = (ask - bid) / mid if mid > 0 else 999
-        if spread > 0.10:
+        if spread > 0.02:
             continue
         # Deribit BTC/ETH premiums are coin-denominated. Paradex ZEC and
         # Bybit/Binance DOGE option premiums are already USD/USDT-denominated.
