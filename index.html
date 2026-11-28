@@ -265,6 +265,25 @@ button{padding:12px 16px;border:0;border-radius:8px;background:var(--cyan);color
 <div class="option-table-wrap"><table class="option-table" style="min-width:760px"><thead><tr><th>Coin</th><th>Last Price (USDT)</th><th>15m Candle</th><th>Collected Candles</th><th>Freshness</th></tr></thead><tbody id="csFeedRows"><tr><td colspan="5">CoinSwitch feed से डेटा आने की प्रतीक्षा…</td></tr></tbody></table></div>
 <p class="note" id="csFeedNote">डेटा उपलब्ध होने पर यहाँ connection और freshness दिखाई देगी। पुराने या stale data को live signal नहीं माना जाएगा।</p>
 </section>
+
+<section class="panel" id="big-player-advisor">
+<h2>🐋 BIG PLAYER EARLY DETECTION ADVISOR — BTC / ETH / BNB / ZEC</h2>
+<p class="note">यह अलग read-only Advisor Binance USD-M Futures के Open Interest, 5m/15m price movement, aggressive buyer/seller trades, बड़े trades, order-book imbalance, funding और general long/short account ratio को मिलाकर संभावित खरीद/बिक्री दबाव जाँचता है। यह किसी व्यक्ति/संस्था की पहचान नहीं कर सकता। यह मौजूदा BUY/PUT signal rules को नहीं बदलता।</p>
+<div class="grid">
+ <div class="result"><small>Advisor Status</small><strong id="bigPlayerStatus">डेटा लोड हो रहा है…</strong></div>
+ <div class="result"><small>Last Update (IST)</small><strong id="bigPlayerUpdated">—</strong></div>
+ <div class="result"><small>Data Source</small><strong>Binance Futures Public</strong></div>
+ <div class="result"><small>Auto Refresh</small><strong>हर 60 सेकंड</strong></div>
+</div>
+<div class="option-table-wrap"><table class="option-table" style="min-width:1250px">
+<thead><tr><th>Coin</th><th>Price</th><th>5m / 15m</th><th>OI Change (30m)</th><th>Aggressive Buy %</th><th>Order Book</th><th>Large Trade Net</th><th>Funding</th><th>Long/Short Accounts</th><th>Advisor Score</th><th>Evidence</th></tr></thead>
+<tbody id="bigPlayerRows"><tr><td colspan="11">Live market data की प्रतीक्षा…</td></tr></tbody>
+</table></div>
+<p class="note" id="bigPlayerNote">Advisor अभी डेटा प्राप्त कर रहा है। मजबूत दबाव के लिए कई स्वतंत्र संकेतों की पुष्टि आवश्यक है।</p>
+<button type="button" onclick="loadBigPlayerAdvisor()">🔄 Advisor अभी Refresh करें</button>
+<p class="note">ध्यान दें: Open Interest में हर contract का buyer और seller दोनों होते हैं। Long/Short ratio सामान्य accounts का अनुपात है, whale positions नहीं। Order-book orders cancel हो सकते हैं। Score एक heuristic है, guaranteed prediction या trade entry नहीं। Options Greeks/venue-specific option OI को तभी दिखाया जाएगा जब provider से सत्यापित डेटा उपलब्ध हो। कोई order place नहीं होता।</p>
+</section>
+
 <section class="panel" id="crypto-signals">
 <h2>🚦 CRYPTO 15 MIN SIGNALS — BTC / ETH OPTIONS + BNB / ZEC FUTURES</h2>
 <p class="note">LIVE MARKET TRADE SIGNAL MODE — BTC/ETH/BNB/ZEC के public market data पर signals refresh होंगे। Signal के लिए एक पूरी बंद 15m candle में EMA9/EMA21 की दिशा, EMA21 slope, RSI और candle close की position जाँची जाती है। Volume और candle-body quality जानकारी हैं, signal रोकने वाली अनिवार्य शर्तें नहीं। अधूरी 15m candle से signal नहीं बनेगा। Bullish नियम: Close > EMA9 > EMA21, EMA21 ऊपर/स्थिर, RSI 42–78 और candle close range के ऊपरी 45% में। Bearish नियम: Close < EMA9 < EMA21, EMA21 नीचे/स्थिर, RSI 22–58 और candle close range के निचले 45% में। BTC/ETH के लिए BUY CALL / BUY PUT option direction; BNB/ZEC के लिए BUY/LONG या SELL/SHORT। अब 1m शुरुआती trigger + 5m entry confirmation + 15m trend alignment लागू है। Underlying Entry/SL/TP ATR-based हैं; option premium पर ASK entry के आधार पर 25% SL और 25%/50%/75% TP levels सुरक्षित हैं। यह signal-only dashboard है; अपने-आप order place नहीं होगा।</p>
@@ -1318,6 +1337,47 @@ function renderCoinSwitchManualPremiumChart(){
  else if(!rows.length)document.getElementById('csManualStatus').textContent='इस contract का कोई CoinSwitch snapshot अभी सेव नहीं है।';
  else document.getElementById('csManualStatus').textContent=rows.length+' वास्तविक CoinSwitch snapshots • '+minutes+'m candles • केवल दर्ज किया गया डेटा।';
 }
+
+function advisorNumber(value,digits=2,suffix=''){
+ if(value===null||value===undefined||!Number.isFinite(Number(value)))return '—';
+ return Number(value).toLocaleString('en-US',{maximumFractionDigits:digits})+suffix;
+}
+async function loadBigPlayerAdvisor(){
+ const status=document.getElementById('bigPlayerStatus'),updated=document.getElementById('bigPlayerUpdated');
+ const rows=document.getElementById('bigPlayerRows'),note=document.getElementById('bigPlayerNote');
+ if(!status||!rows)return;
+ status.textContent='डेटा जाँचा जा रहा है…';
+ try{
+  const res=await fetchWithTimeout('https://live-market-deshboard.onrender.com/api/advisor/big-players?ts='+Date.now(),35000,{cache:'no-store'});
+  const data=await res.json();
+  if(!res.ok)throw new Error(data.details||data.error||('HTTP '+res.status));
+  const coins=data.coins||{},order=['BTC','ETH','BNB','ZEC'];
+  rows.innerHTML=order.map(coin=>{
+   const c=coins[coin]||{},score=Number(c.score||0),bias=c.bias||'DATA UNAVAILABLE';
+   const cls=bias==='BUY PRESSURE'?'call-text':bias==='SELL PRESSURE'?'put-text':'signal-neutral';
+   const ev=(c.evidence||[]).slice(0,4).join(' • ')||((c.errors||[]).length?'कुछ स्रोत उपलब्ध नहीं':'पर्याप्त पुष्टि नहीं');
+   return '<tr><td><strong>'+coin+'</strong><br><small>'+bias+'</small></td>'+
+    '<td>'+advisorNumber(c.price,coin==='BTC'?1:4)+'</td>'+
+    '<td>'+advisorNumber(c.change_5m_pct,2,'%')+' / '+advisorNumber(c.change_15m_pct,2,'%')+'</td>'+
+    '<td>'+advisorNumber(c.oi_change_30m_pct,2,'%')+'</td>'+
+    '<td>'+advisorNumber(c.taker_buy_pct,1,'%')+'</td>'+
+    '<td>'+advisorNumber(c.book_imbalance_pct,1,'%')+'</td>'+
+    '<td>'+advisorNumber(c.large_trade_net_pct,1,'%')+'<br><small>B '+Number(c.large_buy_count||0)+' / S '+Number(c.large_sell_count||0)+'</small></td>'+
+    '<td>'+advisorNumber(c.funding_rate_pct,4,'%')+'</td>'+
+    '<td>'+advisorNumber(c.global_long_short_account_ratio,3)+'</td>'+
+    '<td class="'+cls+'"><strong>'+score+'</strong><br><small>'+advisorNumber(c.confidence,0)+'% data confidence</small></td>'+
+    '<td style="white-space:normal;min-width:220px;text-align:left">'+ev+'</td></tr>';
+  }).join('');
+  status.textContent='LIVE REPORT • '+order.filter(x=>coins[x]&&coins[x].data_points>=3).length+'/4 coins पर पर्याप्त स्रोत';
+  updated.textContent=data.updated_at?new Date(data.updated_at).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}):'—';
+  note.textContent=(data.disclaimer||'Flow-pressure estimate only.')+' • हर 60 सेकंड refresh; वास्तविक exchange update की गति अलग हो सकती है।';
+ }catch(e){
+  status.textContent='DATA UNAVAILABLE';
+  rows.innerHTML='<tr><td colspan="11">Advisor data नहीं मिला: '+String(e.message||e).replace(/[<>]/g,'')+'</td></tr>';
+  note.textContent='Render service/API या Binance public market data उपलब्ध नहीं है। इसे live signal न मानें; मौजूदा Scanner अप्रभावित है।';
+ }
+}
+
 async function loadCoinSwitchFeed(){
  const status=document.getElementById('csFeedConnection'),updated=document.getElementById('csFeedUpdated'),rows=document.getElementById('csFeedRows'),note=document.getElementById('csFeedNote');
  if(!status||!rows)return;
@@ -1370,7 +1430,7 @@ function calculate(){
  document.getElementById('rr').textContent=valid&&riskPer>0&&rewardPer>0?(rewardPer/riskPer).toFixed(2)+' : 1':'—';
  document.getElementById('warning').textContent=!valid?'Entry, SL, Target और Quantity भरें।':(riskPer<=0||rewardPer<=0?'जाँचें: खरीद में SL एंट्री से नीचे और टारगेट ऊपर होना चाहिए। बिक्री में SL एंट्री से ऊपर और टारगेट नीचे होना चाहिए।':'यह अनुमानित गणना है। ब्रोकरेज, टैक्स, स्लिपेज, लॉट साइज़ और फंडिंग शामिल नहीं हैं।');
 }
-document.addEventListener('DOMContentLoaded',()=>{const tgToken=document.getElementById('telegramToken'),tgChat=document.getElementById('telegramChatId');if(tgToken)tgToken.value=localStorage.getItem('telegramBotToken')||'';if(tgChat)tgChat.value=localStorage.getItem('telegramChatId')||'';renderCryptoMovementLog();renderOptionMovementTracker();loadCoinSwitchFeed();setInterval(loadCoinSwitchFeed,15000);loadPaperTradingLedger();setInterval(loadPaperTradingLedger,60000);renderDashboardSignalHistory();loadServerOptionSnapshots();setInterval(loadServerOptionSnapshots,300000);loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals();if(localStorage.getItem('signalNotificationsEnabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){document.getElementById('notificationStatus').textContent='Notification: चालू';}setInterval(loadAllCryptoSignals,10000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadAllCryptoSignals();});window.addEventListener('online',()=>loadAllCryptoSignals());});
+document.addEventListener('DOMContentLoaded',()=>{const tgToken=document.getElementById('telegramToken'),tgChat=document.getElementById('telegramChatId');if(tgToken)tgToken.value=localStorage.getItem('telegramBotToken')||'';if(tgChat)tgChat.value=localStorage.getItem('telegramChatId')||'';renderCryptoMovementLog();renderOptionMovementTracker();loadBigPlayerAdvisor();setInterval(loadBigPlayerAdvisor,60000);loadCoinSwitchFeed();setInterval(loadCoinSwitchFeed,15000);loadPaperTradingLedger();setInterval(loadPaperTradingLedger,60000);renderDashboardSignalHistory();loadServerOptionSnapshots();setInterval(loadServerOptionSnapshots,300000);loadCryptoOptions();loadCryptoSignal();loadAllCryptoSignals();if(localStorage.getItem('signalNotificationsEnabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){document.getElementById('notificationStatus').textContent='Notification: चालू';}setInterval(loadAllCryptoSignals,10000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadAllCryptoSignals();});window.addEventListener('online',()=>loadAllCryptoSignals());});
 </script>
 </body>
 </html>
