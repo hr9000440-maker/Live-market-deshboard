@@ -372,7 +372,7 @@ def main():
         os.makedirs(os.path.dirname(ALERT_STATE_PATH), exist_ok=True)
         with open(ALERT_STATE_PATH, "w", encoding="utf-8") as handle:
             json.dump(next_state, handle, ensure_ascii=False, indent=2)
-            handle.write("\\n")
+            handle.write("\n")
 
     if issues:
         sys.exit(1)
