@@ -1030,10 +1030,49 @@ function sendTelegramDeduped(key,stamp,message,onError){
   .catch(e=>{if(typeof onError==='function')onError(e);})
   .finally(()=>telegramPendingAlerts.delete(pendingKey));
 }
-function notifyTelegramStrongOption(){
- // Server-side GitHub Actions sends these alerts from the same confirmed 15m rules.
- // Browser refreshes must not send duplicate or browser-dependent Telegram messages.
- return;
+function notifyTelegramStrongOption(coin,contract,signal,entry,spread,sl,tp1,tp2,tp3,bid,ask,side,strike,expiry,underlying,why){
+ // Secondary delivery path for the exact eligible option shown by the dashboard.
+ // One best (nearest-strike) contract per coin/direction/15m candle; never relax filters.
+ if(!['BTC','ETH','BNB','ZEC'].includes(coin))return;
+ if(!['STRONG BUY CALL','STRONG BUY PUT','EARLY BUY CALL','EARLY BUY PUT'].includes(signal))return;
+ if(!cryptoOptionDataFresh[coin]||!(Number(underlying)>0))return;
+ const sideCode=side==='CALL'?'C':'P';
+ const expiryValue=String(expiry||'');
+ const candidates=(cryptoOptionData[coin]||[]).filter(x=>{
+  if(cryptoOptionSide(x)!==sideCode||cryptoOptionExpiry(x)!==expiryValue)return false;
+  const b=Number(x.bid_price),a=Number(x.ask_price),m=Number(x.mark_price),oi=Number(x.open_interest||0),vol=Number(x.volume||0);
+  const mid=b>0&&a>=b?(a+b)/2:0,sp=mid>0?(a-b)/mid:999;
+  return b>0&&a>=b&&m>0&&oi>0&&vol>0&&sp<=0.10;
+ }).sort((a,b)=>{
+  const da=Math.abs(cryptoOptionStrike(a)-Number(underlying));
+  const db=Math.abs(cryptoOptionStrike(b)-Number(underlying));
+  return da-db;
+ });
+ const best=candidates[0];
+ if(!best||String(best.instrument_name)!==String(contract))return;
+ const cfg=tgConfig();if(!cfg.token||!cfg.chatId)return;
+ const candle=Number(window.cryptoLastGoodSignals?.[coin]?.candleTime||cryptoSignalLock[coin]?.candleTime||0);
+ const stamp=String(candle||Math.floor(Date.now()/900000))+'_'+signal+'_'+contract;
+ const key='tgDashboardOptionSignal_'+coin;
+ const direction=side==='CALL'?'🟢 BUY CALL':'🔴 BUY PUT';
+ const askUsd=optionUsd(Number(best.ask_price),Number(underlying));
+ const bidUsd=optionUsd(Number(best.bid_price),Number(underlying));
+ if(!(askUsd>0)||!(bidUsd>0))return;
+ const slUsd=askUsd*0.75,tp1Usd=askUsd*1.25,tp2Usd=askUsd*1.50,tp3Usd=askUsd*1.75;
+ const message='🚨 DASHBOARD OPTION SIGNAL\\n'+
+  'Coin: '+coin+'\\n'+direction+'\\nContract: '+best.instrument_name+'\\n'+
+  'Strike: '+cryptoOptionStrike(best)+' | Expiry: '+expiryValue+'\\n'+
+  'Underlying: '+Number(underlying).toFixed(4)+' USD\\n'+
+  'Bid: '+bidUsd.toFixed(6)+' | Ask / Entry: '+askUsd.toFixed(6)+' USD\\n'+
+  '🛑 SL (-25%): '+slUsd.toFixed(6)+' USD\\n'+
+  '🎯 TP1 (+25%): '+tp1Usd.toFixed(6)+' USD\\n'+
+  '🎯 TP2 (+50%): '+tp2Usd.toFixed(6)+' USD\\n'+
+  '🏁 TP3 (+75%): '+tp3Usd.toFixed(6)+' USD\\n'+
+  'Spread: '+(((Number(best.ask_price)-Number(best.bid_price))/((Number(best.ask_price)+Number(best.bid_price))/2))*100).toFixed(2)+'% (max 10%)\\n'+
+  'RSI: '+fmt(window.cryptoLastGoodSignals?.[coin]?.rv)+' | EMA9: '+fmt(window.cryptoLastGoodSignals?.[coin]?.e9)+' | EMA21: '+fmt(window.cryptoLastGoodSignals?.[coin]?.e21)+'\\n'+
+  'Signal: '+signal+' | '+(why||'Dashboard confirmed direction')+'\\n'+
+  'Dashboard signal only — कोई automatic order नहीं।';
+ sendTelegramDeduped(key,stamp,message,e=>telegramStatus('Dashboard option Telegram alert failed: '+e.message));
 }
 function notifyCryptoDataError(coin,message){
  const cfg=tgConfig();if(!cfg.token||!cfg.chatId)return;
