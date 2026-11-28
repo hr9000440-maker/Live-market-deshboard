@@ -1,10 +1,4 @@
 {
-  "active_issues": [
-    "BTC options gateway",
-    "CoinSwitch futures klines feed"
-  ],
-  "alerted_issues": [
-    "BTC options gateway",
-    "CoinSwitch futures klines feed"
-  ]
+  "active_issues": [],
+  "alerted_issues": []
 }
