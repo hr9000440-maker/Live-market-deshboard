@@ -118,6 +118,11 @@ def check_coinswitch_futures_feed():
             connection = str(data.get("connection") or "").lower()
             if connection != "connected":
                 raise RuntimeError("CoinSwitch futures WebSocket is not connected: " + (connection or "unknown"))
+            connected_at = data.get("connected_at")
+            connected_age = None
+            if connected_at:
+                connected_dt = datetime.datetime.fromisoformat(str(connected_at).replace("Z", "+00:00"))
+                connected_age = max(0.0, (datetime.datetime.now(datetime.timezone.utc) - connected_dt).total_seconds())
             now_ms = int(datetime.datetime.now(datetime.timezone.utc).timestamp() * 1000)
             checked = []
             for coin in ("BTC", "ETH", "BNB", "ZEC"):
@@ -151,14 +156,22 @@ def check_coinswitch_futures_feed():
                     raise RuntimeError(coin + " futures feed stale (age_seconds=" + str(age) + ")")
                 completed = [row for row in rows if row.get("closed") and int(row.get("close_time") or 0) <= now_ms]
                 if not completed:
-                    raise RuntimeError(coin + " no completed 15m futures candle")
+                    if connected_age is not None and connected_age <= 1200:
+                        notes.append(coin + " futures stream is live; waiting for first completed 15m candle after connection")
+                        checked.append((coin, len(rows), None, round(float(age))))
+                        continue
+                    raise RuntimeError(coin + " no completed 15m futures candle after WebSocket warm-up")
                 completed_age = (now_ms - int(completed[-1].get("close_time") or 0)) / 1000.0
                 if completed_age < 0 or completed_age > 1800:
                     raise RuntimeError(coin + " latest completed 15m futures candle stale (" + str(round(completed_age)) + "s)")
                 checked.append((coin, len(rows), round(completed_age), round(float(age))))
             for coin, count, closed_age, live_age in checked:
-                print("PASS " + coin + " CoinSwitch futures candles: rows=" + str(count) +
-                      ", latest closed age=" + str(closed_age) + "s, live age=" + str(live_age) + "s")
+                if closed_age is None:
+                    print("NOTE " + coin + " futures stream warming up: rows=" + str(count) +
+                          ", live age=" + str(live_age) + "s; no completed candle yet")
+                else:
+                    print("PASS " + coin + " CoinSwitch futures candles: rows=" + str(count) +
+                          ", latest closed age=" + str(closed_age) + "s, live age=" + str(live_age) + "s")
             return
         except Exception as e:
             last_error = str(e)
