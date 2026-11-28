@@ -889,8 +889,10 @@ async function analyzeCryptoCoin(coin){
   // while 5m EMA9 slope/price confirms that the move is not fighting the entry timeframe.
   const h1Closes=h1Candles.map(x=>Number(x[4])),h1Close=h1Closes.at(-1),h1E21=ema(h1Closes.slice(-50),21),h1PrevE21=ema(h1Closes.slice(0,-1).slice(-50),21);
   const h1Bull=h1Close>h1E21&&h1E21>h1PrevE21,h1Bear=h1Close<h1E21&&h1E21<h1PrevE21;
-  const trendBull=confirmedClose>=confirmedE21&&confirmedE21>=previousE21&&h1Bull;
-  const trendBear=confirmedClose<=confirmedE21&&confirmedE21<=previousE21&&h1Bear;
+  // 1h is context, not a hard veto: it can lag sharp reversals by many candles.
+  // Keep the closed 15m trend filter plus 15m/5m ADX, volume and candle-body quality gates.
+  const trendBull=confirmedClose>=confirmedE21&&confirmedE21>=previousE21;
+  const trendBear=confirmedClose<=confirmedE21&&confirmedE21<=previousE21;
   const oneCloses=oneCandles.map(x=>Number(x[4]));
   const oneHighs=oneCandles.map(x=>Number(x[2]));
   const oneLows=oneCandles.map(x=>Number(x[3]));
@@ -908,7 +910,7 @@ async function analyzeCryptoCoin(coin){
   else if(oneBear&&fiveContextBear&&trendBear){entrySide='SELL / SHORT';entryReason='1m EARLY SELL: शुरुआती breakdown + 5m EMA9 support + 15m trend confirmation';fiveEntry=oneClose;fiveCandleTime=Number(oneLast[0]);earlyEntryUsed=true;}
   const strictQuality=Number.isFinite(confirmedAdx)&&confirmedAdx>=20&&confirmedVolumeRatio>=1.20&&confirmedBody>=0.55&&fVolumeRatio>=1.20&&fBodyRatio>=0.55;
   if(entrySide!=='WAIT'&&!strictQuality){entrySide='WAIT';entryReason='QUALITY FILTER: 1H/15m direction के साथ ADX≥20, 15m/5m Volume≥1.20x और Candle Body≥55% सभी जरूरी';}
-  multiReason='1H '+(h1Bull?'BULLISH':h1Bear?'BEARISH':'NEUTRAL')+' • 15m '+(confirmedSide==='BUY / LONG'?'BULLISH':confirmedSide==='SELL / SHORT'?'BEARISH':'NEUTRAL')+' • 5m '+(fiveBull?'BUY':fiveBear?'SELL':fiveContextBull?'BULLISH CONTEXT':fiveContextBear?'BEARISH CONTEXT':'WAIT')+' • 1m '+(oneBull?'EARLY BUY':oneBear?'EARLY SELL':'WAIT')+' • Quality '+(strictQuality?'PASS':'FAIL');
+  multiReason='1H context '+(h1Bull?'BULLISH':h1Bear?'BEARISH':'NEUTRAL')+' (not a veto) • 15m '+(confirmedSide==='BUY / LONG'?'BULLISH':confirmedSide==='SELL / SHORT'?'BEARISH':'NEUTRAL')+' • 5m '+(fiveBull?'BUY':fiveBear?'SELL':fiveContextBull?'BULLISH CONTEXT':fiveContextBear?'BEARISH CONTEXT':'WAIT')+' • 1m '+(oneBull?'EARLY BUY':oneBear?'EARLY SELL':'WAIT')+' • Quality '+(strictQuality?'PASS':'FAIL');
  }catch(e){
   // Accuracy-first safety: without fresh 1h + 5m + 1m context, do not fall back to a weaker 15m-only entry.
   entrySide='WAIT';entryReason='1H/5m/1m confirmation unavailable — सुरक्षित रूप से कोई signal नहीं';fiveEntry=confirmedClose;fastEntryUsed=false;
@@ -952,15 +954,15 @@ async function analyzeCryptoCoin(coin){
   diagnostic=buyFailed.length<=sellFailed.length?'BUY की शर्तें: '+buyFailed.join(' • '):'SELL की शर्तें: '+sellFailed.join(' • ');
  }else diagnostic='Signal trigger confirmed: '+reason;
  // Accuracy-first: 1h trend, 15m trend, ADX, 15m/5m volume and candle-body are hard entry gates.
- const h1Info='1h trend confirmation required';
+ const h1Info='1h trend context; 15m + 5m confirmation required';
  const prevSide=null;
- const strong=side!=='WAIT',signalType=side==='WAIT'?'WAIT':(earlyEntryUsed?'1m EARLY / 5m CONTEXT / 1H+15m FILTER':(fastEntryUsed?'5m ENTRY / 1H+15m FILTER':'15m FALLBACK'));
+ const strong=side!=='WAIT',signalType=side==='WAIT'?'WAIT':(earlyEntryUsed?'1m EARLY / 5m CONTEXT / 15m FILTER':(fastEntryUsed?'5m ENTRY / 15m FILTER':'15m FALLBACK'));
  const entry=Number.isFinite(fiveEntry)?fiveEntry:confirmedClose;
  const riskAtr=Number.isFinite(fiveAtr)&&fiveAtr>0?fiveAtr:atr;
  const sl=side==='BUY / LONG'?entry-1.2*riskAtr:side==='SELL / SHORT'?entry+1.2*riskAtr:null;
  const risk=sl===null?null:Math.abs(entry-sl),t1=sl===null?null:(side==='BUY / LONG'?entry+risk:entry-risk),t2=sl===null?null:(side==='BUY / LONG'?entry+2*risk:entry-2*risk),t3=sl===null?null:(side==='BUY / LONG'?entry+3*risk:entry-3*risk);
  const previous=prevSide||'कोई पिछला सिग्नल नहीं',changeReason=previous===side?'सिग्नल वही रहा':('सिग्नल बदला: '+previous+' → '+side);
- const quality='DATA: '+usedFeed+' • 1H + 15m trend • 5m entry • ADX≥20 • 15m/5m volume≥1.20x • 15m/5m candle body≥55% • 1m RSI '+(Number.isFinite(oneRsi)?oneRsi.toFixed(1):'N/A')+' • 15m ADX '+(Number.isFinite(confirmedAdx)?confirmedAdx.toFixed(1):'N/A')+' • Supertrend '+(confirmedSupertrend?.direction||'N/A')+' • 1m early context • 5m RSI '+(Number.isFinite(fiveRsi)?fiveRsi.toFixed(1):'N/A')+' • Strict quality gate: ADX≥20, volume≥1.20x और candle body≥55% अनिवार्य';
+ const quality='DATA: '+usedFeed+' • 1H context + 15m trend • 5m entry • ADX≥20 • 15m/5m volume≥1.20x • 15m/5m candle body≥55% • 1m RSI '+(Number.isFinite(oneRsi)?oneRsi.toFixed(1):'N/A')+' • 15m ADX '+(Number.isFinite(confirmedAdx)?confirmedAdx.toFixed(1):'N/A')+' • Supertrend '+(confirmedSupertrend?.direction||'N/A')+' • 1m early context • 5m RSI '+(Number.isFinite(fiveRsi)?fiveRsi.toFixed(1):'N/A')+' • Strict quality gate: ADX≥20, volume≥1.20x और candle body≥55% अनिवार्य';
  const signal={coin,side,strong,baseSide:side,signalType,reason,diagnostic,quality,changeReason,previous,entry,sl,t1,t2,t3,rv:Number.isFinite(fiveRsi)?fiveRsi:confirmedRsi,e9:Number.isFinite(fiveE9)?fiveE9:confirmedE9,e21:Number.isFinite(fiveE21)?fiveE21:confirmedE21,volume,avgVol,open,high,low,confirmedSide,confirmedClose,confirmedE9,confirmedE21,confirmedRsi,confirmedAdx,confirmedSupertrend,confirmationReason,fiveRsi,oneClose,multiReason,time:new Date(Number(closedCandles.at(-1)[0])).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),candleTime:thisCandle};
  cryptoSignalLock[coin]={candleTime:thisCandle,signal};
  return signal;
