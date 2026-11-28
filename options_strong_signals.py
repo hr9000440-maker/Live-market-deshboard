@@ -2,7 +2,7 @@
 """Server-side Telegram delivery for confirmed BTC/ETH/BNB/ZEC/DOGE option signals.
 
 Signal rules, option quote filters, and budget gate mirror index.html.
-Only completed 15m candles are used. No order is ever placed.
+Completed 5m candles trigger entries; completed 15m candles filter the broader trend. No order is ever placed.
 """
 import json, os, sys, time, urllib.parse, urllib.request
 from datetime import datetime, timezone
