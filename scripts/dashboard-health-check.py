@@ -6,6 +6,7 @@ BASE = "https://live-market-deshboard.onrender.com"
 PAGES = "https://hr9000440-maker.github.io/Live-market-deshboard/"
 REPO = "hr9000440-maker/Live-market-deshboard"
 COINS = ("BTC", "ETH", "BNB", "ZEC", "DOGE")
+ALERT_STATE_PATH = "state/health_alerts.json"
 issues, notes = [], []
 
 def request_json(url, headers=None, timeout=20):
@@ -318,10 +319,25 @@ def main():
     for n in notes: print("NOTE " + n)
     for i in issues: print("ISSUE " + i)
 
-    if issues:
+    current_keys = sorted(set(issue.split(":", 1)[0].strip() for issue in issues))
+    try:
+        with open(ALERT_STATE_PATH, "r", encoding="utf-8") as handle:
+            alert_state = json.load(handle)
+        previously_alerted = set(alert_state.get("alerted_issues", []))
+    except FileNotFoundError:
+        previously_alerted = set()
+    except Exception as exc:
+        print("NOTE health alert dedupe state unreadable; treating current issues as new: " + str(exc)[:160])
+        previously_alerted = set()
+
+    # Keep only alerts that are still active; a resolved issue can alert again if it returns.
+    previously_alerted.intersection_update(current_keys)
+    new_keys = set(current_keys) - previously_alerted
+    if issues and new_keys:
+        new_issues = [issue for issue in issues if issue.split(":", 1)[0].strip() in new_keys]
         tokens = telegram_tokens()
         chat = os.getenv("TELEGRAM_CHAT_ID", "").strip()
-        msg = "⚠️ DASHBOARD HEALTH CHECK\n" + "\n".join(issues) + "\nChecked: " + stamp
+        msg = "⚠️ DASHBOARD HEALTH CHECK\n" + "\n".join(new_issues) + "\nChecked: " + stamp
         if tokens and chat:
             errors = []
             for token in tokens:
@@ -332,13 +348,33 @@ def main():
                     with urllib.request.urlopen(req, timeout=20) as response:
                         result = json.loads(response.read().decode())
                     if result.get("ok"):
-                        print("PASS Telegram failure alert sent")
+                        previously_alerted.update(new_keys)
+                        print("PASS Telegram new health alert sent")
                         break
                     errors.append(str(result.get("description", "Telegram send failed"))[:160])
                 except Exception as e:
                     errors.append(str(e)[:160])
             else:
-                print("FAIL Telegram failure alert: all configured token aliases failed: " + " / ".join(errors))
+                print("FAIL Telegram health alert: all configured token aliases failed: " + " / ".join(errors))
+        else:
+            print("FAIL Telegram health alert: bot/chat configuration unavailable")
+    elif issues:
+        print("NOTE duplicate health alert suppressed for " + str(len(current_keys)) + " ongoing issue(s)")
+
+    next_state = {"active_issues": current_keys, "alerted_issues": sorted(previously_alerted)}
+    try:
+        old_state = {}
+        with open(ALERT_STATE_PATH, "r", encoding="utf-8") as handle:
+            old_state = json.load(handle)
+    except Exception:
+        pass
+    if next_state != old_state:
+        os.makedirs(os.path.dirname(ALERT_STATE_PATH), exist_ok=True)
+        with open(ALERT_STATE_PATH, "w", encoding="utf-8") as handle:
+            json.dump(next_state, handle, ensure_ascii=False, indent=2)
+            handle.write("\\n")
+
+    if issues:
         sys.exit(1)
 
     print("All critical checks passed. Notes are informational; no trading actions were taken.")
