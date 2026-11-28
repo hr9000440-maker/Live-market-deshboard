@@ -238,13 +238,27 @@ def best_option(coin, signal, underlying, payload):
     rows = payload.get("rows")
     if not isinstance(rows, list):
         raise RuntimeError("Options gateway response में rows नहीं हैं")
-    expiry = choose_expiry(rows)
     wanted_side = "C" if "CALL" in signal else "P"
+    # Do not let an illiquid nearest expiry suppress a valid later-expiry contract.
+    # Keep every existing quote, OI/volume and <=10% spread gate unchanged.
+    now = datetime.now(timezone.utc)
+    today_ms = int(datetime(now.year, now.month, now.day, tzinfo=timezone.utc).timestamp() * 1000)
+    expiry_rank = {}
+    for row in rows:
+        name = str(row.get("instrument_name") or "")
+        parts = name.split("-")
+        value = str(row.get("expiry") or (parts[1] if len(parts) > 1 else ""))
+        stamp = expiry_ms(value)
+        if value and stamp >= today_ms:
+            expiry_rank[value] = stamp
+    if not expiry_rank:
+        raise RuntimeError("कोई current/future option expiry उपलब्ध नहीं")
     candidates = []
     for row in rows:
         name = str(row.get("instrument_name") or "")
         parts = name.split("-")
-        if not name or not expiry or str(row.get("expiry") or (parts[1] if len(parts) > 1 else "")) != expiry:
+        expiry = str(row.get("expiry") or (parts[1] if len(parts) > 1 else ""))
+        if not name or expiry not in expiry_rank:
             continue
         option_type = str(row.get("option_type") or "").upper()
         is_wanted = (option_type in (wanted_side, "CALL" if wanted_side == "C" else "PUT")
@@ -276,13 +290,13 @@ def best_option(coin, signal, underlying, payload):
         # This affects the displayed estimate, never signal eligibility/delivery.
         cost_quantity = 0.1 if coin == "ETH" else min_amount
         estimated_inr = limit_usd * cost_quantity * USD_INR_BUFFER if cost_quantity > 0 else None
-        candidates.append({"name": name, "strike": strike, "expiry": expiry, "bid": bid_usd,
+        candidates.append({"name": name, "strike": strike, "expiry": expiry, "expiry_rank": expiry_rank[expiry], "bid": bid_usd,
                            "ask": ask_usd, "entry": limit_usd, "spread": spread,
                            "sl": limit_usd * 0.75, "tp1": limit_usd * 1.25, "tp2": limit_usd * 1.50,
                            "tp3": limit_usd * 1.75, "cost": estimated_inr})
     if not candidates:
-        raise RuntimeError("इस expiry में 10% तक spread, live quote और OI/volume वाला eligible " + wanted_side + " contract नहीं मिला")
-    return min(candidates, key=lambda x: (abs(x["strike"] - underlying), x["spread"]))
+        raise RuntimeError("किसी current/future expiry में 10% तक spread, live quote और OI/volume वाला eligible " + wanted_side + " contract नहीं मिला")
+    return min(candidates, key=lambda x: (x["expiry_rank"], abs(x["strike"] - underlying), x["spread"]))
 
 
 def telegram(message):
